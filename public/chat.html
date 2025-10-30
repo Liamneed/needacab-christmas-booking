@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Taxi — WhatsApp‑Style Chat Booking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="color-scheme" content="dark light" />
+  <style>
+    :root{
+      --bg:#0b1416;            /* chat wallpaper base */
+      --panel:#111b20;         /* header & composer */
+      --ink:#e8edf3;           /* main text */
+      --muted:#97a6b5;         /* secondary text */
+      --line:#1d2a30;          /* borders */
+      --in:#202c33;            /* inbound bubble */
+      --out:#005c4b;           /* outbound bubble (WhatsApp dark green) */
+      --out2:#056162;          /* out hover */
+      --accent:#ffd000;        /* brand accent */
+      --ok:#19c37d;            /* confirm */
+      --err:#ff5555;
+      --radius:18px;
+      --shadow:0 8px 24px rgba(0,0,0,.35);
+    }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+    html,body{ height:100% }
+    body{ margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial }
+    .page{ height:100%; display:flex; flex-direction:column }
+
+    /* Header like WhatsApp */
+    .nav{ position:sticky; top:0; z-index:50; background:var(--panel); border-bottom:1px solid var(--line); padding:10px 12px; display:flex; align-items:center; gap:10px }
+    .avatar{ width:36px; height:36px; border-radius:999px; background:#0e2429; display:grid; place-items:center; font-weight:800; color:#b3f1d2 }
+    .who{ display:flex; flex-direction:column }
+    .who .name{ font-weight:700; font-size:15px }
+    .who .status{ font-size:12px; color:var(--muted) }
+    .nav .actions{ margin-left:auto; display:flex; gap:8px }
+    .nav .actions a{ text-decoration:none; color:#cfe9ff; background:#0f2025; padding:8px 12px; border-radius:12px; font-size:13px; border:1px solid var(--line) }
+    @media (max-width:480px){ .nav .actions a{ display:none } }
+
+    /* Wallpaper */
+    .chat{ flex:1; overflow:auto; padding:12px; background:
+      radial-gradient(transparent 1px, var(--bg) 1px) 0 0/22px 22px,
+      radial-gradient(transparent 1px, #0b1113 1px) 11px 11px/22px 22px,
+      linear-gradient(180deg,#0c1518,#0b1416 40%, #0a1315); }
+
+    /* Messages */
+    .msg{ max-width:86%; position:relative; display:inline-block; padding:10px 12px; border-radius:16px; margin:4px 0; box-shadow:var(--shadow) }
+    .in{ background:var(--in); border:1px solid #233139 }
+    .out{ background:var(--out); border:1px solid #024b3e; align-self:flex-end }
+    .row{ display:flex; flex-direction:column }
+    .tail:after{ content:""; position:absolute; bottom:0; width:0; height:0 }
+    .in.tail:after{ left:-6px; border-right:8px solid var(--in); border-top:8px solid transparent }
+    .out.tail:after{ right:-6px; border-left:8px solid var(--out); border-top:8px solid transparent }
+    .meta{ color:var(--muted); font-size:11px; margin-top:4px; text-align:right }
+
+    /* System cards */
+    .card{ background:#0f1e22; border:1px solid var(--line); border-radius:14px; padding:12px; }
+    .hr{ height:1px; background:var(--line); margin:8px 0 }
+
+    /* Quick replies */
+    .quick{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
+    .chip{ background:#0e1b1f; color:#dfe6ee; border:1px solid var(--line); border-radius:999px; padding:8px 12px; font-size:14px; cursor:pointer }
+    .chip:active{ transform:scale(.98) }
+
+    /* Composer */
+    .bar{ display:none !important; 
+     position:fixed; left:0; right:0; bottom:0; z-index:60; background:var(--panel); border-top:1px solid var(--line); padding:10px env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left); display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center
+    }
+    .input{ background:#0e1a1e; border:1px solid var(--line); border-radius:999px; padding:10px 14px; color:var(--ink); min-height:44px; display:flex; align-items:center; gap:8px }
+    .input input{ all:unset; flex:1; font-size:15px }
+    .send{ background:#00a884; color:#02170e; border-radius:999px; border:1px solid #066a56; padding:10px 14px; font-weight:700; cursor:pointer }
+    .send[disabled]{ opacity:.6; cursor:not-allowed }
+
+    /* Inline inputs pop inside bubbles */
+    input, select, button{ font-size:16px }
+    .field{ display:flex; gap:10px; flex-wrap:wrap }
+    .field input{ background:#0e1b1f; color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:16px 16px; min-height:52px; font-size:17px; line-height:1.2; width:100%; flex:1 1 100%; }
+    .field input::placeholder{ color:#b7c3cf }
+    .btn{ background:#0f2025; color:#cfe9ff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; cursor:pointer }
+    .btn.primary{ background:#00a884; color:#02170e; border-color:#066a56; font-weight:800 }
+    .btn.ghost{ background:#0e1b1f; color:#cbd5e1 }
+
+    .toast{ position:fixed; left:50%; transform:translateX(-50%); top:64px; z-index:80; background:#19212d; color:#fff; border:1px solid #2a3648; padding:10px 14px; border-radius:12px; box-shadow:var(--shadow); max-width:92vw }
+
+    /* Make the two-up rows become full-width stacked on small phones */
+    @media (max-width:540px){
+      .field{ flex-direction:column }
+      .field input, .field button{ width:100% }
+    }
+
+    /* Typing indicator */
+    .typing{ width:42px; height:28px; border-radius:20px; background:#15252a; border:1px solid #22343b; display:grid; place-items:center }
+    .typing i{ width:6px; height:6px; background:#9fb0c6; border-radius:50%; display:inline-block; margin:0 2px; animation:b 1.2s infinite }
+    .typing i:nth-child(2){ animation-delay:.2s }
+    .typing i:nth-child(3){ animation-delay:.4s }
+    @keyframes b{ 0%,80%,100%{ opacity:.2; transform:translateY(0) } 40%{ opacity:1; transform:translateY(-3px) } }
+
+    /* Google Places dropdown: make suggestions roomy & on top */
+    .pac-container{ z-index: 99999 !important; border-radius:12px; box-shadow: var(--shadow); font-size:16px; overflow:hidden }
+    .pac-item{ padding:12px 14px; line-height:1.2 }
+    .pac-item-query{ font-weight:700 }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="nav" aria-label="Header">
+      <div class="avatar" aria-hidden="true">NA</div>
+      <div class="who">
+        <div class="name">Need‑A‑Cab Derriford</div>
+        <div class="status" id="status">online</div>
+      </div>
+      <div class="actions">
+        <a href="tel:01752666222">Call</a>
+        <a href="/admin">Admin</a>
+      </div>
+    </div>
+
+    <div id="chat" class="chat" role="log" aria-live="polite"></div>
+
+    <!-- WhatsApp-like composer: we use it as a hint but drive flow via quick replies/inline fields -->
+    <div class="bar" id="bar">
+      <div class="btn" id="restart">↺ Reset</div>
+      <div class="input"><input id="freeText" placeholder="Type your answer… (or use the buttons)" /></div>
+      <button class="send" id="sendBtn" disabled>Send</button>
+    </div>
+  </div>
+
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places&loading=async"></script>
+
+  <script>
+  // --- Config ---
+  const api = "http://localhost:4000";
+  const DERRI = { formatted:"Derriford Hospital, Plymouth, UK", lat:50.4195, lng:-4.1090 };
+  const UK_SW_BOUNDS = { south:50.28, west:-4.35, north:50.51, east:-3.85 };
+  const TIME_PRESETS = ["06:00","07:00","08:00","16:00","17:00","20:00"];
+
+  // --- State ---
+  const S = { wardName:"", wardPhone:"", staffName:"", staffPhone:"", shiftType:"", pickupDateISO:"", onOffDutyTime:"", pickup:null, destination:null, reasonCode:"", budgetNumber:"", budgetHolderName:"", requireReturn:false, returnDateISO:"", returnOnOffDutyTime:"" };
+  let step = 0;
+
+  // --- DOM ---
+  const chat = document.getElementById('chat');
+  const freeText = document.getElementById('freeText');
+  const sendBtn = document.getElementById('sendBtn');
+  const restart = document.getElementById('restart');
+
+  freeText.addEventListener('input', ()=> sendBtn.disabled = !freeText.value.trim());
+  restart.onclick = ()=>{ if(confirm('Clear all and start again?')) resetAll(); };
+  sendBtn.onclick = ()=>{ if(!freeText.value.trim()) return; userMsg(freeText.value.trim()); routeFreeText(freeText.value.trim()); freeText.value=''; sendBtn.disabled=true; };
+
+  // --- Helpers to render messages ---
+  function el(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
+  function timeNow(){ const d=new Date(); return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+
+  function msg(html, who){ const w=el('div','row'); const m=el('div','msg '+who+' tail'); m.innerHTML=html; w.appendChild(m); const meta=el('div','meta'); meta.textContent=timeNow(); m.appendChild(meta); chat.appendChild(w); chat.scrollTop=chat.scrollHeight; return m; }
+  function sys(html){ return msg(html,'in'); }
+  function userMsg(html){ return msg(html,'out'); }
+
+  // Typing indicator
+  function typing(on){ if(on){ const w=el('div','row'); const m=el('div','msg in'); m.style.padding='6px 10px'; m.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>'; w.id='typing'; w.appendChild(m); chat.appendChild(w); chat.scrollTop=chat.scrollHeight; } else { const t=document.getElementById('typing'); if(t) t.remove(); } }
+  function pause(ms){ return new Promise(r=> setTimeout(r, ms)); }
+
+  // Places
+  function makePlaces(inputEl, onPlace){ if(!window.google||!google.maps||!google.maps.places) return null; const bounds=new google.maps.LatLngBounds(new google.maps.LatLng(UK_SW_BOUNDS.south,UK_SW_BOUNDS.west), new google.maps.LatLng(UK_SW_BOUNDS.north,UK_SW_BOUNDS.east)); const ac=new google.maps.places.Autocomplete(inputEl,{ fields:["formatted_address","geometry"], componentRestrictions:{country:'gb'} }); ac.setBounds(bounds); ac.setOptions({strictBounds:false}); ac.addListener('place_changed',()=>{ const p=ac.getPlace(); if(!p||!p.geometry) return; onPlace({ formatted:p.formatted_address, lat:p.geometry.location.lat(), lng:p.geometry.location.lng() }); }); return ac; }
+  function locate(cb){ if(!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(pos=>{ const lat=pos.coords.latitude, lng=pos.coords.longitude; const geocoder=new google.maps.Geocoder(); geocoder.geocode({location:{lat:lat,lng:lng}}, (res,status)=>{ if(status==='OK'&&res&&res[0]) cb({formatted:res[0].formatted_address,lat:lat,lng:lng}); else cb({formatted:'My location ('+lat.toFixed(5)+', '+lng.toFixed(5)+')',lat:lat,lng:lng}); }); }); }
+
+  // Chips
+  function chip(label, onclick){ const c=el('span','chip'); c.textContent=label; c.onclick=onclick; return c; }
+
+  // Flow screens rendered as chat cards, user answers appear as outbound bubbles
+  async function start(){ sys('<strong>Hi! Let\'s book your Xmas Staff taxi.</strong>'); await stepWard(); }
+
+  async function stepWard(){ typing(true); await pause(400); typing(false); sys('<div class="card"><div><strong>Ward contact</strong></div><div class="hr"></div><div class="field"><input id="wardName" placeholder="Ward or Department Name (e.g. Birch)" autocapitalize="words" /><input id="wardPhone" placeholder="Ward phone" inputmode="tel" /></div><div class="quick" id="q1"></div><div class="field" style="margin-top:8px"><button class="btn primary" id="wardNext">Next</button></div></div>'); document.getElementById('q1').appendChild(chip('Birch',function(){ document.getElementById('wardName').value='Birch'; })); document.getElementById('q1').appendChild(chip('Chestnut',function(){ document.getElementById('wardName').value='Chestnut'; })); document.getElementById('wardNext').onclick=function(){ var n=document.getElementById('wardName').value.trim(); var p=document.getElementById('wardPhone').value.trim(); var phoneOk = /^[+]?[0-9][0-9 -]{6,}$/.test(p); if(!n||!phoneOk){ toast('Enter a ward name and valid phone'); return; } S.wardName=n; S.wardPhone=p; userMsg(S.wardName+' ('+S.wardPhone+')'); step=1; stepStaff(); } }
+
+  async function stepStaff(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Staff passenger</strong></div><div class="hr"></div><div class="field"><input id="staffName" placeholder="Staff name" autocapitalize="words" /><input id="staffPhone" placeholder="Staff phone" inputmode="tel" /></div><div class="field" style="margin-top:8px"><button class="btn primary" id="staffNext">Next</button><button class="btn ghost" id="back1">Back</button></div></div>'); document.getElementById('staffNext').onclick=function(){ var n=document.getElementById('staffName').value.trim(); var p=document.getElementById('staffPhone').value.trim(); var ok=/^[+]?[0-9][0-9 -]{6,}$/.test(p); if(!n||!ok){ toast('Enter a staff name and valid phone'); return; } S.staffName=n; S.staffPhone=p; userMsg(S.staffName+' ('+S.staffPhone+')'); step=2; stepShift(); }; document.getElementById('back1').onclick=function(){ userMsg('↩ Change: Ward'); stepWard(); } }
+
+  async function stepShift(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Shift type</strong></div><div class="hr"></div><div class="quick" id="qShift"></div><div class="field" style="margin-top:8px"><button class="btn ghost" id="back2">Back</button></div></div>'); var q=document.getElementById('qShift'); q.appendChild(chip('Start (to Derriford)',function(){ S.shiftType='start'; userMsg('Start (to Derriford)'); step=3; stepDateTime(); })); q.appendChild(chip('Finish (from Derriford)',function(){ S.shiftType='finish'; userMsg('Finish (from Derriford)'); step=3; stepDateTime(); })); document.getElementById('back2').onclick=function(){ userMsg('↩ Change: Staff'); stepStaff(); }
+  }
+
+  function defaultDateTime(){ var now=new Date(); var dd=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2); var mins=now.getMinutes(); var rounded=Math.ceil((mins+10)/5)*5; var hr=now.getHours()+Math.floor(rounded/60); var m=rounded%60; return { date:dd, time:('0'+hr).slice(-2)+':'+('0'+m).slice(-2) }; }
+
+  async function stepDateTime(){ typing(true); await pause(300); typing(false); var ddt=defaultDateTime(); sys('<div class="card"><div><strong>Date & time</strong></div><div class="hr"></div><div class="quick" id="qDate"></div><div class="field" style="margin-top:8px"><input id="date" type="date" /><input id="time" type="time" /></div><div class="quick" id="qTime" style="margin-top:6px"></div><div class="field" style="margin-top:8px"><button class="btn primary" id="dtNext">Next</button><button class="btn ghost" id="back3">Back</button></div></div>'); var qd=document.getElementById('qDate'); ['Today','Tomorrow','ASAP (+10m)'].forEach(function(lbl){ qd.appendChild(chip(lbl,function(){ var now=new Date(); if(lbl==='Tomorrow') now.setDate(now.getDate()+1); if(lbl==='ASAP (+10m)'){ var d=defaultDateTime(); document.getElementById('date').value=d.date; document.getElementById('time').value=d.time; return; } document.getElementById('date').value = now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2); })); }); var qt=document.getElementById('qTime'); TIME_PRESETS.forEach(function(t){ qt.appendChild(chip(t,function(){ document.getElementById('time').value=t; })); }); document.getElementById('date').value=S.pickupDateISO||ddt.date; document.getElementById('time').value=S.onOffDutyTime||ddt.time; document.getElementById('dtNext').onclick=function(){ var date=document.getElementById('date').value; var time=document.getElementById('time').value; if(!date||!time){ toast('Date and time required'); return; } var chosen=new Date(date+'T'+time+':00'); if(chosen.getTime()<Date.now()-60000){ toast('Time is in the past'); return; } S.pickupDateISO=date; S.onOffDutyTime=time; userMsg(S.pickupDateISO+' at '+S.onOffDutyTime); step=4; (S.shiftType==='start'?stepAddressHome:stepAddressAway)(); }; document.getElementById('back3').onclick=function(){ userMsg('↩ Change: Shift'); stepShift(); }
+  }
+
+  async function stepAddressHome(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Pickup address</strong></div><div class="hr"></div><div class="field"><input id="addrHome" placeholder="Start typing address…" /></div><div class="field" style="margin-top:8px"><button class="btn" id="useLoc">Use my location</button><button class="btn primary" id="addrNext" disabled>Select</button><button class="btn ghost" id="back4">Back</button></div><div class="hr"></div><small class="muted">Destination: Derriford Hospital</small></div>'); var inp=document.getElementById('addrHome'); var next=document.getElementById('addrNext'); makePlaces(inp,function(place){ S.pickup=place; S.destination={ formatted:DERRI.formatted, lat:DERRI.lat, lng:DERRI.lng }; next.disabled=false; }); document.getElementById('useLoc').onclick=function(){ locate(function(place){ inp.value=place.formatted; S.pickup=place; S.destination={ formatted:DERRI.formatted, lat:DERRI.lat, lng:DERRI.lng }; next.disabled=false; }); }; next.onclick=function(){ if(!S.pickup){ toast('Choose an address'); return; } userMsg(S.pickup.formatted+' → Derriford Hospital'); step=5; stepBudget(); }; document.getElementById('back4').onclick=function(){ userMsg('↩ Change: Date/Time'); stepDateTime(); }
+  }
+
+  async function stepAddressAway(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Destination address</strong></div><div class="hr"></div><div class="field"><input id="addrAway" placeholder="Start typing address…" /></div><div class="field" style="margin-top:8px"><button class="btn" id="useLoc">Use my location</button><button class="btn primary" id="addrNext" disabled>Select</button><button class="btn ghost" id="back4">Back</button></div><div class="hr"></div><small class="muted">Pickup: Derriford Hospital</small></div>'); var inp=document.getElementById('addrAway'); var next=document.getElementById('addrNext'); makePlaces(inp(function(place){})); makePlaces(inp,function(place){ S.destination=place; S.pickup={ formatted:DERRI.formatted, lat:DERRI.lat, lng:DERRI.lng }; next.disabled=false; }); document.getElementById('useLoc').onclick=function(){ locate(function(place){ inp.value=place.formatted; S.destination=place; S.pickup={ formatted:DERRI.formatted, lat:DERRI.lat, lng:DERRI.lng }; next.disabled=false; }); }; next.onclick=function(){ if(!S.destination){ toast('Choose an address'); return; } userMsg('Derriford Hospital → '+S.destination.formatted); step=5; stepBudget(); }; document.getElementById('back4').onclick=function(){ userMsg('↩ Change: Date/Time'); stepDateTime(); }
+  }
+
+  async function stepBudget(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Budget details</strong></div><div class="hr"></div><div class="field"><input id="rc" placeholder="Reason (2 chars)" maxlength="2" /><input id="bn" placeholder="Budget # (6 digits)" maxlength="6" inputmode="numeric" /><input id="bh" placeholder="Budget holder name" autocapitalize="words" /></div><div class="field" style="margin-top:8px"><button class="btn primary" id="budNext">Next</button><button class="btn ghost" id="back5">Back</button></div></div>'); document.getElementById('budNext').onclick=function(){ var rc=document.getElementById('rc').value.trim().toUpperCase(); var bn=document.getElementById('bn').value.trim(); var bh=document.getElementById('bh').value.trim(); if(!/^[A-Z0-9]{2}$/.test(rc)){ toast('Reason must be 2 chars'); return; } if(!/^[0-9]{6}$/.test(bn)){ toast('Budget number must be 6 digits'); return; } if(!bh){ toast('Enter budget holder'); return; } S.reasonCode=rc; S.budgetNumber=bn; S.budgetHolderName=bh; userMsg(rc+' / '+bn+' / '+bh); step=6; stepReturn(); }; document.getElementById('back5').onclick=function(){ userMsg('↩ Change: Address'); (S.shiftType==='start'?stepAddressHome:stepAddressAway)(); }
+  }
+
+  async function stepReturn(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Return booking?</strong></div><div class="hr"></div><div class="quick" id="qRet"></div><div class="field" style="margin-top:8px"><button class="btn ghost" id="back6">Back</button></div></div>'); var q=document.getElementById('qRet'); q.appendChild(chip('Yes',function(){ S.requireReturn=true; userMsg('Return: Yes'); stepReturnDetails(); })); q.appendChild(chip('No',function(){ S.requireReturn=false; userMsg('Return: No'); step=7; stepSummary(); })); document.getElementById('back6').onclick=function(){ userMsg('↩ Change: Budget'); stepBudget(); }
+  }
+
+  async function stepReturnDetails(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Return date & time</strong></div><div class="hr"></div><div class="quick" id="qRetD"></div><div class="field" style="margin-top:8px"><input id="rd" type="date" /><input id="rt" type="time" placeholder="(optional)" /></div><div class="quick" id="qRetT" style="margin-top:6px"></div><div class="field" style="margin-top:8px"><button class="btn primary" id="retNext">Next</button><button class="btn ghost" id="retBack">Back</button></div></div>'); var qd=document.getElementById('qRetD'); ['Same day','Tomorrow','+2 days'].forEach(function(lbl){ qd.appendChild(chip(lbl,function(){ var base=new Date(S.pickupDateISO+'T00:00:00'); if(lbl==='Tomorrow') base.setDate(base.getDate()+1); if(lbl==='+2 days') base.setDate(base.getDate()+2); document.getElementById('rd').value = base.getFullYear()+'-'+('0'+(base.getMonth()+1)).slice(-2)+'-'+('0'+base.getDate()).slice(-2); })); }); var qt=document.getElementById('qRetT'); TIME_PRESETS.forEach(function(t){ qt.appendChild(chip(t,function(){ document.getElementById('rt').value=t; })); }); document.getElementById('retNext').onclick=function(){ var d=document.getElementById('rd').value; if(!d){ toast('Return date required'); return; } S.returnDateISO=d; S.returnOnOffDutyTime=(document.getElementById('rt').value||'').trim(); userMsg(S.returnDateISO+(S.returnOnOffDutyTime? ' at '+S.returnOnOffDutyTime : ' (same time)')); step=7; stepSummary(); }; document.getElementById('retBack').onclick=function(){ userMsg('↩ Change: Return?'); stepReturn(); }
+  }
+
+  async function stepSummary(){ typing(true); await pause(300); typing(false); sys('<div class="card"><div><strong>Review & confirm</strong></div><div class="hr"></div><div><b>Date</b> '+(S.pickupDateISO||'-')+' &nbsp; <b>Time</b> '+(S.onOffDutyTime||'-')+'</div><div><b>Shift</b> '+(S.shiftType==='start'?'Start → Derriford':'Finish ← Derriford')+'</div><div class="hr"></div><div><b>Ward</b> '+S.wardName+' ('+S.wardPhone+')</div><div><b>Staff</b> '+S.staffName+' ('+S.staffPhone+')</div><div class="hr"></div><div><b>Pickup</b> '+(S.pickup?S.pickup.formatted:'-')+'</div><div><b>Destination</b> '+(S.destination?S.destination.formatted:'-')+'</div><div class="hr"></div><div><b>Reason</b> '+S.reasonCode+' &nbsp; <b>Budget</b> '+S.budgetNumber+' — '+S.budgetHolderName+'</div><div class="hr"></div><div><b>Return</b> '+(S.requireReturn? 'Yes' : 'No')+'</div>'+(S.requireReturn? '<div><b>Return time</b> '+S.returnDateISO+' '+(S.returnOnOffDutyTime||'(same time)')+'</div>':'')+'<div class="field" style="margin-top:10px"><button class="btn primary" id="submit">Submit booking</button><button class="btn ghost" id="edit">Start over</button></div></div>'); document.getElementById('submit').onclick=submitBooking; document.getElementById('edit').onclick=function(){ if(confirm('Clear all details and start again?')) resetAll(); }
+  }
+
+  async function submitBooking(){ userMsg('Submit booking'); sys('<div class="typing"><i></i><i></i><i></i></div>'); try{ var payload={ wardName:S.wardName, wardPhone:S.wardPhone, staffName:S.staffName, staffPhone:S.staffPhone, shiftType:S.shiftType, pickupDateISO:S.pickupDateISO, onOffDutyTime:S.onOffDutyTime, pickup:S.pickup, destination:S.destination, reasonCode:S.reasonCode, budgetNumber:S.budgetNumber, budgetHolderName:S.budgetHolderName, budgetHolderSignatureDataURL:"", requireReturn:!!S.requireReturn, returnDateISO:S.requireReturn?S.returnDateISO:"", returnOnOffDutyTime:S.requireReturn?S.returnOnOffDutyTime:"" }; var r=await fetch(api+'/api/bookings',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }); var data=await r.json(); var t=document.getElementById('typing'); if(t) t.remove(); if(!r.ok) throw new Error(data && data.error ? data.error : 'Booking failed'); var made=data.booking; sys('<div class="card"><strong>Booked!</strong><div class="hr"></div>'+ (made && made.pickupDateISO?made.pickupDateISO:'') +' '+ (made && made.onOffDutyTime?made.onOffDutyTime:'') +' • '+ (made && made.shiftType?made.shiftType:'') +'<br><span class="muted">'+ (made && made.pickup?made.pickup.formatted:'') +' → '+ (made && made.destination?made.destination.formatted:'') +'</span></div>'); if(data.returnBooking){ var rb=data.returnBooking; sys('<div class="card"><strong>Return booked!</strong><div class="hr"></div>'+ (rb && rb.pickupDateISO?rb.pickupDateISO:'') +' '+ (rb && rb.onOffDutyTime?rb.onOffDutyTime:'') +' • '+ (rb && rb.shiftType?rb.shiftType:'') +'<br><span class="muted">'+ (rb && rb.pickup?rb.pickup.formatted:'') +' → '+ (rb && rb.destination?rb.destination.formatted:'') +'</span></div>'); } } catch(e){ var t2=document.getElementById('typing'); if(t2) t2.remove(); sys('<div class="card" style="border-color:#5b1e24;background:#2a1215"><strong style="color:#ffb4b4">Error</strong><div class="hr"></div>'+ e.message +'</div>'); }
+    var row=el('div','quick'); var again=chip('Book another',function(){ resetAll(); }); var openAdmin=chip('Open Admin',function(){ location.href='/admin'; }); row.appendChild(again); row.appendChild(openAdmin); chat.appendChild(row);
+  }
+
+  function toast(msg){ var t=el('div','toast'); t.textContent=msg; document.body.appendChild(t); setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .25s'; }, 1800); setTimeout(function(){ t.remove(); }, 2200); }
+
+  function resetAll(){ for(var k in S){ if(Object.prototype.hasOwnProperty.call(S,k)){ if(typeof S[k]==='boolean') S[k]=false; else S[k]=''; } } S.pickup=null; S.destination=null; step=0; chat.innerHTML=''; start(); }
+
+  // Kickoff
+  start();
+  </script>
+</body>
+</html>

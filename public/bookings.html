@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Bookings — Need-A-Cab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b0d10; --card:#12161c; --ink:#e9eef4; --muted:#9bb0c2; --line:#202630;
+      --ok:#1ea672; --warn:#e7a03c; --err:#d23f3f; --brand:#f6c423; --chip:#1b222c;
+      --btn:#151b22; --btnHover:#1b2330; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
+    a{text-decoration:none;color:inherit}
+
+    .navbar{
+      position:sticky;top:0;z-index:20;
+      display:flex;justify-content:space-between;align-items:center;
+      background:#0d1218;border-bottom:1px solid var(--line);padding:12px 20px;
+    }
+    .nav-left{display:flex;gap:16px;align-items:center}
+    .nav-left a{padding:8px 12px;border-radius:10px;font-weight:600}
+    .nav-left a:hover{background:#1a222d}
+    .nav-left a.active{background:var(--brand);color:#111}
+
+    .page{max-width:1100px;margin:22px auto;padding:0 16px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    h1{font-size:20px;margin:12px 0}
+    .tools{background:var(--card);border:1px solid var(--line);padding:10px;border-radius:var(--radius);margin-bottom:14px}
+    select, input, button{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:10px 12px; font:inherit;
+    }
+    select:hover, input:hover{border-color:#2a3342}
+    button{cursor:pointer}
+    button.primary{background:var(--brand);color:#111;border-color:#e0b21e}
+    button.ghost{background:transparent}
+    button:hover{background:var(--btnHover)}
+    button.primary:hover{filter:brightness(0.95)}
+    .table-wrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+    table{width:100%;border-collapse:collapse;min-width:860px}
+    th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
+    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
+    tr:hover td{background:#0f141b}
+    .ref{display:flex;flex-direction:column;gap:4px;min-width:120px}
+    .shortRef{font-weight:800;letter-spacing:0.3px;color:var(--brand)}
+    .legacyRef{font-size:12px;color:var(--muted)}
+    .addr{font-size:13px;color:#d7e0ea}
+    .addr small{display:block;color:var(--muted);margin-top:4px}
+    .chip{background:var(--chip);border:1px solid var(--line);padding:4px 8px;border-radius:999px;font-size:12px;color:#cfd8e3}
+    .chip.pending{border-color:#3a4b63}
+    .chip.approved{border-color:#245e49;color:#b2f1d7}
+    .chip.declined{border-color:#6a2d2d;color:#ffb3b3}
+    .actions{display:flex;gap:6px;flex-wrap:wrap}
+    .btn-approve{background:#113c2c;border-color:#1a5d45}
+    .btn-decline{background:#3a1c1c;border-color:#6a2d2d}
+    .btn-delete{background:#2a2a2a;border-color:#3a3a3a}
+    .btn-approve:hover{background:#164c38}
+    .btn-decline:hover{background:#472222}
+    .btn-delete:hover{background:#333}
+    .statusbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    .right{margin-left:auto}
+    .empty{padding:30px;text-align:center;color:var(--muted)}
+    .toast{
+      position:fixed;right:16px;bottom:16px;background:#111a25;color:#e9eef4;
+      border:1px solid #223044;padding:10px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);
+      opacity:0;transform:translateY(6px);transition:.18s ease;max-width:80vw
+    }
+    .toast.show{opacity:1;transform:translateY(0)}
+    @media (max-width:720px){
+      th:nth-child(4), td:nth-child(4){display:none}
+      .actions{gap:4px}
+      button{padding:8px 10px}
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/">Home</a>
+      <a href="/admin">Admin</a>
+      <a href="/staff_booker.html">Staff Booker</a>
+      <a href="/chat">Chat Booker</a>
+      <a href="/bookings" class="active">Bookings</a>
+    </div>
+  </nav>
+
+  <div class="page">
+    <h1>Bookings</h1>
+
+    <div class="tools">
+      <div class="statusbar row">
+        <div class="row" style="gap:8px">
+          <label for="statusSel" style="color:var(--muted)">Status</label>
+          <select id="statusSel">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
+        <div class="right row">
+          <button id="refreshBtn" class="ghost">Refresh</button>
+          <a id="csvLink" href="#" download="bookings_export.csv"><button class="ghost">Export CSV</button></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Ward / Staff</th>
+            <th>Date &amp; Time</th>
+            <th>Zone</th>
+            <th>Trip</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="empty" style="display:none">No bookings found.</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const api = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4000" : "";
+
+    const tbody = document.getElementById("tbody");
+    const statusSel = document.getElementById("statusSel");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const empty = document.getElementById("empty");
+    const csvLink = document.getElementById("csvLink");
+    const toastEl = document.getElementById("toast");
+
+    function toast(msg){
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      setTimeout(()=>toastEl.classList.remove("show"), 2200);
+    }
+    function esc(s){ return String(s ?? "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+    function toDDMMYY(iso){
+      if(!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso||"";
+      const [y,m,d]=iso.split("-");
+      return `${d}-${m}-${y.slice(2)}`;
+    }
+    function shortAddr(s){ return (s||"").length>72 ? (s||"").slice(0,69)+"..." : (s||""); }
+
+    function fmtWardStaff(b){
+      return `<div><strong>${esc(b.wardName)}</strong><br/>
+        <span class="addr">${esc(b.staffName)}<small>${esc(b.staffPhone||"")}</small></span></div>`;
+    }
+    function fmtDateTime(b){
+      return `<div>${esc(toDDMMYY(b.pickupDateISO))}<br/><span class="addr"><small>${esc(b.onOffDutyTime)}</small></span></div>`;
+    }
+    function fmtZones(b){
+      const pick = b?.pickup?.zone?.name || "";
+      const dest = b?.destination?.zone?.name || "";
+      return `<div class="addr">${esc(pick)}<br/><small>→ ${esc(dest)}</small></div>`;
+    }
+    function fmtTrip(b){
+      return `<div class="addr">${esc(shortAddr(b.pickup?.formatted||""))}
+        <br/><small>→ ${esc(shortAddr(b.destination?.formatted||""))}</small></div>`;
+    }
+    function statusChip(status){
+      const cls = status === "approved" ? "approved" : status === "declined" ? "declined" : "pending";
+      return `<span class="chip ${cls}">${esc(status||"pending")}</span>`;
+    }
+
+    function renderRow(b){
+      const refBlock = `
+        <div class="ref">
+          <span class="shortRef">${esc(b.shortRef || "—")}</span>
+          <span class="legacyRef">${esc(b.reference || "")}</span>
+        </div>`;
+      const actApprove = `<button class="btn-approve" data-act="approve" data-id="${b._id}">Accept</button>`;
+      const actDecline = `<button class="btn-decline" data-act="decline" data-id="${b._id}">Decline</button>`;
+      const actDelete  = `<button class="btn-delete"  data-act="delete"  data-id="${b._id}">Delete</button>`;
+
+      return `<tr data-id="${b._id}">
+        <td>${refBlock}</td>
+        <td>${fmtWardStaff(b)}</td>
+        <td>${fmtDateTime(b)}</td>
+        <td>${fmtZones(b)}</td>
+        <td>${fmtTrip(b)}</td>
+        <td>${statusChip(b.status)}</td>
+        <td class="actions">${actApprove} ${actDecline} ${actDelete}</td>
+      </tr>`;
+    }
+
+    function toCSV(items){
+      const header = [
+        "pickupDateISO","onOffDutyTime","shiftType","wardName","staffName","staffPhone",
+        "pickup.formatted","pickup.zone.name","destination.formatted","destination.zone.name",
+        "reference","requireReturn","isReturn","status","shortRef","declineReason"
+      ];
+      const rows = items.map(b => ([
+        toDDMMYY(b.pickupDateISO),
+        b.onOffDutyTime,
+        b.shiftType,
+        (b.wardName||"").replace(/,/g," "),
+        (b.staffName||"").replace(/,/g," "),
+        (b.staffPhone||""),
+        (b.pickup?.formatted||"").replace(/,/g," "),
+        (b.pickup?.zone?.name||"").replace(/,/g," "),
+        (b.destination?.formatted||"").replace(/,/g," "),
+        (b.destination?.zone?.name||"").replace(/,/g," "),
+        (b.reference||""),
+        b.requireReturn ? "TRUE" : "FALSE",
+        b.isReturn ? "TRUE" : "FALSE",
+        b.status||"",
+        b.shortRef||"",
+        (b.declineReason||"").replace(/,/g," ")
+      ].join(",")));
+      return [header.join(","), ...rows].join("\n");
+    }
+
+    async function load(){
+      const wantsPending = statusSel.value === "pending";
+      const qs = new URLSearchParams();
+      if (!wantsPending && statusSel.value) qs.set("status", statusSel.value);
+      qs.set("limit", "200");
+      const url = `${api}/api/bookings?${qs.toString()}`;
+
+      tbody.innerHTML = "";
+      empty.style.display = "none";
+      try{
+        const r = await fetch(url);
+        if(!r.ok) throw new Error("Failed to load bookings");
+        const data = await r.json();
+        let items = data.items || [];
+
+        if (wantsPending) {
+          items = items.filter(b => (b.status === "pending") || (b.status === undefined || b.status === null || b.status === ""));
+        }
+
+        if (wantsPending) {
+          const csvText = toCSV(items);
+          const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+          const urlObj = URL.createObjectURL(blob);
+          csvLink.href = urlObj;
+          csvLink.download = "bookings_pending.csv";
+        } else {
+          csvLink.href = `${api}/api/bookings/export?${qs.toString()}`;
+          csvLink.download = "bookings_export.csv";
+        }
+
+        if (items.length === 0){
+          empty.style.display = "block";
+          return;
+        }
+        tbody.innerHTML = items.map(renderRow).join("");
+      }catch(e){
+        empty.style.display = "block";
+        toast(e.message || "Error");
+      }
+    }
+
+    function grabRowBooking(row){
+      const cells = row.querySelectorAll("td");
+      const [refCell, wardCell, dtCell, , tripCell] = cells;
+      const shortRef = refCell.querySelector(".shortRef")?.textContent.trim();
+      const legacyRef = refCell.querySelector(".legacyRef")?.textContent.trim();
+      const staffLine = wardCell.textContent.trim();
+      const dt = dtCell.textContent.trim().split(/\s+/);
+      const date = dt[0] || "";
+      const time = dt[1] || "";
+      const tripLines = tripCell.textContent.split("→");
+      const pick = (tripLines[0]||"").trim();
+      const drop = (tripLines[1]||"").trim();
+      return {
+        shortRef, reference: legacyRef, pickupDateISO: date, onOffDutyTime: time,
+        pickup:{ formatted: pick }, destination:{ formatted: drop },
+        staffName: staffLine.split("\n")[0] || ""
+      };
+    }
+
+    function buildApproveMessage(row){
+      const b = grabRowBooking(row);
+      const dateNice = toDDMMYY(b.pickupDateISO);
+      return (
+        `Your request for your Christmas staff booking for Derriford Hospital on ${dateNice} at ${b.onOffDutyTime}. ` +
+        `Pick up: ${b.pickup.formatted}. Drop off: ${b.destination.formatted}. In the name ${b.staffName} has been approved. ` +
+        `Your reference number is ${b.shortRef||""}. Thanks Need-A-Cab Taxis`
+      );
+    }
+
+    async function approve(id, row){
+      const defaultMsg = buildApproveMessage(row);
+      const msg = prompt("SMS to customer (edit if needed):", defaultMsg);
+      if (msg === null) return;
+
+      const r = await fetch(`${api}/api/bookings/${id}/approve`, {
+        method:"PATCH", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      const js = await r.json();
+      if(!r.ok){ toast(js.error||"Approve failed"); return; }
+      toast("Approved ✔");
+      updateRowFromPayload(row, js.booking);
+    }
+
+    async function decline(id, row){
+      const reason = prompt("Enter a short reason to send to the customer:");
+      if (reason === null) return;
+      const trimmed = String(reason).trim();
+      if (!trimmed){ toast("Decline reason required"); return; }
+
+      const r = await fetch(`${api}/api/bookings/${id}/decline`, {
+        method:"PATCH", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ reason: trimmed })
+      });
+      const js = await r.json();
+      if(!r.ok){ toast(js.error||"Decline failed"); return; }
+      toast("Declined ✖");
+      updateRowFromPayload(row, js.booking);
+    }
+
+    async function deleteBooking(id, row){
+      if(!confirm("Delete this booking? This cannot be undone.")) return;
+      const r = await fetch(`${api}/api/bookings/${id}`, { method:"DELETE" });
+      const js = await r.json();
+      if(!r.ok){ toast(js.error||"Delete failed"); return; }
+      row.remove();
+      if (!tbody.children.length) empty.style.display = "block";
+      toast("Deleted 🗑");
+    }
+
+    function updateRowFromPayload(row, b){
+      const cells = row.querySelectorAll("td");
+      cells[0].innerHTML = `<div class="ref">
+        <span class="shortRef">${esc(b.shortRef||"—")}</span>
+        <span class="legacyRef">${esc(b.reference||"")}</span></div>`;
+      cells[5].innerHTML = statusChip(b.status);
+    }
+
+    tbody.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-act]");
+      if(!btn) return;
+      const id = btn.getAttribute("data-id");
+      const row = btn.closest("tr");
+      const act = btn.getAttribute("data-act");
+      if (act === "approve") approve(id, row);
+      else if (act === "decline") decline(id, row);
+      else if (act === "delete") deleteBooking(id, row);
+    });
+
+    statusSel.addEventListener("change", load);
+    refreshBtn.addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Taxi — Admin Reports</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b0d10; --card:#12161c; --ink:#e9eef4; --muted:#9bb0c2; --line:#202630;
+      --ok:#1ea672; --warn:#e7a03c; --err:#d23f3f; --brand:#f6c423; --chip:#1b222c;
+      --btn:#151b22; --btnHover:#1b2330; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
+    a{text-decoration:none;color:inherit}
+
+    /* NAVBAR (matches bookings) */
+    .navbar{
+      position:sticky;top:0;z-index:20;
+      display:flex;justify-content:space-between;align-items:center;
+      background:#0d1218;border-bottom:1px solid var(--line);padding:12px 20px;
+    }
+    .nav-left{display:flex;gap:16px;align-items:center}
+    .nav-left a{padding:8px 12px;border-radius:10px;font-weight:600}
+    .nav-left a:hover{background:#1a222d}
+    .nav-left a.active{background:var(--brand);color:#111}
+
+    /* PAGE WRAP / CARDS */
+    .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
+    .card{
+      background:var(--card);border:1px solid var(--line);
+      border-radius:var(--radius);padding:18px;  /* +2px padding for breathing room */
+    }
+    h1{font-size:20px;margin:0 0 12px}
+    h2{font-size:18px;margin:0 0 12px}
+    .muted{color:var(--muted);font-size:12px}
+
+    /* CONTROLS + BUTTONS (match bookings) */
+    .controls,.toolbar,.row-actions{
+      display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center; /* more space */
+    }
+    .btn{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:10px 12px; font:inherit; cursor:pointer;
+    }
+    .btn:hover{background:var(--btnHover)}
+    .btn.primary{background:var(--brand);color:#111;border-color:#e0b21e}
+    .btn.primary:hover{filter:brightness(0.95)}
+    .btn.alt{background:#113c2c;border-color:#1a5d45}
+    .btn.alt:hover{background:#164c38}
+    .btn.ghost{background:transparent}
+
+    /* Make labels line up cleanly with inputs */
+    label{display:flex;align-items:center;gap:8px}
+
+    /* Make inputs clearly visible and easy to tap */
+    input[type="date"], input[type="number"], select{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:8px 10px; font:inherit;
+      min-height:40px;               /* taller touch target */
+      width:180px;                   /* visible width for date pickers */
+    }
+    /* Narrow numeric fields keep a smaller width */
+    #radiusKm, #tolMins { width: 100px; }
+
+    input:hover, select:hover{border-color:#2a3342}
+
+    /* TABLES (match bookings) */
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
+    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
+    tr:hover td{background:#0f141b}
+
+    /* CHIPS / TAGS */
+    .pill{
+      display:inline-block;padding:6px 12px;border-radius:999px;font-weight:600;
+      background:var(--chip);border:1px solid var(--line);color:#cfd8e3;cursor:pointer;
+    }
+    .pill.active{background:var(--brand);color:#111;border-color:#e0b21e}
+    .tag{display:inline-block;padding:3px 8px;background:var(--brand);color:#111;border-radius:999px;font-size:12px;margin-left:6px}
+    .subtag{display:inline-block;padding:2px 6px;background:#263241;color:#cfd8e3;border-radius:999px;font-size:11px;margin-left:6px}
+    .zonechip{display:inline-block;padding:2px 6px;background:var(--chip);color:#cfd8e3;border:1px solid var(--line);border-radius:999px;font-size:11px;margin-left:6px}
+
+    /* TAXI PACKS */
+    .packs{display:flex;flex-direction:column;gap:10px}
+    .taxi{
+      border:1px dashed #334154;border-radius:10px;padding:12px;background:#0e141b;
+    }
+    .taxi h4{margin:0 0 6px 0;font-size:13px;color:#d7e0ea}
+    .addr{display:block;color:#d7e0ea;font-size:12px;line-height:1.3}
+
+    /* HR */
+    .hr{height:1px;background:var(--line);margin:10px 0}
+  </style>
+</head>
+<body>
+  <!-- NAVBAR (same links/order as bookings) -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/">Home</a>
+      <a href="/admin" class="active">Admin</a>
+      <a href="/staff_booker.html">Staff Booker</a>
+      <a href="/chat">Chat Booker</a>
+      <a href="/bookings">Bookings</a>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <!-- HEADER CARD -->
+    <header class="card">
+      <h1>Derriford Staff Taxi — Admin Reports</h1>
+      <div class="controls">
+        <label>Actions:</label>
+        <button id="refreshOld" class="btn primary">Refresh Legacy Tables</button>
+        <span class="muted">API: <code>http://localhost:4000</code></span>
+      </div>
+    </header>
+
+    <!-- SMART PACK -->
+    <section class="card">
+      <h2>Smart Pack — Fill Taxis by Nearby Pickups</h2>
+      <div class="toolbar">
+        <label>Date
+          <input type="date" id="grpDate">
+        </label>
+
+        <div id="typeToggle" style="display:flex;gap:8px;align-items:center">
+          <span class="pill active" data-type="start">Shift Start (to Derriford)</span>
+          <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
+        </div>
+
+        <label>Seat size
+          <select id="seatSize">
+            <option value="4">4 seats</option>
+            <option value="6" selected>6 seats</option>
+            <option value="8">8 seats</option>
+          </select>
+        </label>
+
+        <label>Radius (km)
+          <input type="number" id="radiusKm" value="2" step="0.5" min="0.5">
+        </label>
+
+        <label>Time tolerance (mins)
+          <input type="number" id="tolMins" value="0" step="5" min="0">
+        </label>
+
+        <button id="loadGroups" class="btn alt">Load</button>
+        <button id="smartPack" class="btn primary">Smart Pack All</button>
+        <button id="exportSmartCsv" class="btn ghost" disabled>Export Smart Pack CSV</button>
+      </div>
+
+      <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
+      <p class="muted" style="margin-top:6px">Smart Pack automatically groups nearby pickups for the same shift and fills 4/6/8-seater taxis.</p>
+    </section>
+
+    <!-- LEGACY REPORTS -->
+    <section class="card">
+      <h2>Legacy Reports (visual)</h2>
+
+      <div class="toolbar" style="margin-bottom:8px;">
+        <label>Date
+          <input type="date" id="legacyDate">
+        </label>
+        <button id="legacyLoad" class="btn alt">Load Legacy by Date</button>
+      </div>
+
+      <table id="zoneTable">
+        <thead>
+          <tr><th>Zone</th><th>Count</th><th>Sample (pickup date, ward, staff, shift, on/off, ref)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="hr"></div>
+
+      <table id="shiftTable">
+        <thead>
+          <tr><th>Shift</th><th>Count</th><th>Zones (distinct)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- JS (unchanged behaviour) -->
+  <script>
+    const apiBase = "http://localhost:4000";
+
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || (url + " failed"));
+      return data;
+    }
+
+    function toInt(val, fallback){ const n = Number(val); return Number.isFinite(n)&&n>0?Math.floor(n):fallback; }
+    const R_EARTH=6371000; const toRad=d=>d*Math.PI/180;
+    function haversineMeters(a,b){
+      if(!a||!b||a.lat==null||b.lat==null)return 1e12;
+      const dLat=toRad(b.lat-a.lat),dLng=toRad(b.lng-a.lng);
+      const la1=toRad(a.lat),la2=toRad(b.lat);
+      const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+      return 2*R_EARTH*Math.asin(Math.sqrt(h));
+    }
+    function mm(hhmm){const [h,m]=String(hhmm||"00:00").split(":").map(n=>parseInt(n||"0",10));return (h*60+m)|0;}
+    function withinTol(t1,t2,tol){return Math.abs(mm(t1)-mm(t2))<=tol;}
+
+    function setToday(inputEl){
+      if(!inputEl.value){
+        const d=new Date();
+        inputEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      }
+    }
+    const grpDate=document.getElementById("grpDate");
+    const legacyDate=document.getElementById("legacyDate");
+    setToday(grpDate);
+    setToday(legacyDate);
+
+    const typePills=document.querySelectorAll("#typeToggle .pill");
+    let groupType="start";
+    function clearSmartState(){
+      lastSmartBuckets=null;
+      lastSmartSeat=null;
+      lastSmartParams=null;
+      document.getElementById("smartOutput").innerHTML="";
+      document.getElementById("exportSmartCsv").disabled = true;
+    }
+    typePills.forEach(p=>p.addEventListener("click",()=>{
+      typePills.forEach(x=>x.classList.remove("active"));
+      p.classList.add("active");
+      groupType=p.dataset.type;
+      clearSmartState();
+    }));
+
+    let currentGroups=[];
+    let lastSmartBuckets=null;
+    let lastSmartSeat=null;
+    let lastSmartParams=null;
+
+    async function loadGroups(){
+      const date=document.getElementById("grpDate").value||"";
+      const url=new URL(`${apiBase}/api/reports/shift-groups`);
+      url.searchParams.set("type",groupType);
+      if(date)url.searchParams.set("date",date);
+      const json=await fetchJSON(url);
+      currentGroups=json.groups||[];
+      clearSmartState();
+    }
+
+    function normalizeAddr(rec,zone){
+      if(typeof rec==="object")return{formatted:rec.formatted,lat:rec.lat,lng:rec.lng,zone:zone||"(unknown)"};
+      return{formatted:String(rec||""),lat:null,lng:null,zone:zone||"(unknown)"};
+    }
+    function flattenForTime(groups,time,tol){
+      const out=[];
+      for(const g of groups){
+        if(!withinTol(g.onOffDutyTime,time,tol))continue;
+        const zone=g.zoneName||"(unknown)";
+        for(const a of(g.addresses||[]))out.push(normalizeAddr(a,zone));
+      }
+      return out;
+    }
+    function greedyCluster(addresses,seat,radius){
+      const unassigned=addresses.map((a,i)=>({...a,_i:i}));
+      const taxis=[];
+      while(unassigned.length){
+        let seedIdx=unassigned.findIndex(x=>x.lat!=null);
+        if(seedIdx===-1)seedIdx=0;
+        const seed=unassigned.splice(seedIdx,1)[0];
+        const pack=[seed];
+        if(seat>1){
+          const scored=unassigned.map(x=>({x,d:haversineMeters(seed,x)})).sort((a,b)=>a.d-b.d);
+          for(const s of scored){
+            if(pack.length>=seat)break;
+            if(s.d<=radius){
+              const idx=unassigned.findIndex(u=>u._i===s.x._i);
+              if(idx>-1){pack.push(s.x);unassigned.splice(idx,1);}
+            }
+          }
+        }
+        taxis.push(pack);
+      }
+      return taxis;
+    }
+    function uniqueTimes(groups){return Array.from(new Set(groups.map(g=>g.onOffDutyTime||"00:00"))).sort((a,b)=>a.localeCompare(b));}
+
+    function renderSmartOutput(buckets,seat){
+      const out=document.getElementById("smartOutput");
+      out.innerHTML="";
+      let taxiCounter=1;
+      buckets.forEach(bucket=>{
+        const col=document.createElement("div");
+        col.innerHTML=`<h4>${bucket.time} <span class="subtag">${seat}-seater</span> <span class="tag">${bucket.taxis.reduce((n,t)=>n+t.length,0)} pax</span></h4>`;
+        bucket.taxis.forEach(pack=>{
+          const wrap=document.createElement("div");
+          wrap.className="taxi";
+          const list=pack.map(a=>a.formatted);
+          const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
+          const listText=list.map(x=>`• ${x}`).join("\n");
+          wrap.innerHTML=`
+            <h4>Taxi ${taxiCounter++} — ${list.length} pax <span class="zonechip">${zones}</span></h4>
+            <div>${list.map(x=>`<span class="addr">${x}</span>`).join("")}</div>
+            <div class="row-actions" style="margin-top:6px;">
+              <button class="btn alt copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
+            </div>
+          `;
+          col.appendChild(wrap);
+        });
+        out.appendChild(col);
+      });
+      out.querySelectorAll(".copy").forEach(b=>{
+        b.addEventListener("click",()=>{
+          const t=b.getAttribute("data-text");
+          navigator.clipboard.writeText(t).catch(()=>{});
+          b.textContent="Copied"; setTimeout(()=>b.textContent="Copy",1200);
+        });
+      });
+    }
+
+    async function smartPackAll(){
+      if(!currentGroups.length)await loadGroups();
+      const seat=toInt(document.getElementById("seatSize").value,6);
+      const radiusKm=Number(document.getElementById("radiusKm").value||2);
+      const tol=toInt(document.getElementById("tolMins").value,0);
+      const radius=Math.max(200,radiusKm*1000);
+      const times=uniqueTimes(currentGroups);
+      const buckets=[];
+      for(const t of times){
+        const addrs=flattenForTime(currentGroups,t,tol);
+        if(!addrs.length)continue;
+        const clusters=greedyCluster(addrs,seat,radius);
+        buckets.push({time:t,taxis:clusters});
+      }
+      lastSmartBuckets=buckets;
+      lastSmartSeat=seat;
+      lastSmartParams={
+        date: document.getElementById("grpDate").value || "",
+        type: groupType,
+        radiusKm: radiusKm,
+        tolMins: tol
+      };
+      document.getElementById("exportSmartCsv").disabled = !buckets.length;
+      renderSmartOutput(buckets,seat);
+    }
+
+    document.getElementById("loadGroups").addEventListener("click",loadGroups);
+    document.getElementById("smartPack").addEventListener("click",smartPackAll);
+
+    function toCsvCell(s){
+      const v = String(s==null?"":s);
+      if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+      return v;
+    }
+    function downloadCSV(filename, rows){
+      const header = Object.keys(rows[0] || {});
+      const lines = [
+        header.map(toCsvCell).join(","),
+        ...rows.map(r => header.map(k => toCsvCell(r[k])).join(","))
+      ].join("\n");
+      const blob = new Blob([lines], { type:"text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+    function buildSmartCsvRows(buckets, params){
+      const rows = [];
+      let taxiNoGlobal = 1;
+      const metaDate = params?.date || "";
+      const metaShift = (params?.type === "finish" ? "finish" : "start");
+      buckets.forEach(bucket => {
+        bucket.taxis.forEach(pack => {
+          const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
+          const addresses = pack.map(a=>a.formatted).join(" | ");
+          rows.push({
+            Date: metaDate,
+            Shift: metaShift,
+            Time: bucket.time,
+            Taxi: `Taxi ${taxiNoGlobal++}`,
+            Passengers: String(pack.length),
+            Zones: zones,
+            Addresses: addresses
+          });
+        });
+      });
+      return rows;
+    }
+    function smartCsvFilename(params, seat){
+      const d = params?.date || "all";
+      const t = params?.type || "start";
+      const r = (params?.radiusKm ?? 0)+"km";
+      const tol = (params?.tolMins ?? 0)+"m";
+      return `smartpack_${d}_${t}_${seat}seat_${r}_tol${tol}.csv`;
+    }
+    document.getElementById("exportSmartCsv").addEventListener("click", ()=>{
+      if (!lastSmartBuckets || !lastSmartBuckets.length) return;
+      const rows = buildSmartCsvRows(lastSmartBuckets, lastSmartParams);
+      if (!rows.length) return;
+      downloadCSV(smartCsvFilename(lastSmartParams, lastSmartSeat), rows);
+    });
+
+    async function refreshOld(){
+      const d = document.getElementById("legacyDate").value || "";
+      const byZone = await fetchJSON(d ? `${apiBase}/api/reports/by-zone?date=${encodeURIComponent(d)}` : `${apiBase}/api/reports/by-zone`);
+      const byShift = await fetchJSON(d ? `${apiBase}/api/reports/by-shift?date=${encodeURIComponent(d)}` : `${apiBase}/api/reports/by-shift`);
+      renderLegacy(byZone,byShift);
+    }
+    function renderLegacy(byZone,byShift){
+      const z=document.querySelector("#zoneTable tbody"),s=document.querySelector("#shiftTable tbody");
+      z.innerHTML=""; s.innerHTML="";
+      byZone.forEach(r=>z.insertAdjacentHTML("beforeend",
+        `<tr><td>${r._id?.zoneName||"(unknown)"}</td><td>${r.count}</td><td>${
+          (r.items||[]).slice(0,3).map(i=>
+            `${i.pickupDateISO} • ${i.staff} • ${i.shiftType} • ${i.onOffDutyTime}`
+          ).join("<br>")
+        }</td></tr>`));
+      byShift.forEach(r=>s.insertAdjacentHTML("beforeend",
+        `<tr><td>${r._id?.shiftType||"?"} — ${r._id?.onOffDutyTime||"?"}</td><td>${r.count}</td><td>${
+          (r.zones||[]).filter(Boolean).join(", ")
+        }</td></tr>`));
+    }
+    document.getElementById("refreshOld").addEventListener("click",refreshOld);
+    document.getElementById("legacyLoad").addEventListener("click",refreshOld);
+
+    refreshOld();
+  </script>
+</body>
+</html>
