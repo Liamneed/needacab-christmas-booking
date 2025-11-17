@@ -154,18 +154,26 @@
       display:flex;flex-direction:column;gap:4px;
     }
     .modal-row label{font-size:12px;color:var(--muted);}
-    .modal-row input,.modal-row select{
+    .modal-row input,
+    .modal-row select,
+    .modal-row textarea{
       width:100%;
       min-height:34px;
       padding:6px 9px;
       background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid var(--line);
       font:inherit;
     }
+    .modal-row textarea{
+      min-height:60px;
+      resize:vertical;
+      font-size:12px;
+    }
     .modal-footer{
       display:flex;justify-content:space-between;align-items:center;margin-top:6px;
     }
     .hidden{display:none;}
     .error-text{color:var(--err);font-size:12px;}
+    .readonly-note{font-size:11px;color:var(--muted);}
   </style>
 </head>
 <body>
@@ -315,6 +323,21 @@
           <label for="editBudgetHolder">Budget Holder Name</label>
           <input id="editBudgetHolder" type="text">
         </div>
+
+        <!-- NEW: Pickup & Destination read-only fields -->
+        <div class="modal-row" style="grid-column:1/-1;">
+          <label for="editPickupAddress">
+            Pickup Address <span class="readonly-note">(read-only)</span>
+          </label>
+          <textarea id="editPickupAddress" readonly></textarea>
+        </div>
+        <div class="modal-row" style="grid-column:1/-1;">
+          <label for="editDestinationAddress">
+            Destination Address <span class="readonly-note">(read-only)</span>
+          </label>
+          <textarea id="editDestinationAddress" readonly></textarea>
+        </div>
+
         <div class="modal-row" style="grid-column:1/-1;">
           <span id="editError" class="error-text"></span>
         </div>
@@ -588,6 +611,8 @@
     const editError = document.getElementById("editError");
     const editSubtitle = document.getElementById("editSubtitle");
     const editStatusPill = document.getElementById("editStatusPill");
+    const editPickupAddress = document.getElementById("editPickupAddress");
+    const editDestinationAddress = document.getElementById("editDestinationAddress");
 
     let currentEditBookingId = null;
 
@@ -622,6 +647,21 @@
       editReasonCode.value = (booking.reasonCode || "").toString().toUpperCase();
       editBudgetNumber.value = booking.budgetNumber || "";
       editBudgetHolder.value = booking.budgetHolderName || "";
+
+      // Addresses (read-only)
+      const pickupText =
+        booking.pickup?.formatted ||
+        [booking.pickup?.houseNumber, booking.pickup?.street, booking.pickup?.town, booking.pickup?.postCode]
+          .filter(Boolean)
+          .join(" ");
+      const destText =
+        booking.destination?.formatted ||
+        [booking.destination?.houseNumber, booking.destination?.street, booking.destination?.town, booking.destination?.postCode]
+          .filter(Boolean)
+          .join(" ");
+
+      editPickupAddress.value = pickupText || "";
+      editDestinationAddress.value = destText || "";
 
       // Subtitle: quick context
       const subtitleParts = [
