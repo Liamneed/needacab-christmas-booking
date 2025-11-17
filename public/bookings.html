@@ -48,6 +48,11 @@
     .btn.primary{background:var(--brand);color:#111;border-color:#e0b21e}
     .btn.primary:hover{filter:brightness(0.95)}
     .btn.ghost{background:transparent}
+    .btn.small{
+      padding:4px 8px;
+      font-size:11px;
+      border-radius:999px;
+    }
 
     label{display:flex;align-items:center;gap:6px;font-size:13px}
 
@@ -79,6 +84,12 @@
     .status-approved{background:#113c2c;color:#b7f7d4;}
     .status-declined{background:#3b1616;color:#f7c2c2;}
     .dup-flag{color:var(--warn);font-size:12px;}
+
+    .row-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:4px;
+    }
 
     /* MODAL */
     .modal-backdrop{
@@ -185,6 +196,7 @@
             <th>Ref</th>
             <th>Status</th>
             <th>Flags</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -370,6 +382,13 @@
           <td>${refLabel}</td>
           <td><span class="status-pill ${statusClass}">${status}</span></td>
           <td>${isDup ? '<span class="dup-flag">Possible duplicate</span>' : ''}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn small" data-action="approve">Accept</button>
+              <button class="btn small" data-action="decline">Decline</button>
+              <button class="btn small" data-action="delete">Delete</button>
+            </div>
+          </td>
         `;
         bookingsTableBody.appendChild(tr);
       });
@@ -398,6 +417,85 @@
       loadBookings();
     });
     filterDupes.addEventListener("change", renderBookings);
+
+    // ---------- APPROVE / DECLINE / DELETE ----------
+    async function approveBooking(id) {
+      if (!id) return;
+      const ok = confirm("Approve this booking and send the approval SMS?");
+      if (!ok) return;
+      try {
+        await fetchJSON(`${apiBase}/api/bookings/${id}/approve`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}) // use server template
+        });
+        await loadBookings();
+      } catch (err) {
+        alert("Approve failed: " + (err.message || "Unknown error"));
+      }
+    }
+
+    async function declineBooking(id) {
+      if (!id) return;
+      const reason = prompt("Enter decline reason (this will appear in the SMS):");
+      if (!reason || !reason.trim()) {
+        return; // cancelled / empty
+      }
+      try {
+        await fetchJSON(`${apiBase}/api/bookings/${id}/decline`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reason.trim() })
+        });
+        // Ask if you want to delete after sending decline SMS
+        const del = confirm("Declined and SMS sent.\n\nDo you also want to delete this booking now?");
+        if (del) {
+          await deleteBooking(id, true);
+        } else {
+          await loadBookings();
+        }
+      } catch (err) {
+        alert("Decline failed: " + (err.message || "Unknown error"));
+      }
+    }
+
+    async function deleteBooking(id, skipConfirm = false) {
+      if (!id) return;
+      if (!skipConfirm) {
+        const ok = confirm("Delete this booking? This cannot be undone.");
+        if (!ok) return;
+      }
+      try {
+        await fetchJSON(`${apiBase}/api/bookings/${id}`, {
+          method: "DELETE"
+        });
+        await loadBookings();
+      } catch (err) {
+        alert("Delete failed: " + (err.message || "Unknown error"));
+      }
+    }
+
+    // Delegate button clicks in table
+    bookingsTableBody.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const tr = btn.closest("tr");
+      if (!tr) return;
+      const id = tr.dataset.id;
+      if (!id) return;
+
+      // Prevent the row double-click editing from firing immediately when you click buttons
+      e.stopPropagation();
+
+      if (action === "approve") {
+        approveBooking(id);
+      } else if (action === "decline") {
+        declineBooking(id);
+      } else if (action === "delete") {
+        deleteBooking(id);
+      }
+    });
 
     // ---------- EDIT MODAL ----------
     const editModalWrap = document.getElementById("editModalWrap");
