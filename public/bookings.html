@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Bookings — Need-A-Cab</title>
+  <title>Derriford Staff Taxi — Bookings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -14,72 +14,52 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
     a{text-decoration:none;color:inherit}
 
+    /* NAVBAR */
     .navbar{
-      position:sticky;top:0;z-index:10;
-      display:flex;align-items:center;gap:16px;
-      padding:10px 16px;background:rgba(11,13,16,0.96);
-      border-bottom:1px solid #111827;
-      backdrop-filter:blur(12px);
+      position:sticky;top:0;z-index:20;
+      display:flex;justify-content:space-between;align-items:center;
+      background:#0d1218;border-bottom:1px solid var(--line);padding:12px 20px;
     }
-    .navbar a{
-      padding:6px 10px;border-radius:999px;
-      font-size:13px;color:var(--muted);
-    }
-    .navbar a.active{
-      background:rgba(246,196,35,0.1);color:var(--brand);font-weight:600;
-    }
+    .nav-left{display:flex;gap:16px;align-items:center}
+    .nav-left a{padding:8px 12px;border-radius:10px;font-weight:600}
+    .nav-left a:hover{background:#1a222d}
+    .nav-left a.active{background:var(--brand);color:#111}
 
-    .wrap{
-      max-width:1200px;margin:18px auto;padding:0 12px 24px;
-      display:flex;flex-direction:column;gap:16px;
-    }
+    /* LAYOUT */
+    .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
     .card{
-      background:var(--card);border-radius:var(--radius);
-      border:1px solid #1f2937;padding:14px 14px 12px;
-      box-shadow:0 18px 45px rgba(0,0,0,0.55);
+      background:var(--card);border:1px solid var(--line);
+      border-radius:var(--radius);padding:18px;
     }
+    h1{font-size:20px;margin:0 0 12px}
+    h2{font-size:18px;margin:0 0 12px}
+    .muted{color:var(--muted);font-size:12px}
 
-    h1{font-size:20px;margin:0 0 4px}
-    .muted{color:var(--muted);font-size:13px}
+    /* CONTROLS + BUTTONS */
+    .controls,.toolbar{
+      display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
+    }
+    .btn{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:8px 11px; font:inherit; cursor:pointer;
+      font-size:13px;
+    }
+    .btn:hover{background:var(--btnHover)}
+    .btn.primary{background:var(--brand);color:#111;border-color:#e0b21e}
+    .btn.primary:hover{filter:brightness(0.95)}
+    .btn.ghost{background:transparent}
 
-    .toolbar{
-      display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;
-      margin-top:8px;
-    }
-    .toolbar .group{
-      display:flex;flex-direction:column;gap:4px;font-size:13px;
-    }
-    label{font-size:13px;color:var(--muted)}
-    select,input[type="date"]{
-      background:var(--btn);color:var(--ink);border-radius:10px;
-      border:1px solid var(--line);padding:7px 10px;
-      min-height:36px;font:inherit;
-    }
-    select:focus,input[type="date"]:focus{outline:none;border-color:#334155}
+    label{display:flex;align-items:center;gap:6px;font-size:13px}
 
-    button{
-      background:var(--btn);color:var(--ink);border-radius:999px;
-      border:1px solid #263445;padding:8px 12px;font:inherit;cursor:pointer;
+    input[type="date"], input[type="text"], select{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:6px 9px; font:inherit;
+      min-height:34px;
     }
-    button:hover{background:var(--btnHover)}
-    button.ghost{background:transparent}
-
-    table{width:100%;border-collapse:collapse;margin-top:6px}
-    th,td{border-bottom:1px solid var(--line);padding:10px 6px;vertical-align:top}
-    th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;background:#111827}
-    tr:hover td{background:#0e141c}
-    /* Highlight potential duplicate rows */
-    tr.duplicate td{background:#2b1a1a;}
-    .dupTag{
-      display:inline-flex;
-      padding:2px 6px;
-      border-radius:999px;
-      background:#7f1d1d;
-      color:#fecaca;
-      font-size:10px;
-      font-weight:600;
-      align-self:flex-start;
-    }
+    input[type="date"]{width:150px;}
+    input[type="text"]{width:150px;}
+    select{width:130px;}
+    input:hover, select:hover{border-color:#2a3342}
 
     /* Make the calendar icon visible on dark background */
     input[type="date"]::-webkit-calendar-picker-indicator{
@@ -87,511 +67,447 @@
       cursor: pointer;
     }
 
-    .ref{display:flex;flex-direction:column;gap:2px}
-    .shortRef{font-weight:700}
-    .legacyRef{font-size:11px;color:var(--muted)}
-
-    .pill{
-      display:inline-flex;align-items:center;justify-content:center;
-      padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
+    /* TABLES */
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{border-bottom:1px solid var(--line);padding:8px 8px;vertical-align:top}
+    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
+    tr:hover td{background:#0f141b;cursor:pointer}
+    .status-pill{
+      display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;
     }
-    .pill.pending{background:#1f2937;color:#e5e7eb;border:1px solid #4b5563}
-    .pill.approved{background:rgba(30,166,114,0.18);color:#6ee7b7;border:1px solid #22c55e}
-    .pill.declined{background:rgba(210,63,63,0.14);color:#fecaca;border:1px solid #f87171}
-    .badge{
-      display:inline-flex;align-items:center;justify-content:center;
-      border-radius:999px;padding:1px 7px;font-size:11px;font-weight:500;
-      background:#111827;color:#9ca3af;border:1px solid #374151;
-    }
-    .row{display:flex;align-items:center;gap:8px}
-    .row > *{flex:1}
-    .row .right{justify-content:flex-end}
+    .status-pending{background:#1b222c;color:#e9eef4;}
+    .status-approved{background:#113c2c;color:#b7f7d4;}
+    .status-declined{background:#3b1616;color:#f7c2c2;}
+    .dup-flag{color:var(--warn);font-size:12px;}
 
-    .staff{font-size:13px;display:flex;flex-direction:column;gap:2px}
-    .staff span{color:var(--muted);font-size:12px}
-    .trip{font-size:13px}
-    .trip span{display:block}
-    .zones{font-size:12px;color:var(--muted)}
-
-    .actions{white-space:nowrap}
-    .actions button{font-size:12px;padding:6px 8px;margin-right:4px;border-radius:999px}
-    .btn-approve{border-color:#1ea672}
-    .btn-decline{border-color:#d23f3f}
-    .btn-delete{border-color:#4b5563;color:#9ca3af}
-
-    #empty{
-      text-align:center;padding:20px 6px;font-size:14px;color:var(--muted);
-    }
-
-    #toast{
-      position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-      background:#111827;color:#e5e7eb;padding:8px 14px;border-radius:999px;
-      border:1px solid #1f2937;font-size:13px;opacity:0;pointer-events:none;
-      transition:opacity 0.18s ease-out,transform 0.18s ease-out;
-      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    /* MODAL */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,0.6);
+      display:flex;align-items:center;justify-content:center;
       z-index:50;
     }
-    #toast.show{
-      opacity:1;transform:translateX(-50%) translateY(-4px);
+    .modal{
+      background:var(--card);border-radius:16px;border:1px solid var(--line);
+      width:100%;max-width:500px;padding:18px 18px 14px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.55);
     }
-
-    .inline-toggle{
-      display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
-      cursor:pointer;
+    .modal-header{
+      display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
     }
-    .inline-toggle input{
-      width:16px;height:16px;
+    .modal-title{font-size:16px;font-weight:600;}
+    .modal-body{
+      display:grid;gap:10px;margin-bottom:10px;font-size:13px;
     }
-    .small-btn{
-      font-size:12px;
-      padding:6px 8px;
-      border-radius:999px;
+    .modal-row{
+      display:flex;flex-direction:column;gap:4px;
     }
-
-    @media (max-width:768px){
-      .toolbar{flex-direction:column;align-items:stretch}
-      .toolbar .row{width:100%;justify-content:space-between}
-      .actions button{margin-bottom:4px}
-      th:nth-child(2),td:nth-child(2){min-width:160px}
-      th:nth-child(5),td:nth-child(5){min-width:140px}
+    .modal-row label{font-size:12px;color:var(--muted);}
+    .modal-row input,.modal-row select{
+      width:100%;
+      min-height:34px;
+      padding:6px 9px;
+      background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid var(--line);
+      font:inherit;
     }
+    .modal-footer{
+      display:flex;justify-content:space-between;align-items:center;margin-top:6px;
+    }
+    .hidden{display:none;}
+    .error-text{color:var(--err);font-size:12px;}
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <a href="/">Home</a>
-    <a href="/admin">Admin</a>
-    <a href="/staff_booker.html">Staff Booker</a>
-    <a href="/chat">Chat Booker</a>
-    <a href="/bookings" class="active">Bookings</a>
+    <div class="nav-left">
+      <a href="/">Home</a>
+      <a href="/admin">Admin</a>
+      <a href="/staff_booker.html">Staff Booker</a>
+      <a href="/chat">Chat Booker</a>
+      <a href="/bookings" class="active">Bookings</a>
+    </div>
   </nav>
 
   <div class="wrap">
-    <header class="card">
+    <section class="card">
       <h1>Derriford Staff Taxi — Bookings</h1>
-      <p class="muted">Filter, approve, decline and export bookings. Use “Show duplicates only” for audit checks.</p>
+      <p class="muted" style="margin-bottom:10px;">
+        Double-click a row to edit key details (ward / staff / time / codes). Use filters or show only suspected duplicates.
+      </p>
 
-      <div class="toolbar">
-        <div class="row" style="gap:10px;flex-wrap:wrap">
-          <div class="group">
-            <label for="statusSel">Status</label>
-            <select id="statusSel">
-              <option value="">All</option>
-              <option value="pending">Pending only</option>
-              <option value="approved">Approved</option>
-              <option value="declined">Declined</option>
-            </select>
-          </div>
-          <div class="group">
-            <label for="dateFrom">From</label>
-            <input type="date" id="dateFrom" />
-          </div>
-          <div class="group">
-            <label for="dateTo">To</label>
-            <input type="date" id="dateTo" />
-          </div>
-          <div class="group">
-            <label>&nbsp;</label>
-            <button id="clearDatesBtn" class="small-btn ghost">Clear dates</button>
-          </div>
-          <div class="group">
-            <label>&nbsp;</label>
-            <label class="inline-toggle">
-              <input type="checkbox" id="duplicatesOnly" />
-              <span>Show duplicates only</span>
-            </label>
-          </div>
-        </div>
-        <div class="row right">
-          <button id="refreshBtn" class="ghost">Refresh</button>
-          <a id="csvLink" href="#" download="bookings_export.csv">
-            <button class="ghost">Export CSV</button>
-          </a>
-        </div>
+      <div class="toolbar" style="margin-bottom:10px;">
+        <label>From
+          <input type="date" id="filterDateFrom">
+        </label>
+        <label>To
+          <input type="date" id="filterDateTo">
+        </label>
+        <label>Ward
+          <input type="text" id="filterWard" placeholder="Ward name">
+        </label>
+        <label>Staff
+          <input type="text" id="filterStaff" placeholder="Staff name">
+        </label>
+        <label>Shift
+          <select id="filterShift">
+            <option value="">All</option>
+            <option value="start">Start</option>
+            <option value="finish">Finish</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="filterStatus">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="declined">Declined</option>
+          </select>
+        </label>
+        <label style="gap:4px;">
+          <input type="checkbox" id="filterDupes">
+          <span>Show duplicates only</span>
+        </label>
+        <button class="btn" id="btnClearDates">Clear dates</button>
+        <button class="btn primary" id="btnApplyFilters">Refresh</button>
       </div>
-      <p id="totalCount" class="muted" style="margin-top:6px;font-size:12px;">Total: 0</p>
-    </header>
 
-    <div class="card">
-      <table id="bookingsTbl">
+      <table id="bookingsTable">
         <thead>
           <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Shift</th>
+            <th>Ward</th>
+            <th>Staff</th>
+            <th>Pickup → Destination</th>
             <th>Ref</th>
-            <th>Ward &amp; Staff</th>
-            <th>Date &amp; Time</th>
-            <th>Zone</th>
-            <th>Trip</th>
             <th>Status</th>
-            <th>Actions</th>
+            <th>Flags</th>
           </tr>
         </thead>
-        <tbody id="tbody"></tbody>
+        <tbody></tbody>
       </table>
-      <div id="empty" style="display:none;">No bookings found for the current filter.</div>
+
+      <p class="muted" id="bookingsSummary" style="margin-top:8px;"></p>
+    </section>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Edit Booking</div>
+        <button class="btn ghost" id="btnEditClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label for="editShortRef">Reference</label>
+          <input id="editShortRef" type="text" disabled>
+        </div>
+        <div class="modal-row">
+          <label for="editDate">Pickup Date</label>
+          <input id="editDate" type="date">
+        </div>
+        <div class="modal-row">
+          <label for="editTime">On/Off Duty Time (e.g. 07:30)</label>
+          <input id="editTime" type="text" placeholder="HH:MM or HHMM">
+        </div>
+        <div class="modal-row">
+          <label for="editShift">Shift Type</label>
+          <select id="editShift">
+            <option value="start">Shift Start (to Derriford)</option>
+            <option value="finish">Shift Finish (from Derriford)</option>
+          </select>
+        </div>
+        <div class="modal-row">
+          <label for="editWard">Ward Name</label>
+          <input id="editWard" type="text">
+        </div>
+        <div class="modal-row">
+          <label for="editWardPhone">Ward Phone</label>
+          <input id="editWardPhone" type="text">
+        </div>
+        <div class="modal-row">
+          <label for="editStaff">Staff Name</label>
+          <input id="editStaff" type="text">
+        </div>
+        <div class="modal-row">
+          <label for="editStaffPhone">Staff Phone</label>
+          <input id="editStaffPhone" type="text">
+        </div>
+        <div class="modal-row">
+          <label for="editReasonCode">Reason Code (2 chars, e.g. P1)</label>
+          <input id="editReasonCode" type="text" maxlength="2">
+        </div>
+        <div class="modal-row">
+          <label for="editBudgetNumber">Budget Number (6 digits)</label>
+          <input id="editBudgetNumber" type="text" maxlength="6">
+        </div>
+        <div class="modal-row">
+          <label for="editBudgetHolder">Budget Holder Name</label>
+          <input id="editBudgetHolder" type="text">
+        </div>
+        <div class="modal-row">
+          <span id="editError" class="error-text"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnEditCancel">Cancel</button>
+        <button class="btn primary" id="btnEditSave">Save Changes</button>
+      </div>
     </div>
   </div>
 
-  <div id="toast"></div>
-
   <script>
-    const api = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4000" : "";
+    // API base: localhost in dev, origin in prod
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
 
-    const tbody = document.getElementById("tbody");
-    const statusSel = document.getElementById("statusSel");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const empty = document.getElementById("empty");
-    const csvLink = document.getElementById("csvLink");
-    const toastEl = document.getElementById("toast");
-    const dateFromEl = document.getElementById("dateFrom");
-    const dateToEl = document.getElementById("dateTo");
-    const clearDatesBtn = document.getElementById("clearDatesBtn");
-    const duplicatesOnlyEl = document.getElementById("duplicatesOnly");
-    const totalEl = document.getElementById("totalCount");
-
-    // Will hold IDs of potential duplicate bookings for highlighting / filtering
-    let duplicateIdSet = new Set();
-
-    function toast(msg){
-      toastEl.textContent = msg;
-      toastEl.classList.add("show");
-      setTimeout(()=>toastEl.classList.remove("show"), 2200);
-    }
-    function esc(s){ return String(s ?? "").replace(/[<>&]/g, c => (
-      c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;"
-    )); }
-
-    function toDDMMYY(iso){
-      if(!iso) return "";
-      const [y,m,d] = String(iso).split("-");
-      if(!y||!m||!d) return iso;
-      return `${d}-${m}-${y.slice(-2)}`;
+    async function fetchJSON(url, opts) {
+      const r = await fetch(url, opts);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.error || (url + " failed"));
+      return data;
     }
 
-    function statusChip(status){
-      const s = (status||"").toLowerCase();
-      if(!s) return `<span class="pill pending">Pending</span>`;
-      if(s==="approved") return `<span class="pill approved">Approved</span>`;
-      if(s==="declined") return `<span class="pill declined">Declined</span>`;
-      return `<span class="pill">${esc(status)}</span>`;
+    // ---------- FILTERS + TABLE ----------
+    const filterDateFrom = document.getElementById("filterDateFrom");
+    const filterDateTo = document.getElementById("filterDateTo");
+    const filterWard = document.getElementById("filterWard");
+    const filterStaff = document.getElementById("filterStaff");
+    const filterShift = document.getElementById("filterShift");
+    const filterStatus = document.getElementById("filterStatus");
+    const filterDupes = document.getElementById("filterDupes");
+    const btnClearDates = document.getElementById("btnClearDates");
+    const btnApplyFilters = document.getElementById("btnApplyFilters");
+    const bookingsTableBody = document.querySelector("#bookingsTable tbody");
+    const bookingsSummary = document.getElementById("bookingsSummary");
+
+    let allBookings = [];
+
+    function setDefaultFromTo() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const today = `${y}-${m}-${day}`;
+      if (!filterDateFrom.value) filterDateFrom.value = today;
+      if (!filterDateTo.value) filterDateTo.value = today;
+    }
+    setDefaultFromTo();
+
+    function buildBookingsQueryUrl() {
+      const url = new URL(apiBase + "/api/bookings");
+      if (filterDateFrom.value) url.searchParams.set("dateFrom", filterDateFrom.value);
+      if (filterDateTo.value) url.searchParams.set("dateTo", filterDateTo.value);
+      if (filterWard.value.trim()) url.searchParams.set("ward", filterWard.value.trim());
+      if (filterStaff.value.trim()) url.searchParams.set("staff", filterStaff.value.trim());
+      if (filterShift.value) url.searchParams.set("shiftType", filterShift.value);
+      if (filterStatus.value) url.searchParams.set("status", filterStatus.value);
+      url.searchParams.set("limit", "500");
+      url.searchParams.set("sort", "pickupDateISO:asc,onOffDutyTime:asc");
+      return url.toString();
     }
 
-    function fmtWardStaff(b){
-      const ward = b.wardName || "Unknown ward";
-      const staff = b.staffName || "";
-      const phone = b.staffPhone || "";
-      const wardPhone = b.wardPhone || "";
-      return `<div class="staff">
-        <strong>${esc(ward)}</strong>
-        ${staff ? `<span>${esc(staff)}</span>` : ""}
-        ${phone ? `<span>Staff: ${esc(phone)}</span>` : ""}
-        ${wardPhone ? `<span>Ward: ${esc(wardPhone)}</span>` : ""}
-      </div>`;
-    }
-
-    function fmtDateTime(b){
-      const date = toDDMMYY(b.pickupDateISO);
-      const time = b.onOffDutyTime || "";
-      const shift = b.shiftType === "finish" ? "Finish" : "Start";
-      return `<div>
-        <div>${date || "—"} ${time ? " @ " + esc(time) : ""}</div>
-        <div><span class="badge">${shift}</span></div>
-      </div>`
-    }
-
-    function fmtZones(b){
-      const pz = b.pickup && b.pickup.zone && b.pickup.zone.name ? b.pickup.zone.name : "";
-      const dz = b.destination && b.destination.zone && b.destination.zone.name ? b.destination.zone.name : "";
-      return `<div class="zones">
-        ${pz ? `From: ${esc(pz)}` : ""}
-        ${dz ? `<br>To: ${esc(dz)}` : ""}
-      </div>`;
-    }
-
-    function fmtTrip(b){
-      const p = b.pickup && b.pickup.formatted ? b.pickup.formatted : "";
-      const d = b.destination && b.destination.formatted ? b.destination.formatted : "";
-      return `<div class="trip">
-        <span>${esc(p)}</span>
-        <span>➜ ${esc(d)}</span>
-      </div>`;
-    }
-
-    function renderRow(b){
-      const isDup = duplicateIdSet && duplicateIdSet.has(String(b._id));
-      const refBlock = `
-        <div class="ref">
-          <span class="shortRef">${esc(b.shortRef || "—")}</span>
-          <span class="legacyRef">${esc(b.reference || "")}</span>
-          ${isDup ? `<span class="dupTag">DUPLICATE</span>` : ""}
-        </div>`;
-      const actApprove = `<button class="btn-approve" data-act="approve" data-id="${b._id}">Accept</button>`;
-      const actDecline = `<button class="btn-decline" data-act="decline" data-id="${b._id}">Decline</button>`;
-      const actDelete  = `<button class="btn-delete"  data-act="delete"  data-id="${b._id}">Delete</button>`;
-
-      const rowClass = isDup ? ' class="duplicate"' : "";
-
-      return `<tr data-id="${b._id}"${rowClass}>
-        <td>${refBlock}</td>
-        <td>${fmtWardStaff(b)}</td>
-        <td>${fmtDateTime(b)}</td>
-        <td>${fmtZones(b)}</td>
-        <td>${fmtTrip(b)}</td>
-        <td>${statusChip(b.status)}</td>
-        <td class="actions">${actApprove} ${actDecline} ${actDelete}</td>
-      </tr>`;
-    }
-
-    function toCSV(items){
-      const header = [
-        "pickupDateISO","onOffDutyTime","shiftType","wardName","staffName","staffPhone",
-        "pickup.formatted","pickup.zone.name","destination.formatted","destination.zone.name",
-        "reference","requireReturn","isReturn","status","shortRef","declineReason"
-      ];
-      const rows = items.map(b => [
+    function fingerprintBooking(b) {
+      // Simple fingerprint to spot duplicates
+      return [
         b.pickupDateISO || "",
-        b.onOffDutyTime || "",
-        b.shiftType || "",
-        b.wardName || "",
-        b.staffName || "",
-        b.staffPhone || "",
-        (b.pickup && b.pickup.formatted) || "",
-        (b.pickup && b.pickup.zone && b.pickup.zone.name) || "",
-        (b.destination && b.destination.formatted) || "",
-        (b.destination && b.destination.zone && b.destination.zone.name) || "",
-        b.reference || "",
-        String(b.requireReturn ?? ""),
-        String(b.isReturn ?? ""),
-        b.status || "",
-        b.shortRef || "",
-        b.declineReason || ""
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","));
-      return [header.join(","), ...rows].join("\n");
+        (b.onOffDutyTime || "").trim(),
+        (b.shiftType || "").trim(),
+        (b.wardName || "").trim().toLowerCase(),
+        (b.staffName || "").trim().toLowerCase(),
+        (b.pickup?.formatted || "").trim().toLowerCase(),
+        (b.destination?.formatted || "").trim().toLowerCase()
+      ].join("|");
     }
 
-    async function load(){
-      const wantsPending = statusSel.value === "pending";
-      const wantsDuplicatesOnly = !!duplicatesOnlyEl.checked;
-
-      const qs = new URLSearchParams();
-      if (!wantsPending && statusSel.value) qs.set("status", statusSel.value);
-      if (dateFromEl && dateFromEl.value) qs.set("dateFrom", dateFromEl.value);
-      if (dateToEl && dateToEl.value) qs.set("dateTo", dateToEl.value);
-      qs.set("limit", "200");
-      const url = `${api}/api/bookings?${qs.toString()}`;
-
-      tbody.innerHTML = "";
-      empty.style.display = "none";
-      if (totalEl) totalEl.textContent = "";
-
-      try{
-        const r = await fetch(url);
-        if(!r.ok) throw new Error("Failed to load bookings");
-        const data = await r.json();
-        let items = data.items || [];
-
-        if (wantsPending) {
-          items = items.filter(b =>
-            (b.status === "pending") ||
-            b.status === undefined ||
-            b.status === null ||
-            b.status === ""
-          );
-        }
-
-        // Identify potential duplicate bookings:
-        duplicateIdSet = new Set();
-        const dupGroups = new Map();
-        for (const b of items) {
-          const key = [
-            (b.staffPhone || "").trim(),
-            b.pickupDateISO || "",
-            b.onOffDutyTime || "",
-            b.pickup && b.pickup.formatted ? b.pickup.formatted : "",
-            b.destination && b.destination.formatted ? b.destination.formatted : ""
-          ].join("||");
-          const list = dupGroups.get(key) || [];
-          list.push(b);
-          dupGroups.set(key, list);
-        }
-        for (const list of dupGroups.values()) {
-          if (list.length > 1) {
-            for (const b of list) {
-              if (b && b._id) duplicateIdSet.add(String(b._id));
-            }
-          }
-        }
-
-        // If "duplicates only" is on, keep only rows whose ID is in duplicateIdSet
-        if (wantsDuplicatesOnly) {
-          items = items.filter(b => b && b._id && duplicateIdSet.has(String(b._id)));
-        }
-
-        if (totalEl) totalEl.textContent = `Total: ${items.length}`;
-
-        if (items.length === 0){
-          empty.style.display = "block";
-
-          const csvText = toCSV(items);
-          const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
-          const urlObj = URL.createObjectURL(blob);
-          csvLink.href = urlObj;
-          csvLink.download = wantsPending
-            ? (wantsDuplicatesOnly ? "bookings_pending_duplicates.csv" : "bookings_pending.csv")
-            : (wantsDuplicatesOnly ? "bookings_duplicates.csv" : "bookings_export.csv");
-          return;
-        }
-
-        const frag = document.createDocumentFragment();
-        for (const b of items){
-          const tr = document.createElement("tr");
-          tr.innerHTML = renderRow(b);
-          frag.appendChild(tr);
-        }
-        tbody.appendChild(frag);
-
-        // CSV behaviour
-        const csvText = toCSV(items);
-        const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
-        const urlObj = URL.createObjectURL(blob);
-        csvLink.href = urlObj;
-        if (wantsPending) {
-          csvLink.download = wantsDuplicatesOnly ? "bookings_pending_duplicates.csv" : "bookings_pending.csv";
-        } else {
-          csvLink.download = wantsDuplicatesOnly ? "bookings_duplicates.csv" : "bookings_export.csv";
-        }
-      } catch (err){
-        console.error(err);
-        toast("Failed to load bookings");
-        empty.style.display = "block";
-        if (totalEl) totalEl.textContent = "Total: 0";
+    function renderBookings() {
+      bookingsTableBody.innerHTML = "";
+      if (!allBookings.length) {
+        bookingsSummary.textContent = "No bookings found for this filter.";
+        return;
       }
-    }
 
-    function grabRowBooking(row){
-      const id = row.getAttribute("data-id");
-      const shortRefEl = row.querySelector(".shortRef");
-      const legacyRefEl = row.querySelector(".legacyRef");
-      const tripEl = row.querySelector(".trip");
-      const staffEl = row.querySelector(".staff");
-      const dateTimeEl = row.querySelector("td:nth-child(3)");
-      const tripLines = (tripEl?.innerText || "").split("\n");
-      const staffLines = (staffEl?.innerText || "").split("\n");
-      const dateLine = (dateTimeEl?.innerText || "").split("\n")[0] || "";
-      const [date, time] = dateLine.split("@").map(s => s.trim());
-      const shortRef = shortRefEl?.innerText || "";
-      const legacyRef = legacyRefEl?.innerText || "";
-      const pick = (tripLines[0]||"").trim();
-      const drop = (tripLines[1]||"").trim();
-      return {
-        _id:id,
-        shortRef, reference: legacyRef, pickupDateISO: date, onOffDutyTime: time,
-        pickup:{ formatted: pick }, destination:{ formatted: drop },
-        staffName: staffLines[1] || ""
-      };
-    }
-
-    function buildApproveMessage(row){
-      const b = grabRowBooking(row);
-      const dateNice = toDDMMYY(b.pickupDateISO);
-      const timeNice = b.onOffDutyTime || "";
-      return `Hi ${b.staffName || "there"}, your Christmas staff taxi booking for ${dateNice} at ${timeNice} has been approved. Your reference is ${b.shortRef || b.reference || "N/A"}. Thank you, Need-A-Cab Taxis.`;
-    }
-
-    function buildDeclineMessage(row, reason){
-      const b = grabRowBooking(row);
-      const dateNice = toDDMMYY(b.pickupDateISO);
-      const timeNice = b.onOffDutyTime || "";
-      return `Hi ${b.staffName || "there"}, unfortunately your Christmas staff taxi booking for ${dateNice} at ${timeNice} has been declined. Reason: ${reason}. — Need-A-Cab Taxis`;
-    }
-
-    async function approve(id, row){
-      const r = await fetch(`${api}/api/bookings/${id}/approve`, { method:"PATCH" });
-      const js = await r.json();
-      if(!r.ok){ toast(js.error||"Approve failed"); return; }
-      toast("Approved ✔");
-      updateRowFromPayload(row, js.booking);
-      const msg = buildApproveMessage(row);
-      console.log("APPROVE SMS:", msg);
-    }
-
-    async function decline(id, row){
-      const reason = prompt("Reason for declining?");
-      if(reason === null) return;
-      const trimmed = String(reason).trim();
-      if (!trimmed){ toast("Decline reason required"); return; }
-
-      const r = await fetch(`${api}/api/bookings/${id}/decline`, {
-        method:"PATCH", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ reason: trimmed })
+      // Duplicate detection map
+      const counts = {};
+      allBookings.forEach(b => {
+        const key = fingerprintBooking(b);
+        counts[key] = (counts[key] || 0) + 1;
       });
-      const js = await r.json();
-      if(!r.ok){ toast(js.error||"Decline failed"); return; }
-      toast("Declined ✖");
-      updateRowFromPayload(row, js.booking);
-      const msg = buildDeclineMessage(row, trimmed);
-      console.log("DECLINE SMS:", msg);
 
-      // After sending the decline SMS, automatically delete the booking
-      await deleteBooking(id, row, { skipConfirm: true });
-    }
-
-    async function deleteBooking(id, row, opts = {}){
-      const skipConfirm = opts && opts.skipConfirm;
-      if(!skipConfirm){
-        if(!confirm("Delete this booking? This cannot be undone.")) return;
+      let rows = allBookings;
+      const dupesOnly = filterDupes.checked;
+      if (dupesOnly) {
+        rows = rows.filter(b => counts[fingerprintBooking(b)] > 1);
       }
-      const r = await fetch(`${api}/api/bookings/${id}`, { method:"DELETE" });
-      const js = await r.json();
-      if(!r.ok){ toast(js.error||"Delete failed"); return; }
-      row.remove();
-      if (!tbody.children.length) empty.style.display = "block";
-      toast("Deleted 🗑");
+
+      rows.forEach((b, idx) => {
+        const tr = document.createElement("tr");
+        tr.dataset.id = b._id;
+        tr.dataset.index = idx;
+
+        const status = b.status || "pending";
+        let statusClass = "status-pending";
+        if (status === "approved") statusClass = "status-approved";
+        if (status === "declined") statusClass = "status-declined";
+
+        const isDup = counts[fingerprintBooking(b)] > 1;
+
+        const dateLabel = b.pickupDateISO || "";
+        const timeLabel = b.onOffDutyTime || "";
+        const shiftLabel = b.shiftType === "finish" ? "Finish" : "Start";
+        const pickupLabel = (b.pickup?.formatted || "").replace(/,/g, " ");
+        const destLabel = (b.destination?.formatted || "").replace(/,/g, " ");
+        const staffLabel = b.staffName || "";
+        const wardLabel = b.wardName || "";
+        const refLabel = b.shortRef || b.reference || "";
+
+        tr.innerHTML = `
+          <td>${dateLabel}</td>
+          <td>${timeLabel}</td>
+          <td>${shiftLabel}</td>
+          <td>${wardLabel}</td>
+          <td>${staffLabel}</td>
+          <td>${pickupLabel} → ${destLabel}</td>
+          <td>${refLabel}</td>
+          <td><span class="status-pill ${statusClass}">${status}</span></td>
+          <td>${isDup ? '<span class="dup-flag">Possible duplicate</span>' : ''}</td>
+        `;
+        bookingsTableBody.appendChild(tr);
+      });
+
+      bookingsSummary.textContent = `Showing ${rows.length} of ${allBookings.length} bookings${filterDupes.checked ? " (duplicates only)" : ""}.`;
     }
 
-    function updateRowFromPayload(row, b){
-      const cells = row.querySelectorAll("td");
-      const wardCell = cells[1];
-      const dateCell = cells[2];
-      const zoneCell = cells[3];
-      const tripCell = cells[4];
-
-      wardCell.innerHTML = fmtWardStaff(b);
-      dateCell.innerHTML = fmtDateTime(b);
-      zoneCell.innerHTML = fmtZones(b);
-      tripCell.innerHTML = fmtTrip(b);
-
-      const refBlockEl = cells[0].querySelector(".ref");
-      if (refBlockEl){
-        refBlockEl.querySelector(".shortRef").textContent = b.shortRef || "—";
-        refBlockEl.querySelector(".legacyRef").textContent = b.reference || "";
+    async function loadBookings() {
+      try {
+        const url = buildBookingsQueryUrl();
+        const data = await fetchJSON(url);
+        allBookings = data.items || [];
+        renderBookings();
+      } catch (err) {
+        console.error(err);
+        bookingsTableBody.innerHTML = "";
+        bookingsSummary.textContent = "Error loading bookings: " + err.message;
       }
-      cells[5].innerHTML = statusChip(b.status);
     }
 
-    // Table actions
-    tbody.addEventListener("click", (e)=>{
-      const btn = e.target.closest("button");
-      if(!btn) return;
-      const id = btn.getAttribute("data-id");
-      const row = btn.closest("tr");
-      const act = btn.getAttribute("data-act");
-      if (act === "approve") approve(id, row);
-      else if (act === "decline") decline(id, row);
-      else if (act === "delete") deleteBooking(id, row);
+    btnApplyFilters.addEventListener("click", loadBookings);
+    btnClearDates.addEventListener("click", () => {
+      filterDateFrom.value = "";
+      filterDateTo.value = "";
+      loadBookings();
+    });
+    filterDupes.addEventListener("change", renderBookings);
+
+    // ---------- EDIT MODAL ----------
+    const editModalWrap = document.getElementById("editModalWrap");
+    const btnEditClose = document.getElementById("btnEditClose");
+    const btnEditCancel = document.getElementById("btnEditCancel");
+    const btnEditSave = document.getElementById("btnEditSave");
+    const editShortRef = document.getElementById("editShortRef");
+    const editDate = document.getElementById("editDate");
+    const editTime = document.getElementById("editTime");
+    const editShift = document.getElementById("editShift");
+    const editWard = document.getElementById("editWard");
+    const editWardPhone = document.getElementById("editWardPhone");
+    const editStaff = document.getElementById("editStaff");
+    const editStaffPhone = document.getElementById("editStaffPhone");
+    const editReasonCode = document.getElementById("editReasonCode");
+    const editBudgetNumber = document.getElementById("editBudgetNumber");
+    const editBudgetHolder = document.getElementById("editBudgetHolder");
+    const editError = document.getElementById("editError");
+
+    let currentEditBookingId = null;
+
+    function normaliseTimeInput(value) {
+      const v = (value || "").trim();
+      if (!v) return "";
+      if (/^\d{4}$/.test(v)) {
+        return v.slice(0,2) + ":" + v.slice(2);
+      }
+      if (/^\d{1,2}$/.test(v)) {
+        return v.padStart(2,"0") + ":00";
+      }
+      if (/^\d{1,2}:\d{2}$/.test(v)) {
+        return v;
+      }
+      return v; // let server reject if really invalid
+    }
+
+    function openEditModal(booking) {
+      currentEditBookingId = booking._id;
+      editError.textContent = "";
+
+      const refLabel = booking.shortRef || booking.reference || "";
+      editShortRef.value = refLabel;
+      editDate.value = booking.pickupDateISO || "";
+      editTime.value = booking.onOffDutyTime || "";
+      editShift.value = booking.shiftType === "finish" ? "finish" : "start";
+      editWard.value = booking.wardName || "";
+      editWardPhone.value = booking.wardPhone || "";
+      editStaff.value = booking.staffName || "";
+      editStaffPhone.value = booking.staffPhone || "";
+      editReasonCode.value = (booking.reasonCode || "").toString().toUpperCase();
+      editBudgetNumber.value = booking.budgetNumber || "";
+      editBudgetHolder.value = booking.budgetHolderName || "";
+
+      editModalWrap.classList.remove("hidden");
+    }
+
+    function closeEditModal() {
+      currentEditBookingId = null;
+      editModalWrap.classList.add("hidden");
+    }
+
+    btnEditClose.addEventListener("click", closeEditModal);
+    btnEditCancel.addEventListener("click", closeEditModal);
+    editModalWrap.addEventListener("click", (e) => {
+      if (e.target === editModalWrap) closeEditModal();
     });
 
-    statusSel.addEventListener("change", load);
-    refreshBtn.addEventListener("click", load);
-    if (dateFromEl) dateFromEl.addEventListener("change", load);
-    if (dateToEl) dateToEl.addEventListener("change", load);
-    if (duplicatesOnlyEl) duplicatesOnlyEl.addEventListener("change", load);
-    if (clearDatesBtn) clearDatesBtn.addEventListener("click", () => {
-      if (dateFromEl) dateFromEl.value = "";
-      if (dateToEl) dateToEl.value = "";
-      load();
+    bookingsTableBody.addEventListener("dblclick", (e) => {
+      const tr = e.target.closest("tr");
+      if (!tr) return;
+      const idx = Number(tr.dataset.index);
+      const booking = allBookings[idx];
+      if (!booking) return;
+      openEditModal(booking);
     });
 
-    load();
+    btnEditSave.addEventListener("click", async () => {
+      if (!currentEditBookingId) return;
+      editError.textContent = "";
+
+      const payload = {
+        pickupDateISO: editDate.value || "",
+        onOffDutyTime: normaliseTimeInput(editTime.value),
+        shiftType: editShift.value,
+        wardName: editWard.value,
+        wardPhone: editWardPhone.value,
+        staffName: editStaff.value,
+        staffPhone: editStaffPhone.value,
+        reasonCode: editReasonCode.value,
+        budgetNumber: editBudgetNumber.value,
+        budgetHolderName: editBudgetHolder.value
+      };
+
+      try {
+        await fetchJSON(`${apiBase}/api/bookings/${currentEditBookingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        closeEditModal();
+        await loadBookings();
+      } catch (err) {
+        editError.textContent = err.message || "Failed to save changes.";
+      }
+    });
+
+    // Initial load
+    loadBookings();
   </script>
 </body>
 </html>
