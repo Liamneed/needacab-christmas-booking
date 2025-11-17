@@ -163,19 +163,13 @@
           </label>
 
           <div id="typeToggle" style="display:flex;gap:8px;align-items:center">
-            <span class="pill active" data-type="start">Shift Start (home → Derriford)</span>
-            <span class="pill" data-type="finish">Shift Finish (Derriford → home)</span>
+            <span class="pill active" data-type="start">Shift Start (to Derriford)</span>
+            <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
           </div>
 
           <label>Radius (km)
             <input type="number" id="radiusKm" value="2" step="0.5" min="0.5">
           </label>
-
-          <div id="routeToggle" style="display:flex;gap:8px;align-items:center;">
-            <span class="muted">Route order:</span>
-            <span class="pill active" data-route="distance">Optimise by distance</span>
-            <span class="pill" data-route="time">Keep time order</span>
-          </div>
 
           <button id="loadGroups" class="btn alt">Load</button>
           <button id="smartPack" class="btn primary">Smart Pack All</button>
@@ -185,14 +179,12 @@
         <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
         <p class="muted" style="margin-top:6px">
           Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then:
-          <br>• Groups nearby <strong>home addresses</strong> using the radius, with a max of <strong>19 passengers per vehicle</strong>.
-          <br>• Only groups bookings that are within roughly <strong>1 hour of each other</strong> in time.
-          <br>• <strong>Route order toggle:</strong>
-          <br>&nbsp;&nbsp;&nbsp;– <strong>Optimise by distance</strong>: 
-          Start = <strong>homes → Derriford</strong> (furthest first), 
-          Finish = <strong>Derriford → homes</strong> (closest first).
-          <br>&nbsp;&nbsp;&nbsp;– <strong>Keep time order</strong>: within each taxi, stops are ordered mainly by <strong>time</strong>.
-          <br>The numbered list under each taxi shows the suggested pickup / drop sequence.
+          <br>
+          • groups bookings into <strong>1-hour time windows</strong> and nearby pickups (radius in km),<br>
+          • fills <strong>full vehicles only</strong> where possible using seat sizes
+          <strong>4 / 5 / 6 / 7 / 8 / 19</strong>,<br>
+          • if fewer than 4 passengers remain in a group, they go in a <strong>4-seater (1–4 pax)</strong>,<br>
+          • and prefers to <strong>fill larger vehicles first</strong> (19, then 8, 7, 6, 5, 4).
         </p>
       </section>
 
@@ -294,8 +286,8 @@
     });
 
     /* ---------- SMART PACK (auto best vehicle) ---------- */
+    function toInt(val, fallback){ const n = Number(val); return Number.isFinite(n)&&n>0?Math.floor(n):fallback; }
     const R_EARTH=6371000; const toRad=d=>d*Math.PI/180;
-
     function haversineMeters(a,b){
       if(!a||!b||a.lat==null||b.lat==null)return 1e12;
       const dLat=toRad(b.lat-a.lat),dLng=toRad(b.lng-a.lng);
@@ -304,36 +296,39 @@
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
     }
 
-    // Derriford reference point for routing
-    const DERRIFORD = { lat: 50.4195, lng: -4.1090 };
+    // 1-hour windows
+    const TIME_WINDOW_MINS = 60;
 
-    function distToDerriford(a) {
-      if (!a || a.lat == null || a.lng == null) return 0;
-      return haversineMeters(a, DERRIFORD);
-    }
-
-    function timeToMinutes(t){
-      const v = (t || "").trim();
+    function timeStrToMinutes(str){
+      const v = (str || "").trim();
       if (!v) return null;
 
       // HH:MM
-      if (/^\d{1,2}:\d{2}$/.test(v)) {
-        const [h, m] = v.split(":").map(Number);
-        if (h >= 0 && h < 24 && m >= 0 && m < 60) return h * 60 + m;
+      let m = v.match(/^(\d{1,2}):(\d{2})$/);
+      if (m){
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
       }
-      // HHMM (e.g. 0730 or 730)
-      if (/^\d{3,4}$/.test(v)) {
-        const hh = v.length === 3 ? v.slice(0,1) : v.slice(0,2);
-        const mm = v.slice(-2);
-        const h = Number(hh), m = Number(mm);
-        if (h >= 0 && h < 24 && m >= 0 && m < 60) return h * 60 + m;
-      }
-      // HH
-      if (/^\d{1,2}$/.test(v)) {
-        const h = Number(v);
-        if (h >= 0 && h < 24) return h * 60;
+      // HHMM
+      m = v.match(/^(\d{1,2})(\d{2})$/);
+      if (m){
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
       }
       return null;
+    }
+
+    function minutesToTimeStr(total){
+      const h = Math.floor(total/60);
+      const m = total % 60;
+      return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+    }
+
+    function bucketLabelFromIndex(bucketIdx){
+      if (bucketIdx == null || bucketIdx < 0) return "No time";
+      const startM = bucketIdx * TIME_WINDOW_MINS;
+      const endM = startM + TIME_WINDOW_MINS - 1;
+      return `${minutesToTimeStr(startM)}–${minutesToTimeStr(endM)}`;
     }
 
     function setToday(inputEl){
@@ -362,18 +357,6 @@
       clearSmartState();
     }));
 
-    // Route mode toggle
-    const routePills = document.querySelectorAll("#routeToggle .pill");
-    let routeMode = "distance"; // 'distance' | 'time'
-    routePills.forEach(p => {
-      p.addEventListener("click", () => {
-        routePills.forEach(x => x.classList.remove("active"));
-        p.classList.add("active");
-        routeMode = p.dataset.route || "distance";
-        clearSmartState();
-      });
-    });
-
     let currentGroups=[];
     let lastSmartBuckets=null;
     let lastSmartParams=null;
@@ -389,139 +372,144 @@
     }
 
     function normalizeAddr(rec,zone,time){
-      const formatted = (typeof rec === "object") ? rec.formatted : String(rec || "");
-      const lat = (typeof rec === "object") ? rec.lat : null;
-      const lng = (typeof rec === "object") ? rec.lng : null;
-      const t = time || "";
-      const timeMinutes = timeToMinutes(t);
-
-      return {
-        formatted,
-        lat,
-        lng,
-        zone: zone || "(unknown)",
-        time: t,
-        timeMinutes
+      if(typeof rec==="object")return{
+        formatted:rec.formatted,
+        lat:rec.lat,
+        lng:rec.lng,
+        zone:zone||"(unknown)",
+        time:time||""
+      };
+      return{
+        formatted:String(rec||""),
+        lat:null,
+        lng:null,
+        zone:zone||"(unknown)",
+        time:time||""
       };
     }
 
-    // Flatten ALL bookings for date+shift into one list of home addresses
-    function flattenAll(groups){
-      const out=[];
+    // Build 1-hour time buckets from groups
+    function buildTimeBucketsFromGroups(groups){
+      const map = new Map(); // bucketIdx -> { bucketIdx, label, addresses:[] }
       for(const g of groups){
-        const zone=g.zoneName||"(unknown)";
-        const time=g.onOffDutyTime||"";
-        for(const a of (g.addresses||[])){
-          out.push(normalizeAddr(a,zone,time));
+        const zone = g.zoneName || "(unknown)";
+        const timeStr = g.onOffDutyTime || "";
+        const mins = timeStrToMinutes(timeStr);
+        const bucketIdx = mins == null ? -1 : Math.floor(mins / TIME_WINDOW_MINS);
+        const label = bucketLabelFromIndex(bucketIdx);
+
+        const addrs = g.addresses || [];
+        for(const a of addrs){
+          const addr = normalizeAddr(a, zone, timeStr);
+          addr._minutes = mins;
+          addr._bucketIdx = bucketIdx;
+          let bucket = map.get(bucketIdx);
+          if(!bucket){
+            bucket = { bucketIdx, label, addresses: [] };
+            map.set(bucketIdx, bucket);
+          }
+          bucket.addresses.push(addr);
         }
       }
-      return out;
+      return Array.from(map.values()).sort((a,b)=>a.bucketIdx - b.bucketIdx);
     }
 
-    // Cluster by radius with maximum capacity 19 per cluster
-    // and only include bookings within 60 minutes of the seed time
+    // Geo clustering by radius; no seat capacity here, just "who is near whom"
     function greedyCluster(addresses, radius){
-      const CAPACITY = 19; // max per vehicle cluster
-      const MAX_TIME_DIFF_MIN = 60; // 1 hour window
-
-      const unassigned = addresses.map((a,i)=>({...a,_i:i}));
-      const taxis = [];
-
+      const unassigned=addresses.map((a,i)=>({...a,_i:i}));
+      const clusters=[];
       while(unassigned.length){
-        let seedIdx = unassigned.findIndex(x=>x.lat!=null);
+        let seedIdx=unassigned.findIndex(x=>x.lat!=null);
         if(seedIdx===-1)seedIdx=0;
-        const seed = unassigned.splice(seedIdx,1)[0];
-        const pack = [seed];
+        const seed=unassigned.splice(seedIdx,1)[0];
+        const pack=[seed];
 
-        if(CAPACITY>1){
-          const scored = unassigned
-            .map(x => {
-              const d = haversineMeters(seed, x);
-              let dt = 1e9;
-              if (seed.timeMinutes != null && x.timeMinutes != null) {
-                dt = Math.abs(seed.timeMinutes - x.timeMinutes);
-              }
-              return { x, d, dt };
-            })
+        if(unassigned.length){
+          const scored=unassigned
+            .map(x=>({x,d:haversineMeters(seed,x)}))
             .sort((a,b)=>a.d-b.d);
-
           for(const s of scored){
-            if(pack.length>=CAPACITY) break;
-            // Must be within radius AND within 60 minutes
-            if(s.d <= radius && s.dt <= MAX_TIME_DIFF_MIN){
-              const idx = unassigned.findIndex(u=>u._i===s.x._i);
-              if(idx>-1){ pack.push(s.x); unassigned.splice(idx,1); }
+            if(s.d<=radius){
+              const idx=unassigned.findIndex(u=>u._i===s.x._i);
+              if(idx>-1){pack.push(s.x);unassigned.splice(idx,1);}
             }
           }
         }
-        taxis.push(pack);
+        clusters.push(pack);
       }
-      return taxis;
+      return clusters;
     }
 
-    // Pick the smallest vehicle that fits the pax
-    const VEHICLE_SIZES = [4,6,7,8,19];
+    // Vehicle sizes we support
+    const VEHICLE_SIZES = [19,8,7,6,5,4];
+
+    // For a given cluster of addresses, split into multiple vehicles such that:
+    // - use full vehicles 19/8/7/6/5/4 where possible
+    // - if fewer than 4 pax remain, put them into a 4-seater (not full)
+    // - prefer larger vehicles first
+    function splitClusterIntoFullVehicles(cluster){
+      const result = [];
+      const addrs = [...cluster];
+      let index = 0;
+      let remaining = addrs.length;
+
+      while(remaining > 0){
+        let cap;
+        if(remaining < 4){
+          cap = 4; // 1–3 pax into a 4-seater
+        } else if (remaining >= 19){
+          cap = 19;
+        } else if (remaining >= 8){
+          cap = 8;
+        } else if (remaining >= 7){
+          cap = 7;
+        } else if (remaining >= 6){
+          cap = 6;
+        } else if (remaining >= 5){
+          cap = 5;
+        } else {
+          cap = 4; // exactly 4
+        }
+
+        const groupSize = Math.min(cap, remaining);
+        const group = addrs.slice(index, index + groupSize);
+        group._vehicleCapacity = cap;
+        result.push(group);
+
+        index += groupSize;
+        remaining -= groupSize;
+      }
+
+      return result;
+    }
+
+    // Fallback: if for some reason capacity not set, pick smallest that fits pax
     function pickVehicleCapacity(pax){
-      for(const size of VEHICLE_SIZES){
-        if(pax <= size) return size;
+      if(pax <= 4) return 4;
+      for(const size of VEHICLE_SIZES.slice().sort((a,b)=>a-b)){
+        if(size >= pax) return size;
       }
-      return 19;
-    }
-
-    // Order the pack along the route relative to Derriford:
-    // start: Homes -> Derriford (furthest first in distance mode)
-    // finish: Derriford -> Homes (closest first in distance mode)
-    // time mode: mainly by time, then distance
-    function orderPackForRoute(pack, shiftType, mode) {
-      const arr = pack.map(a => ({
-        ...a,
-        _d: distToDerriford(a),
-        _t: a.timeMinutes != null ? a.timeMinutes : 0
-      }));
-
-      if (mode === "time") {
-        // Sort by time ascending, then by distance (closer first)
-        arr.sort((a,b) => {
-          if (a._t !== b._t) return a._t - b._t;
-          return a._d - b._d;
-        });
-        return arr;
-      }
-
-      // Distance mode
-      if (shiftType === "finish") {
-        // Derriford -> homes: drop closer homes first
-        arr.sort((a,b) => a._d - b._d);
-      } else {
-        // Homes -> Derriford: pick furthest first, work inwards
-        arr.sort((a,b) => b._d - a._d);
-      }
-      return arr;
+      return VEHICLE_SIZES[0] || pax;
     }
 
     function renderSmartOutput(buckets){
       const out=document.getElementById("smartOutput");
       out.innerHTML="";
       let taxiCounter=1;
-
-      const routeLabelText = groupType === "finish"
-        ? "Route: Derriford → homes"
-        : "Route: homes → Derriford";
-
       buckets.forEach(bucket=>{
         const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
         const col=document.createElement("div");
-        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span> <span class="subtag">${routeLabelText}</span></h4>`;
+        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span></h4>`;
         bucket.taxis.forEach(pack=>{
-          const orderedPack = orderPackForRoute(pack, groupType, routeMode);
-          const pax = orderedPack.length;
-          const vehicleSize = pickVehicleCapacity(pax);
+          const pax = pack.length;
+          const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
 
-          const list = orderedPack.map((a, idx) => ({
+          // Build numbered list items
+          const list = pack.map((a, idx) => ({
             idx: idx + 1,
             text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
           }));
-          const zones=Array.from(new Set(orderedPack.map(a=>a.zone))).join(", ");
+          const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
           const listText=list.map(item=>`${item.idx}. ${item.text}`).join("\n");
 
           const wrap=document.createElement("div");
@@ -554,37 +542,58 @@
       const radiusKm=Number(document.getElementById("radiusKm").value||2);
       const radius=Math.max(200,radiusKm*1000);
 
-      // Flatten all bookings for that date+shift into one list
-      const allAddrs = flattenAll(currentGroups);
-      if (!allAddrs.length){
+      const timeBuckets = buildTimeBucketsFromGroups(currentGroups);
+      if (!timeBuckets.length){
         document.getElementById("smartOutput").innerHTML =
           "<p class='muted'>No bookings found for this date and shift.</p>";
         document.getElementById("exportSmartCsv").disabled = true;
         return;
       }
 
-      const clusters = greedyCluster(allAddrs, radius);
-      const buckets = [{
-        label: `${document.getElementById("grpDate").value || "All"} — ${groupType.toUpperCase()}`,
-        taxis: clusters
-      }];
+      const dateLabel = document.getElementById("grpDate").value || "All";
+      const shiftLabel = groupType.toUpperCase();
+
+      const buckets = [];
+
+      timeBuckets.forEach(tb => {
+        if (!tb.addresses || !tb.addresses.length) return;
+
+        // First geo-cluster within this 1-hour time bucket
+        const geoClusters = greedyCluster(tb.addresses, radius);
+
+        const taxis = [];
+        geoClusters.forEach(cluster => {
+          const vehicleGroups = splitClusterIntoFullVehicles(cluster);
+          vehicleGroups.forEach(vg => taxis.push(vg));
+        });
+
+        if (!taxis.length) return;
+
+        buckets.push({
+          label: `${dateLabel} — ${shiftLabel} — ${tb.label}`,
+          taxis
+        });
+      });
 
       lastSmartBuckets = buckets;
       lastSmartParams = {
         date: document.getElementById("grpDate").value || "",
         type: groupType,
-        radiusKm: radiusKm,
-        routeMode: routeMode
+        radiusKm: radiusKm
       };
       document.getElementById("exportSmartCsv").disabled = !buckets.length;
       renderSmartOutput(buckets);
 
+      // Debug summary in console
+      const summary = buckets.map(b => ({
+        label: b.label,
+        vehiclePax: b.taxis.map(t => t.length),
+        vehicleCaps: b.taxis.map(t => t._vehicleCapacity || pickVehicleCapacity(t.length))
+      }));
       console.log("SmartPack summary:", {
         radiusKm,
         shiftType: groupType,
-        routeMode,
-        totalPax: allAddrs.length,
-        clusters: clusters.map(c => c.length)
+        buckets: summary
       });
     }
 
@@ -614,23 +623,18 @@
       let taxiNoGlobal = 1;
       const metaDate = params?.date || "";
       const metaShift = (params?.type === "finish" ? "finish" : "start");
-      const metaRouteMode = params?.routeMode || "distance";
-      const routeLabel = metaShift === "finish" ? "Derriford → homes" : "homes → Derriford";
-
       buckets.forEach(bucket => {
         bucket.taxis.forEach(pack => {
-          const orderedPack = orderPackForRoute(pack, metaShift, metaRouteMode);
-          const zones = Array.from(new Set(orderedPack.map(a=>a.zone))).filter(Boolean).join(", ");
-          const addresses = orderedPack
+          const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
+          const addresses = pack
             .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`)
             .join(" | ");
-          const pax = orderedPack.length;
-          const vehicleSize = pickVehicleCapacity(pax);
+          const pax = pack.length;
+          const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
           rows.push({
             Date: metaDate,
             Shift: metaShift,
-            Route: routeLabel,
-            RouteMode: metaRouteMode,
+            Bucket: bucket.label,
             Taxi: `Taxi ${taxiNoGlobal++}`,
             Passengers: String(pax),
             SuggestedVehicle: vehicleSize,
@@ -645,8 +649,7 @@
       const d = params?.date || "all";
       const t = params?.type || "start";
       const r = (params?.radiusKm ?? 0)+"km";
-      const m = params?.routeMode || "distance";
-      return `smartpack_${d}_${t}_${m}_${r}.csv`;
+      return `smartpack_${d}_${t}_auto_${r}.csv`;
     }
     document.getElementById("exportSmartCsv").addEventListener("click", ()=>{
       if (!lastSmartBuckets || !lastSmartBuckets.length) return;
