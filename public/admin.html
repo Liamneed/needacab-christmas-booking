@@ -14,7 +14,6 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
     a{text-decoration:none;color:inherit}
 
-    /* NAVBAR (matches bookings) */
     .navbar{
       position:sticky;top:0;z-index:20;
       display:flex;justify-content:space-between;align-items:center;
@@ -25,7 +24,6 @@
     .nav-left a:hover{background:#1a222d}
     .nav-left a.active{background:var(--brand);color:#111}
 
-    /* PAGE WRAP / CARDS */
     .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
     .card{
       background:var(--card);border:1px solid var(--line);
@@ -35,7 +33,6 @@
     h2{font-size:18px;margin:0 0 12px}
     .muted{color:var(--muted);font-size:12px}
 
-    /* CONTROLS + BUTTONS (match bookings) */
     .controls,.toolbar,.row-actions{
       display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
     }
@@ -61,13 +58,11 @@
     #radiusKm, #tolMins { width: 100px; }
     input:hover, select:hover{border-color:#2a3342}
 
-    /* TABLES (match bookings) */
     table{width:100%;border-collapse:collapse}
     th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
     th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
     tr:hover td{background:#0f141b}
 
-    /* CHIPS / TAGS */
     .pill{
       display:inline-block;padding:6px 12px;border-radius:999px;font-weight:600;
       background:var(--chip);border:1px solid var(--line);color:#cfd8e3;cursor:pointer;
@@ -77,7 +72,6 @@
     .subtag{display:inline-block;padding:2px 6px;background:#263241;color:#cfd8e3;border-radius:999px;font-size:11px;margin-left:6px}
     .zonechip{display:inline-block;padding:2px 6px;background:var(--chip);color:#cfd8e3;border:1px solid var(--line);border-radius:999px;font-size:11px;margin-left:6px}
 
-    /* TAXI PACKS */
     .packs{display:flex;flex-direction:column;gap:10px}
     .taxi{
       border:1px dashed #334154;border-radius:10px;padding:12px;background:#0e141b;
@@ -85,12 +79,10 @@
     .taxi h4{margin:0 0 6px 0;font-size:13px;color:#d7e0ea}
     .addr{display:block;color:#d7e0ea;font-size:12px;line-height:1.3}
 
-    /* HR */
     .hr{height:1px;background:var(--line);margin:10px 0}
   </style>
 </head>
 <body>
-  <!-- NAVBAR (same links/order as bookings) -->
   <nav class="navbar">
     <div class="nav-left">
       <a href="/">Home</a>
@@ -102,7 +94,6 @@
   </nav>
 
   <div class="wrap">
-    <!-- HEADER CARD -->
     <header class="card">
       <h1>Derriford Staff Taxi — Admin Reports</h1>
       <div class="controls">
@@ -112,7 +103,6 @@
       </div>
     </header>
 
-    <!-- SMART PACK -->
     <section class="card">
       <h2>Smart Pack — Fill Taxis by Nearby Pickups</h2>
       <div class="toolbar">
@@ -150,11 +140,10 @@
 
       <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
       <p class="muted" style="margin-top:6px">
-        Smart Pack automatically groups nearby pickups for the same shift and fills vehicles up to their selected capacity (4 / 6 / 7 / 8 / 19).
+        Smart Pack groups nearby pickups for the same shift and fills vehicles up to the selected capacity (4 / 6 / 7 / 8 / 19).
       </p>
     </section>
 
-    <!-- LEGACY REPORTS -->
     <section class="card">
       <h2>Legacy Reports (visual)</h2>
 
@@ -183,9 +172,8 @@
     </section>
   </div>
 
-  <!-- JS -->
   <script>
-    // Dynamic API base: localhost in dev, current origin in production
+    // API base: localhost in dev, origin in prod
     const apiBase = window.location.origin.includes("localhost")
       ? "http://localhost:4000"
       : window.location.origin;
@@ -267,7 +255,8 @@
       }
       return out;
     }
-    function greedyCluster(addresses,seat,radius){
+
+    function greedyCluster(addresses,seatCapacity,radius){
       const unassigned=addresses.map((a,i)=>({...a,_i:i}));
       const taxis=[];
       while(unassigned.length){
@@ -275,10 +264,12 @@
         if(seedIdx===-1)seedIdx=0;
         const seed=unassigned.splice(seedIdx,1)[0];
         const pack=[seed];
-        if(seat>1){
-          const scored=unassigned.map(x=>({x,d:haversineMeters(seed,x)})).sort((a,b)=>a.d-b.d);
+        if(seatCapacity>1){
+          const scored=unassigned
+            .map(x=>({x,d:haversineMeters(seed,x)}))
+            .sort((a,b)=>a.d-b.d);
           for(const s of scored){
-            if(pack.length>=seat)break;
+            if(pack.length>=seatCapacity)break;
             if(s.d<=radius){
               const idx=unassigned.findIndex(u=>u._i===s.x._i);
               if(idx>-1){pack.push(s.x);unassigned.splice(idx,1);}
@@ -289,7 +280,10 @@
       }
       return taxis;
     }
-    function uniqueTimes(groups){return Array.from(new Set(groups.map(g=>g.onOffDutyTime||"00:00"))).sort((a,b)=>a.localeCompare(b));}
+
+    function uniqueTimes(groups){
+      return Array.from(new Set(groups.map(g=>g.onOffDutyTime||"00:00"))).sort((a,b)=>a.localeCompare(b));
+    }
 
     function renderSmartOutput(buckets,seatLabel){
       const out=document.getElementById("smartOutput");
@@ -327,20 +321,22 @@
     async function smartPackAll(){
       if(!currentGroups.length)await loadGroups();
 
-      const seat = toInt(document.getElementById("seatSize").value,6); // capacity = selected seats
+      // capacity = exactly what’s chosen in the dropdown
+      const seatCapacity = Number(document.getElementById("seatSize").value || "6");
       const radiusKm=Number(document.getElementById("radiusKm").value||2);
       const tol=toInt(document.getElementById("tolMins").value,0);
       const radius=Math.max(200,radiusKm*1000);
+
       const times=uniqueTimes(currentGroups);
       const buckets=[];
       for(const t of times){
         const addrs=flattenForTime(currentGroups,t,tol);
         if(!addrs.length)continue;
-        const clusters=greedyCluster(addrs,seat,radius); // uses full capacity
+        const clusters=greedyCluster(addrs,seatCapacity,radius);
         buckets.push({time:t,taxis:clusters});
       }
       lastSmartBuckets=buckets;
-      lastSmartSeat=seat;
+      lastSmartSeat=seatCapacity;
       lastSmartParams={
         date: document.getElementById("grpDate").value || "",
         type: groupType,
@@ -348,7 +344,7 @@
         tolMins: tol
       };
       document.getElementById("exportSmartCsv").disabled = !buckets.length;
-      renderSmartOutput(buckets,seat);
+      renderSmartOutput(buckets,seatCapacity);
     }
 
     document.getElementById("loadGroups").addEventListener("click",loadGroups);
@@ -431,7 +427,6 @@
     document.getElementById("refreshOld").addEventListener("click",refreshOld);
     document.getElementById("legacyLoad").addEventListener("click",refreshOld);
 
-    // Initial legacy load
     refreshOld();
   </script>
 </body>
