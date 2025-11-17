@@ -128,7 +128,7 @@ function isDerriford(lat, lng) {
   return withinMeters(lat, lng, DH_LAT, DH_LNG, 900);
 }
 
-// --- NEW: Distance + simple route optimiser helpers ---
+// --- Distance + simple route optimiser helpers ---
 
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -587,7 +587,7 @@ app.get("/api/reports/by-shift", async (req, res) => {
   res.json(result);
 });
 
-// ---------------------- Shift grouping (now with routed addresses) ----------------------
+// ---------------------- Shift grouping (now with routed + richer addresses) ----------------------
 app.get("/api/reports/shift-groups", async (req, res) => {
   try {
     const type = (req.query.type || "start").toLowerCase();
@@ -612,9 +612,15 @@ app.get("/api/reports/shift-groups", async (req, res) => {
           count: { $sum: 1 },
           addresses: {
             $push: {
-              formatted: type === "finish" ? "$destination.formatted" : "$pickup.formatted",
-              lat: type === "finish" ? "$destination.lat" : "$pickup.lat",
-              lng: type === "finish" ? "$destination.lng" : "$pickup.lng",
+              // richer address info so Smart Pack can reconstruct house numbers etc
+              formatted:   type === "finish" ? "$destination.formatted"   : "$pickup.formatted",
+              text:        type === "finish" ? "$destination.text"        : "$pickup.text",
+              houseNumber: type === "finish" ? "$destination.houseNumber" : "$pickup.houseNumber",
+              street:      type === "finish" ? "$destination.street"      : "$pickup.street",
+              town:        type === "finish" ? "$destination.town"        : "$pickup.town",
+              postCode:    type === "finish" ? "$destination.postCode"    : "$pickup.postCode",
+              lat:         type === "finish" ? "$destination.lat"         : "$pickup.lat",
+              lng:         type === "finish" ? "$destination.lng"         : "$pickup.lng",
             },
           },
         },
@@ -791,7 +797,7 @@ app.delete("/api/bookings/:id", async (req, res) => {
 
 // Map Smart Pack stop -> Autocab address object (for non-Derriford stops)
 function mapSmartStopToAutocabAddress(stop) {
-  const text = stop.formatted || "";
+  const text = stop.formatted || stop.text || "";
   const hasCoords = typeof stop.lat === "number" && typeof stop.lng === "number";
   return {
     bookingPriority: 0,
@@ -800,11 +806,11 @@ function mapSmartStopToAutocabAddress(stop) {
       : null,
     id: "-1",
     isCustom: true,
-    postCode: "",
+    postCode: stop.postCode || "",
     source: "Custom",
     street: text,
     text,
-    town: "Plymouth",
+    town: stop.town || "Plymouth",
     zoneId: null
   };
 }
@@ -828,8 +834,14 @@ function makeDerrifordAutocabAddress() {
 // Map vehicle capacity -> Autocab capabilities
 function mapCapacityToCapabilities(cap) {
   const n = Number(cap) || 4;
+  // 4 seater: default capability (27)
+  // 5 seater: capability id 22
+  // 6 seater: capability id 4
+  // 7 seater: capability id 20
+  // 8 seater: capability id 5
+  // 19 seater: use base capability (27)
   switch (n) {
-    case 4:  // default car
+    case 4:
       return [27];
     case 5:
       return [22];
@@ -840,7 +852,7 @@ function mapCapacityToCapabilities(cap) {
     case 8:
       return [5];
     case 19:
-      return [27]; // 19-seater – keep default/base capability
+      return [27];
     default:
       return [27];
   }
