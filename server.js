@@ -647,7 +647,90 @@ app.get("/api/reports/shift-groups", async (req, res) => {
   }
 });
 
-// ===== Actions: Approve / Decline / Delete =====
+// ===== Actions: UPDATE / Approve / Decline / Delete =====
+
+// General update for a booking (used by bookings page edit)
+app.put("/api/bookings/:id", async (req, res) => {
+  try {
+    const b = await Booking.findById(req.params.id);
+    if (!b) return res.status(404).json({ error: "Not found" });
+
+    const payload = req.body || {};
+
+    // Only allow updating these core fields from the bookings page
+    const editableFields = [
+      "wardName",
+      "wardPhone",
+      "staffName",
+      "staffPhone",
+      "shiftType",
+      "onOffDutyTime",
+      "pickupDateISO",
+      "reasonCode",
+      "budgetNumber",
+      "budgetHolderName"
+    ];
+
+    for (const field of editableFields) {
+      if (payload[field] !== undefined) {
+        b[field] = typeof payload[field] === "string"
+          ? payload[field].trim()
+          : payload[field];
+      }
+    }
+
+    // Validate required fields on the updated booking
+    const requiredText = [
+      "wardName", "wardPhone", "staffName", "staffPhone",
+      "shiftType", "onOffDutyTime", "pickupDateISO",
+      "reasonCode", "budgetNumber", "budgetHolderName"
+    ];
+    for (const k of requiredText) {
+      if (!b[k] || String(b[k]).trim() === "") {
+        return res.status(400).json({ error: `Missing required field: ${k}` });
+      }
+    }
+
+    // Format checks
+    if (!/^[A-Z0-9]{2}$/.test(String(b.reasonCode).toUpperCase())) {
+      return res.status(400).json({ error: "Reason Code must be exactly 2 alphanumeric characters (e.g., P1)." });
+    }
+    b.reasonCode = String(b.reasonCode).toUpperCase();
+    if (!/^\d{6}$/.test(String(b.budgetNumber))) {
+      return res.status(400).json({ error: "Budget number must be 6 digits." });
+    }
+
+    // Make sure addresses still exist
+    if (!b.pickup || typeof b.pickup.lat !== "number" || typeof b.pickup.lng !== "number") {
+      return res.status(400).json({ error: "Booking pickup address is invalid, cannot update." });
+    }
+    if (!b.destination || typeof b.destination.lat !== "number" || typeof b.destination.lng !== "number") {
+      return res.status(400).json({ error: "Booking destination address is invalid, cannot update." });
+    }
+
+    // Derriford rules based on (potentially updated) shiftType
+    if (b.shiftType === "start") {
+      if (!isDerriford(b.destination.lat, b.destination.lng)) {
+        return res.status(400).json({ error: "For Shift Start, the drop-off must be Derriford Hospital." });
+      }
+    } else {
+      if (!isDerriford(b.pickup.lat, b.pickup.lng)) {
+        return res.status(400).json({ error: "For Shift Finish, the pickup must be Derriford Hospital." });
+      }
+    }
+
+    // Rebuild reference if any of its components changed
+    b.reference = makeReference(b.reasonCode, b.budgetNumber, b.budgetHolderName);
+
+    // Save
+    await b.save();
+    res.json({ ok: true, booking: b });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.patch("/api/bookings/:id/approve", async (req, res) => {
   try {
     const b = await Booking.findById(req.params.id);
