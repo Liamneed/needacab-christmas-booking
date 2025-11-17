@@ -80,14 +80,17 @@
       font-weight:600;
       align-self:flex-start;
     }
+
     /* Make the calendar icon visible on dark background */
     input[type="date"]::-webkit-calendar-picker-indicator{
       filter: invert(1);
       cursor: pointer;
     }
+
     .ref{display:flex;flex-direction:column;gap:2px}
     .shortRef{font-weight:700}
     .legacyRef{font-size:11px;color:var(--muted)}
+
     .pill{
       display:inline-flex;align-items:center;justify-content:center;
       padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
@@ -132,6 +135,19 @@
       opacity:1;transform:translateX(-50%) translateY(-4px);
     }
 
+    .inline-toggle{
+      display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+      cursor:pointer;
+    }
+    .inline-toggle input{
+      width:16px;height:16px;
+    }
+    .small-btn{
+      font-size:12px;
+      padding:6px 8px;
+      border-radius:999px;
+    }
+
     @media (max-width:768px){
       .toolbar{flex-direction:column;align-items:stretch}
       .toolbar .row{width:100%;justify-content:space-between}
@@ -153,7 +169,7 @@
   <div class="wrap">
     <header class="card">
       <h1>Derriford Staff Taxi — Bookings</h1>
-      <p class="muted">Filter, approve, decline and export bookings. Pending view shows only unprocessed records.</p>
+      <p class="muted">Filter, approve, decline and export bookings. Use “Show duplicates only” for audit checks.</p>
 
       <div class="toolbar">
         <div class="row" style="gap:10px;flex-wrap:wrap">
@@ -173,6 +189,17 @@
           <div class="group">
             <label for="dateTo">To</label>
             <input type="date" id="dateTo" />
+          </div>
+          <div class="group">
+            <label>&nbsp;</label>
+            <button id="clearDatesBtn" class="small-btn ghost">Clear dates</button>
+          </div>
+          <div class="group">
+            <label>&nbsp;</label>
+            <label class="inline-toggle">
+              <input type="checkbox" id="duplicatesOnly" />
+              <span>Show duplicates only</span>
+            </label>
           </div>
         </div>
         <div class="row right">
@@ -217,9 +244,11 @@
     const toastEl = document.getElementById("toast");
     const dateFromEl = document.getElementById("dateFrom");
     const dateToEl = document.getElementById("dateTo");
+    const clearDatesBtn = document.getElementById("clearDatesBtn");
+    const duplicatesOnlyEl = document.getElementById("duplicatesOnly");
     const totalEl = document.getElementById("totalCount");
 
-    // Will hold IDs of potential duplicate bookings for highlighting
+    // Will hold IDs of potential duplicate bookings for highlighting / filtering
     let duplicateIdSet = new Set();
 
     function toast(msg){
@@ -341,6 +370,8 @@
 
     async function load(){
       const wantsPending = statusSel.value === "pending";
+      const wantsDuplicatesOnly = !!duplicatesOnlyEl.checked;
+
       const qs = new URLSearchParams();
       if (!wantsPending && statusSel.value) qs.set("status", statusSel.value);
       if (dateFromEl && dateFromEl.value) qs.set("dateFrom", dateFromEl.value);
@@ -368,7 +399,6 @@
         }
 
         // Identify potential duplicate bookings:
-        // same staff phone, date, time, pickup and destination
         duplicateIdSet = new Set();
         const dupGroups = new Map();
         for (const b of items) {
@@ -391,18 +421,23 @@
           }
         }
 
+        // If "duplicates only" is on, keep only rows whose ID is in duplicateIdSet
+        if (wantsDuplicatesOnly) {
+          items = items.filter(b => b && b._id && duplicateIdSet.has(String(b._id)));
+        }
+
         if (totalEl) totalEl.textContent = `Total: ${items.length}`;
 
         if (items.length === 0){
           empty.style.display = "block";
 
-          // Even with no items, keep CSV export consistent
           const csvText = toCSV(items);
           const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
           const urlObj = URL.createObjectURL(blob);
           csvLink.href = urlObj;
-          csvLink.download = wantsPending ? "bookings_pending.csv" : "bookings_export.csv";
-
+          csvLink.download = wantsPending
+            ? (wantsDuplicatesOnly ? "bookings_pending_duplicates.csv" : "bookings_pending.csv")
+            : (wantsDuplicatesOnly ? "bookings_duplicates.csv" : "bookings_export.csv");
           return;
         }
 
@@ -414,15 +449,15 @@
         }
         tbody.appendChild(frag);
 
+        // CSV behaviour
+        const csvText = toCSV(items);
+        const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+        const urlObj = URL.createObjectURL(blob);
+        csvLink.href = urlObj;
         if (wantsPending) {
-          const csvText = toCSV(items);
-          const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
-          const urlObj = URL.createObjectURL(blob);
-          csvLink.href = urlObj;
-          csvLink.download = "bookings_pending.csv";
+          csvLink.download = wantsDuplicatesOnly ? "bookings_pending_duplicates.csv" : "bookings_pending.csv";
         } else {
-          csvLink.href = `${api}/api/bookings/export?${qs.toString()}`;
-          csvLink.download = "bookings_export.csv";
+          csvLink.download = wantsDuplicatesOnly ? "bookings_duplicates.csv" : "bookings_export.csv";
         }
       } catch (err){
         console.error(err);
@@ -533,6 +568,7 @@
       cells[5].innerHTML = statusChip(b.status);
     }
 
+    // Table actions
     tbody.addEventListener("click", (e)=>{
       const btn = e.target.closest("button");
       if(!btn) return;
@@ -548,6 +584,13 @@
     refreshBtn.addEventListener("click", load);
     if (dateFromEl) dateFromEl.addEventListener("change", load);
     if (dateToEl) dateToEl.addEventListener("change", load);
+    if (duplicatesOnlyEl) duplicatesOnlyEl.addEventListener("change", load);
+    if (clearDatesBtn) clearDatesBtn.addEventListener("click", () => {
+      if (dateFromEl) dateFromEl.value = "";
+      if (dateToEl) dateToEl.value = "";
+      load();
+    });
+
     load();
   </script>
 </body>
