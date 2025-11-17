@@ -112,7 +112,7 @@
       <div class="controls">
         <label>Actions:</label>
         <button id="refreshOld" class="btn primary">Refresh Legacy Tables</button>
-        <span class="muted">API: <code>http://localhost:4000</code></span>
+        <span class="muted">API: <code id="apiBaseLabel"></code></span>
       </div>
     </header>
 
@@ -183,9 +183,16 @@
     </section>
   </div>
 
-  <!-- JS (unchanged behaviour) -->
+  <!-- JS -->
   <script>
-    const apiBase = "http://localhost:4000";
+    // Dynamic API base: localhost in dev, current origin on Render/production
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
+
+    // Show which base we're using
+    const apiBaseLabel = document.getElementById("apiBaseLabel");
+    if (apiBaseLabel) apiBaseLabel.textContent = apiBase;
 
     async function fetchJSON(url) {
       const r = await fetch(url);
@@ -424,6 +431,7 @@
     document.getElementById("refreshOld").addEventListener("click",refreshOld);
     document.getElementById("legacyLoad").addEventListener("click",refreshOld);
 
+    // Initial load
     refreshOld();
   </script>
 </body>
