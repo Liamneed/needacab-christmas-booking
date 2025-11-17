@@ -31,7 +31,7 @@
       background:var(--card);border:1px solid var(--line);
       border-radius:var(--radius);padding:18px;
     }
-    h1{font-size:20px;margin:0 0 12px}
+    h1{font-size:20px;margin:0 0 6px}
     h2{font-size:18px;margin:0 0 12px}
     .muted{color:var(--muted);font-size:12px}
 
@@ -130,8 +130,11 @@
   <div class="wrap">
     <section class="card">
       <h1>Derriford Staff Taxi — Bookings</h1>
+      <p class="muted" style="margin-bottom:4px;">
+        Double-click a row to edit key details. Possible duplicates detected: <strong><span id="dupCount">0</span></strong>
+      </p>
       <p class="muted" style="margin-bottom:10px;">
-        Double-click a row to edit key details (ward / staff / time / codes). Use filters or show only suspected duplicates.
+        Duplicates are based on same date, time, ward, staff and pickup/destination.
       </p>
 
       <div class="toolbar" style="margin-bottom:10px;">
@@ -282,22 +285,13 @@
     const btnApplyFilters = document.getElementById("btnApplyFilters");
     const bookingsTableBody = document.querySelector("#bookingsTable tbody");
     const bookingsSummary = document.getElementById("bookingsSummary");
+    const dupCountEl = document.getElementById("dupCount");
 
     let allBookings = [];
 
-    function setDefaultFromTo() {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const today = `${y}-${m}-${day}`;
-      if (!filterDateFrom.value) filterDateFrom.value = today;
-      if (!filterDateTo.value) filterDateTo.value = today;
-    }
-    setDefaultFromTo();
-
     function buildBookingsQueryUrl() {
       const url = new URL(apiBase + "/api/bookings");
+      // Dates ONLY included if you set them – so initial load shows all bookings
       if (filterDateFrom.value) url.searchParams.set("dateFrom", filterDateFrom.value);
       if (filterDateTo.value) url.searchParams.set("dateTo", filterDateTo.value);
       if (filterWard.value.trim()) url.searchParams.set("ward", filterWard.value.trim());
@@ -326,15 +320,18 @@
       bookingsTableBody.innerHTML = "";
       if (!allBookings.length) {
         bookingsSummary.textContent = "No bookings found for this filter.";
+        if (dupCountEl) dupCountEl.textContent = "0";
         return;
       }
 
-      // Duplicate detection map
+      // Duplicate detection map (always based on ALL bookings)
       const counts = {};
       allBookings.forEach(b => {
         const key = fingerprintBooking(b);
         counts[key] = (counts[key] || 0) + 1;
       });
+      const dupBookings = allBookings.filter(b => counts[fingerprintBooking(b)] > 1);
+      if (dupCountEl) dupCountEl.textContent = String(dupBookings.length);
 
       let rows = allBookings;
       const dupesOnly = filterDupes.checked;
@@ -390,6 +387,7 @@
         console.error(err);
         bookingsTableBody.innerHTML = "";
         bookingsSummary.textContent = "Error loading bookings: " + err.message;
+        if (dupCountEl) dupCountEl.textContent = "0";
       }
     }
 
@@ -433,7 +431,7 @@
       if (/^\d{1,2}:\d{2}$/.test(v)) {
         return v;
       }
-      return v; // let server reject if really invalid
+      return v; // let server validate if really invalid
     }
 
     function openEditModal(booking) {
@@ -467,6 +465,7 @@
       if (e.target === editModalWrap) closeEditModal();
     });
 
+    // Double-click row to edit
     bookingsTableBody.addEventListener("dblclick", (e) => {
       const tr = e.target.closest("tr");
       if (!tr) return;
@@ -506,7 +505,7 @@
       }
     });
 
-    // Initial load
+    // Initial load — NO filters set, so you get ALL bookings
     loadBookings();
   </script>
 </body>
