@@ -49,6 +49,11 @@
     .btn.alt{background:#113c2c;border-color:#1a5d45}
     .btn.alt:hover{background:#164c38}
     .btn.ghost{background:transparent}
+    .btn.small{
+      padding:6px 10px;
+      font-size:12px;
+      border-radius:999px;
+    }
 
     label{display:flex;align-items:center;gap:8px}
 
@@ -124,6 +129,42 @@
     }
     .status-ok{color:var(--ok);font-size:12px;}
     .status-err{color:var(--err);font-size:12px;}
+
+    /* MODAL (for Smart Pack booking confirm) */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,0.6);
+      display:flex;align-items:center;justify-content:center;
+      z-index:50;
+    }
+    .modal{
+      background:var(--card);border-radius:16px;border:1px solid var(--line);
+      width:100%;max-width:520px;padding:18px 18px 14px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.55);
+    }
+    .modal-header{
+      display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+    }
+    .modal-title{font-size:16px;font-weight:600;}
+    .modal-body{
+      display:grid;gap:10px;margin-bottom:10px;font-size:13px;
+    }
+    .modal-row{
+      display:flex;flex-direction:column;gap:4px;
+    }
+    .modal-row label{font-size:12px;color:var(--muted);}
+    .modal-row input,.modal-row textarea,.modal-row select{
+      width:100%;
+      min-height:34px;
+      padding:6px 9px;
+      background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid var(--line);
+      font:inherit;
+    }
+    .modal-row textarea{min-height:80px;resize:vertical;}
+    .modal-footer{
+      display:flex;justify-content:space-between;align-items:center;margin-top:6px;
+    }
+    .hidden{display:none;}
+    .error-text{color:var(--err);font-size:12px;}
   </style>
 </head>
 <body>
@@ -184,7 +225,8 @@
           • fills <strong>full vehicles only</strong> where possible using seat sizes
           <strong>4 / 5 / 6 / 7 / 8 / 19</strong>,<br>
           • if fewer than 4 passengers remain in a group, they go in a <strong>4-seater (1–4 pax)</strong>,<br>
-          • and prefers to <strong>fill larger vehicles first</strong> (19, then 8, 7, 6, 5, 4).
+          • and prefers to <strong>fill larger vehicles first</strong> (19, then 8, 7, 6, 5, 4).<br>
+          Use <strong>Book Taxi</strong> to send the first pick, vias and final destination into Autocab.
         </p>
       </section>
 
@@ -254,6 +296,45 @@
     </section>
   </div>
 
+  <!-- BOOK TAXI MODAL -->
+  <div id="bookModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Confirm Taxi Booking</div>
+        <button class="btn ghost" id="btnBookClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label>Stops (first pickup, vias, final destination)</label>
+          <textarea id="bookStops" readonly></textarea>
+        </div>
+        <div class="modal-row">
+          <label for="bookDate">Pickup Date</label>
+          <input id="bookDate" type="date">
+        </div>
+        <div class="modal-row">
+          <label for="bookTime">Pickup Time (e.g. 07:30)</label>
+          <input id="bookTime" type="text" placeholder="HH:MM or HHMM">
+        </div>
+        <div class="modal-row">
+          <label for="bookPassengers">Passengers (total)</label>
+          <input id="bookPassengers" type="number" min="1" step="1">
+        </div>
+        <div class="modal-row">
+          <label for="bookVehicle">Suggested Vehicle Size</label>
+          <input id="bookVehicle" type="number" min="4" step="1" readonly>
+        </div>
+        <div class="modal-row">
+          <span id="bookError" class="error-text"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnBookCancel">Cancel</button>
+        <button class="btn primary" id="btnBookConfirm">Confirm &amp; Book</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // API base: localhost in dev, origin in prod
     const apiBase = window.location.origin.includes("localhost")
@@ -286,7 +367,6 @@
     });
 
     /* ---------- SMART PACK (auto best vehicle) ---------- */
-    function toInt(val, fallback){ const n = Number(val); return Number.isFinite(n)&&n>0?Math.floor(n):fallback; }
     const R_EARTH=6371000; const toRad=d=>d*Math.PI/180;
     function haversineMeters(a,b){
       if(!a||!b||a.lat==null||b.lat==null)return 1e12;
@@ -296,20 +376,16 @@
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
     }
 
-    // 1-hour windows
     const TIME_WINDOW_MINS = 60;
 
     function timeStrToMinutes(str){
       const v = (str || "").trim();
       if (!v) return null;
-
-      // HH:MM
       let m = v.match(/^(\d{1,2}):(\d{2})$/);
       if (m){
         const h = Number(m[1]), min = Number(m[2]);
         if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
       }
-      // HHMM
       m = v.match(/^(\d{1,2})(\d{2})$/);
       if (m){
         const h = Number(m[1]), min = Number(m[2]);
@@ -388,9 +464,8 @@
       };
     }
 
-    // Build 1-hour time buckets from groups
     function buildTimeBucketsFromGroups(groups){
-      const map = new Map(); // bucketIdx -> { bucketIdx, label, addresses:[] }
+      const map = new Map();
       for(const g of groups){
         const zone = g.zoneName || "(unknown)";
         const timeStr = g.onOffDutyTime || "";
@@ -414,7 +489,6 @@
       return Array.from(map.values()).sort((a,b)=>a.bucketIdx - b.bucketIdx);
     }
 
-    // Geo clustering by radius; no seat capacity here, just "who is near whom"
     function greedyCluster(addresses, radius){
       const unassigned=addresses.map((a,i)=>({...a,_i:i}));
       const clusters=[];
@@ -440,13 +514,8 @@
       return clusters;
     }
 
-    // Vehicle sizes we support
     const VEHICLE_SIZES = [19,8,7,6,5,4];
 
-    // For a given cluster of addresses, split into multiple vehicles such that:
-    // - use full vehicles 19/8/7/6/5/4 where possible
-    // - if fewer than 4 pax remain, put them into a 4-seater (not full)
-    // - prefer larger vehicles first
     function splitClusterIntoFullVehicles(cluster){
       const result = [];
       const addrs = [...cluster];
@@ -456,7 +525,7 @@
       while(remaining > 0){
         let cap;
         if(remaining < 4){
-          cap = 4; // 1–3 pax into a 4-seater
+          cap = 4;
         } else if (remaining >= 19){
           cap = 19;
         } else if (remaining >= 8){
@@ -468,12 +537,13 @@
         } else if (remaining >= 5){
           cap = 5;
         } else {
-          cap = 4; // exactly 4
+          cap = 4;
         }
 
         const groupSize = Math.min(cap, remaining);
         const group = addrs.slice(index, index + groupSize);
         group._vehicleCapacity = cap;
+        group._booked = false;
         result.push(group);
 
         index += groupSize;
@@ -483,10 +553,10 @@
       return result;
     }
 
-    // Fallback: if for some reason capacity not set, pick smallest that fits pax
     function pickVehicleCapacity(pax){
       if(pax <= 4) return 4;
-      for(const size of VEHICLE_SIZES.slice().sort((a,b)=>a-b)){
+      const sorted = [...VEHICLE_SIZES].sort((a,b)=>a-b);
+      for(const size of sorted){
         if(size >= pax) return size;
       }
       return VEHICLE_SIZES[0] || pax;
@@ -496,15 +566,14 @@
       const out=document.getElementById("smartOutput");
       out.innerHTML="";
       let taxiCounter=1;
-      buckets.forEach(bucket=>{
+      buckets.forEach((bucket, bIndex)=>{
         const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
         const col=document.createElement("div");
         col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span></h4>`;
-        bucket.taxis.forEach(pack=>{
+        bucket.taxis.forEach((pack, tIndex)=>{
           const pax = pack.length;
           const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
 
-          // Build numbered list items
           const list = pack.map((a, idx) => ({
             idx: idx + 1,
             text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
@@ -512,21 +581,36 @@
           const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
           const listText=list.map(item=>`${item.idx}. ${item.text}`).join("\n");
 
+          const bookedLabel = pack._booked ? "Booked" : "Book Taxi";
+          const bookedDisabled = pack._booked ? "disabled" : "";
+
           const wrap=document.createElement("div");
           wrap.className="taxi";
           wrap.innerHTML=`
-            <h4>Taxi ${taxiCounter++} — ${pax} pax — suggested ${vehicleSize}-seater <span class="zonechip">${zones}</span></h4>
+            <h4>
+              Taxi ${taxiCounter++} — ${pax} pax — suggested ${vehicleSize}-seater
+              <span class="zonechip">${zones}</span>
+              ${pack._booked ? '<span class="subtag">Booked</span>' : ''}
+            </h4>
             <div>
               ${list.map(item=>`<span class="addr">${item.idx}. ${item.text}</span>`).join("")}
             </div>
             <div class="row-actions" style="margin-top:6px;">
-              <button class="btn alt copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
+              <button class="btn alt small copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
+              <button
+                class="btn primary small"
+                data-book-bucket="${bIndex}"
+                data-book-taxi="${tIndex}"
+                ${bookedDisabled}
+              >${bookedLabel}</button>
             </div>
           `;
           col.appendChild(wrap);
         });
         out.appendChild(col);
       });
+
+      // Copy buttons
       out.querySelectorAll(".copy").forEach(b=>{
         b.addEventListener("click",()=>{
           const t=b.getAttribute("data-text");
@@ -557,8 +641,6 @@
 
       timeBuckets.forEach(tb => {
         if (!tb.addresses || !tb.addresses.length) return;
-
-        // First geo-cluster within this 1-hour time bucket
         const geoClusters = greedyCluster(tb.addresses, radius);
 
         const taxis = [];
@@ -583,18 +665,6 @@
       };
       document.getElementById("exportSmartCsv").disabled = !buckets.length;
       renderSmartOutput(buckets);
-
-      // Debug summary in console
-      const summary = buckets.map(b => ({
-        label: b.label,
-        vehiclePax: b.taxis.map(t => t.length),
-        vehicleCaps: b.taxis.map(t => t._vehicleCapacity || pickVehicleCapacity(t.length))
-      }));
-      console.log("SmartPack summary:", {
-        radiusKm,
-        shiftType: groupType,
-        buckets: summary
-      });
     }
 
     document.getElementById("loadGroups").addEventListener("click",loadGroups);
@@ -721,9 +791,143 @@
 
     document.getElementById("tplSave").addEventListener("click", saveSmsTemplates);
 
+    /* ---------- BOOK TAXI MODAL LOGIC --------- */
+    const smartOutput = document.getElementById("smartOutput");
+    const bookModalWrap = document.getElementById("bookModalWrap");
+    const btnBookClose = document.getElementById("btnBookClose");
+    const btnBookCancel = document.getElementById("btnBookCancel");
+    const btnBookConfirm = document.getElementById("btnBookConfirm");
+    const bookStops = document.getElementById("bookStops");
+    const bookDate = document.getElementById("bookDate");
+    const bookTime = document.getElementById("bookTime");
+    const bookPassengers = document.getElementById("bookPassengers");
+    const bookVehicle = document.getElementById("bookVehicle");
+    const bookError = document.getElementById("bookError");
+
+    let currentBookRef = null; // {bucketIndex, taxiIndex}
+
+    function normaliseTimeInput(value) {
+      const v = (value || "").trim();
+      if (!v) return "";
+      if (/^\d{4}$/.test(v)) {
+        return v.slice(0,2) + ":" + v.slice(2);
+      }
+      if (/^\d{1,2}$/.test(v)) {
+        return v.padStart(2,"0") + ":00";
+      }
+      if (/^\d{1,2}:\d{2}$/.test(v)) {
+        return v;
+      }
+      return v;
+    }
+
+    function openBookModal(bucketIndex, taxiIndex){
+      if (!lastSmartBuckets || !lastSmartBuckets[bucketIndex]) return;
+      const bucket = lastSmartBuckets[bucketIndex];
+      const pack = bucket.taxis[taxiIndex];
+      if (!pack || !pack.length) return;
+
+      currentBookRef = { bucketIndex, taxiIndex };
+      bookError.textContent = "";
+
+      const lines = pack.map((a, idx) =>
+        `${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`
+      );
+      bookStops.value = lines.join("\n");
+      bookPassengers.value = pack.length;
+      bookVehicle.value = pack._vehicleCapacity || pickVehicleCapacity(pack.length);
+
+      bookDate.value = grpDate.value || "";
+      bookTime.value = pack[0]?.time || "";
+
+      bookModalWrap.classList.remove("hidden");
+    }
+
+    function closeBookModal(){
+      currentBookRef = null;
+      bookModalWrap.classList.add("hidden");
+    }
+
+    btnBookClose.addEventListener("click", closeBookModal);
+    btnBookCancel.addEventListener("click", closeBookModal);
+    bookModalWrap.addEventListener("click",(e)=>{
+      if (e.target === bookModalWrap) closeBookModal();
+    });
+
+    // Delegate Book Taxi clicks
+    smartOutput.addEventListener("click",(e)=>{
+      const btn = e.target.closest("button[data-book-bucket]");
+      if (!btn) return;
+      const bIndex = Number(btn.dataset.bookBucket);
+      const tIndex = Number(btn.dataset.bookTaxi);
+      openBookModal(bIndex, tIndex);
+    });
+
+    btnBookConfirm.addEventListener("click", async ()=>{
+      if (!currentBookRef || !lastSmartBuckets) return;
+      bookError.textContent = "";
+
+      const date = bookDate.value;
+      let time = normaliseTimeInput(bookTime.value);
+      const passengers = Number(bookPassengers.value || "0");
+
+      if (!date){
+        bookError.textContent = "Please enter a pickup date.";
+        return;
+      }
+      if (!time || !/^\d{2}:\d{2}$/.test(time)){
+        bookError.textContent = "Please enter a valid time (HH:MM).";
+        return;
+      }
+      if (!passengers || passengers < 1){
+        bookError.textContent = "Passenger count must be at least 1.";
+        return;
+      }
+
+      const { bucketIndex, taxiIndex } = currentBookRef;
+      const bucket = lastSmartBuckets[bucketIndex];
+      const pack = bucket.taxis[taxiIndex];
+
+      const stops = pack.map(a => ({
+        formatted: a.formatted,
+        lat: a.lat,
+        lng: a.lng
+      }));
+
+      const payload = {
+        date,
+        time,
+        passengers,
+        vehicleCapacity: pack._vehicleCapacity || pickVehicleCapacity(pack.length),
+        stops,
+        meta: {
+          bucketLabel: bucket.label,
+          shiftType: groupType
+        }
+      };
+
+      try {
+        btnBookConfirm.disabled = true;
+        await fetchJSON(`${apiBase}/api/autocab/book-smartpack`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        // Mark as booked locally and refresh Smart Pack view
+        pack._booked = true;
+        closeBookModal();
+        renderSmartOutput(lastSmartBuckets);
+      } catch (err) {
+        bookError.textContent = err.message || "Failed to book taxi.";
+      } finally {
+        btnBookConfirm.disabled = false;
+      }
+    });
+
     // Initial loads
     refreshOld();
-    loadGroups();   // pre-load groups for today
+    loadGroups();
     loadSmsTemplates();
   </script>
 </body>
