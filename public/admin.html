@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Derriford Staff Taxi — Admin Reports</title>
+  <title>Derriford Staff Taxi — Admin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -85,7 +85,6 @@
     .taxi h4{margin:0 0 6px 0;font-size:13px;color:#d7e0ea}
     .addr{display:block;color:#d7e0ea;font-size:12px;line-height:1.3}
 
-    /* HR */
     .hr{height:1px;background:var(--line);margin:10px 0}
 
     /* TABS */
@@ -122,7 +121,6 @@
   </style>
 </head>
 <body>
-  <!-- NAVBAR -->
   <nav class="navbar">
     <div class="nav-left">
       <a href="/">Home</a>
@@ -134,7 +132,6 @@
   </nav>
 
   <div class="wrap">
-    <!-- HEADER -->
     <header class="card">
       <h1>Derriford Staff Taxi — Admin</h1>
       <div class="controls">
@@ -150,9 +147,8 @@
       <button class="tab" data-tab="templates">SMS Templates</button>
     </div>
 
-    <!-- REPORTS TAB CONTENT -->
+    <!-- REPORTS TAB -->
     <div data-tab-content="reports">
-      <!-- SMART PACK -->
       <section class="card">
         <h2>Smart Pack — Fill Taxis by Nearby Pickups</h2>
         <div class="toolbar">
@@ -191,10 +187,10 @@
         <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
         <p class="muted" style="margin-top:6px">
           Smart Pack groups nearby pickups for the same shift and fills vehicles up to the selected capacity (4 / 6 / 7 / 8 / 19).
+          Use the time tolerance if you want to combine close times (e.g. 30 mins).
         </p>
       </section>
 
-      <!-- LEGACY REPORTS -->
       <section class="card">
         <h2>Legacy Reports (visual)</h2>
 
@@ -223,12 +219,12 @@
       </section>
     </div>
 
-    <!-- SMS TEMPLATES TAB CONTENT -->
+    <!-- SMS TEMPLATES TAB -->
     <section class="card" data-tab-content="templates" style="display:none;">
       <h2>SMS Templates — Approve / Decline</h2>
       <p class="muted" style="margin-bottom:10px;">
         These templates are used when you approve or decline a booking from the dashboard.
-        You can customise the wording once and it will be reused for every SMS.
+        Edit once here and the system will reuse the wording every time.
       </p>
 
       <div class="form-row">
@@ -250,7 +246,7 @@
           <code>{{destination}}</code> = drop-off address<br/>
           <code>{{staff}}</code> = staff name &nbsp;
           <code>{{ref}}</code> = booking reference<br/>
-          <code>{{reason}}</code> = decline reason (for declined SMS only)
+          <code>{{reason}}</code> = decline reason (for declined SMS)
         </span>
       </div>
 
@@ -390,13 +386,14 @@
       return Array.from(new Set(groups.map(g=>g.onOffDutyTime||"00:00"))).sort((a,b)=>a.localeCompare(b));
     }
 
-    function renderSmartOutput(buckets,seatLabel){
+    function renderSmartOutput(buckets,seatCapacity){
       const out=document.getElementById("smartOutput");
       out.innerHTML="";
       let taxiCounter=1;
       buckets.forEach(bucket=>{
+        const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
         const col=document.createElement("div");
-        col.innerHTML=`<h4>${bucket.time} <span class="subtag">${seatLabel}-seater</span> <span class="tag">${bucket.taxis.reduce((n,t)=>n+t.length,0)} pax</span></h4>`;
+        col.innerHTML=`<h4>${bucket.time} <span class="subtag">${seatCapacity}-seater</span> <span class="tag">${totalPax} pax total</span></h4>`;
         bucket.taxis.forEach(pack=>{
           const wrap=document.createElement("div");
           wrap.className="taxi";
@@ -404,7 +401,7 @@
           const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
           const listText=list.map(x=>`• ${x}`).join("\n");
           wrap.innerHTML=`
-            <h4>Taxi ${taxiCounter++} — ${list.length} pax <span class="zonechip">${zones}</span></h4>
+            <h4>Taxi ${taxiCounter++} — ${list.length} / ${seatCapacity} pax <span class="zonechip">${zones}</span></h4>
             <div>${list.map(x=>`<span class="addr">${x}</span>`).join("")}</div>
             <div class="row-actions" style="margin-top:6px;">
               <button class="btn alt copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
@@ -532,7 +529,7 @@
     document.getElementById("refreshOld").addEventListener("click",refreshOld);
     document.getElementById("legacyLoad").addEventListener("click",refreshOld);
 
-    /* ---------- SMS TEMPLATES (API) ---------- */
+    /* ---------- SMS TEMPLATES API ---------- */
     async function loadSmsTemplates() {
       const msgEl = document.getElementById("tplMsg");
       msgEl.textContent = "Loading…";
@@ -556,7 +553,7 @@
       try {
         const approve = document.getElementById("tplApprove").value;
         const decline = document.getElementById("tplDecline").value;
-        const data = await fetchJSON(`${apiBase}/api/settings/sms-templates`, {
+        await fetchJSON(`${apiBase}/api/settings/sms-templates`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ approve, decline })
