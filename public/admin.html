@@ -163,8 +163,8 @@
           </label>
 
           <div id="typeToggle" style="display:flex;gap:8px;align-items:center">
-            <span class="pill active" data-type="start">Shift Start (to Derriford)</span>
-            <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
+            <span class="pill active" data-type="start">Shift Start (home → Derriford)</span>
+            <span class="pill" data-type="finish">Shift Finish (Derriford → home)</span>
           </div>
 
           <label>Radius (km)
@@ -178,10 +178,12 @@
 
         <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
         <p class="muted" style="margin-top:6px">
-          Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then clusters nearby
-          pickups using the radius and assigns the <strong>smallest suitable vehicle</strong> for each cluster
-          (4 / 6 / 7 / 8 / 19 seats). Only bookings within roughly <strong>1 hour of each other</strong> are grouped
-          in the same vehicle. The numbered list under each taxi shows the suggested pickup / drop sequence.
+          Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then:
+          <br>• Groups nearby <strong>home addresses</strong> using the radius, with a max of <strong>19 passengers per vehicle</strong>.
+          <br>• Only groups bookings that are within roughly <strong>1 hour of each other</strong> in time.
+          <br>• For <strong>Shift Start</strong> the route is ordered <strong>Homes → Derriford</strong> (furthest first).
+          <br>• For <strong>Shift Finish</strong> the route is ordered <strong>Derriford → Homes</strong> (closest first).
+          <br>The numbered list under each taxi shows the suggested pickup / drop sequence.
         </p>
       </section>
 
@@ -283,14 +285,22 @@
     });
 
     /* ---------- SMART PACK (auto best vehicle) ---------- */
-    function toInt(val, fallback){ const n = Number(val); return Number.isFinite(n)&&n>0?Math.floor(n):fallback; }
     const R_EARTH=6371000; const toRad=d=>d*Math.PI/180;
+
     function haversineMeters(a,b){
       if(!a||!b||a.lat==null||b.lat==null)return 1e12;
       const dLat=toRad(b.lat-a.lat),dLng=toRad(b.lng-a.lng);
       const la1=toRad(a.lat),la2=toRad(b.lat);
       const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
+    }
+
+    // Derriford reference point for routing
+    const DERRIFORD = { lat: 50.4195, lng: -4.1090 };
+
+    function distToDerriford(a) {
+      if (!a || a.lat == null || a.lng == null) return 0;
+      return haversineMeters(a, DERRIFORD);
     }
 
     function timeToMinutes(t){
@@ -374,7 +384,7 @@
       };
     }
 
-    // Instead of time buckets, flatten ALL bookings for date+shift
+    // Flatten ALL bookings for date+shift into one list of home addresses
     function flattenAll(groups){
       const out=[];
       for(const g of groups){
@@ -437,23 +447,44 @@
       return 19;
     }
 
+    // Order the pack along the route relative to Derriford:
+    // start: Homes -> Derriford (furthest first)
+    // finish: Derriford -> Homes (closest first)
+    function orderPackForRoute(pack, shiftType) {
+      const arr = pack.map(a => ({...a, _d: distToDerriford(a)}));
+      if (shiftType === "finish") {
+        // Derriford -> homes: drop closer homes first
+        arr.sort((a,b) => a._d - b._d);
+      } else {
+        // Homes -> Derriford: pick furthest first, work inwards
+        arr.sort((a,b) => b._d - a._d);
+      }
+      return arr;
+    }
+
     function renderSmartOutput(buckets){
       const out=document.getElementById("smartOutput");
       out.innerHTML="";
       let taxiCounter=1;
+
+      const routeLabelText = groupType === "finish"
+        ? "Route: Derriford → homes"
+        : "Route: homes → Derriford";
+
       buckets.forEach(bucket=>{
         const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
         const col=document.createElement("div");
-        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span></h4>`;
+        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span> <span class="subtag">${routeLabelText}</span></h4>`;
         bucket.taxis.forEach(pack=>{
-          const pax = pack.length;
+          const orderedPack = orderPackForRoute(pack, groupType);
+          const pax = orderedPack.length;
           const vehicleSize = pickVehicleCapacity(pax);
 
-          const list = pack.map((a, idx) => ({
+          const list = orderedPack.map((a, idx) => ({
             idx: idx + 1,
             text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
           }));
-          const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
+          const zones=Array.from(new Set(orderedPack.map(a=>a.zone))).join(", ");
           const listText=list.map(item=>`${item.idx}. ${item.text}`).join("\n");
 
           const wrap=document.createElement("div");
@@ -544,17 +575,21 @@
       let taxiNoGlobal = 1;
       const metaDate = params?.date || "";
       const metaShift = (params?.type === "finish" ? "finish" : "start");
+      const routeLabel = metaShift === "finish" ? "Derriford → homes" : "homes → Derriford";
+
       buckets.forEach(bucket => {
         bucket.taxis.forEach(pack => {
-          const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
-          const addresses = pack
+          const orderedPack = orderPackForRoute(pack, metaShift);
+          const zones = Array.from(new Set(orderedPack.map(a=>a.zone))).filter(Boolean).join(", ");
+          const addresses = orderedPack
             .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`)
             .join(" | ");
-          const pax = pack.length;
+          const pax = orderedPack.length;
           const vehicleSize = pickVehicleCapacity(pax);
           rows.push({
             Date: metaDate,
             Shift: metaShift,
+            Route: routeLabel,
             Taxi: `Taxi ${taxiNoGlobal++}`,
             Passengers: String(pax),
             SuggestedVehicle: vehicleSize,
