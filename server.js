@@ -121,6 +121,89 @@ function isDerriford(lat, lng) {
   return withinMeters(lat, lng, DH_LAT, DH_LNG, 900);
 }
 
+// --- NEW: Distance + simple route optimiser helpers ---
+
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = d => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * stops: [{ lat, lng, ... }]
+ * direction: "inbound"  -> heading TO Derriford
+ *            "outbound" -> heading FROM Derriford
+ * Returns stops in a good driving order (nearest-neighbour heuristic).
+ */
+function optimiseRoute(stops, direction = "inbound") {
+  if (!stops || stops.length <= 1) return stops || [];
+
+  const DH_LAT = 50.4195;
+  const DH_LNG = -4.1090;
+
+  const remaining = [...stops];
+  const ordered = [];
+
+  if (direction === "inbound") {
+    // Start with the FURTHEST stop from Derriford
+    let startIdx = 0;
+    let maxDist = -1;
+    remaining.forEach((s, i) => {
+      if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+      const d = haversineDistance(s.lat, s.lng, DH_LAT, DH_LNG);
+      if (d > maxDist) {
+        maxDist = d;
+        startIdx = i;
+      }
+    });
+    let current = remaining.splice(startIdx, 1)[0];
+    ordered.push(current);
+
+    // Then always go to the nearest next stop
+    while (remaining.length) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      remaining.forEach((s, i) => {
+        if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+        const d = haversineDistance(current.lat, current.lng, s.lat, s.lng);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      });
+      current = remaining.splice(bestIdx, 1)[0];
+      ordered.push(current);
+    }
+  } else {
+    // OUTBOUND: start at Derriford, then go to nearest next stop
+    let currentPos = { lat: DH_LAT, lng: DH_LNG };
+
+    while (remaining.length) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      remaining.forEach((s, i) => {
+        if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+        const d = haversineDistance(currentPos.lat, currentPos.lng, s.lat, s.lng);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      });
+      const next = remaining.splice(bestIdx, 1)[0];
+      ordered.push(next);
+      currentPos = { lat: next.lat, lng: next.lng };
+    }
+  }
+
+  return ordered;
+}
+
 function makeReference(reasonCode, budgetNumber, budgetHolderName) {
   return `${reasonCode}/${budgetNumber}/${budgetHolderName}`.trim();
 }
@@ -500,7 +583,7 @@ app.get("/api/reports/by-shift", async (req, res) => {
   res.json(result);
 });
 
-// ---------------------- Shift grouping ----------------------
+// ---------------------- Shift grouping (now with routed addresses) ----------------------
 app.get("/api/reports/shift-groups", async (req, res) => {
   try {
     const type = (req.query.type || "start").toLowerCase();
@@ -546,10 +629,16 @@ app.get("/api/reports/shift-groups", async (req, res) => {
     ];
 
     const groups = await Booking.aggregate(pipeline);
-    const formatted = groups.map(g => ({
-      ...g,
-      pickupDateISO: toDDMMYY(g.pickupDateISO),
-    }));
+
+    const formatted = groups.map(g => {
+      const direction = type === "finish" ? "outbound" : "inbound";
+      const orderedAddresses = optimiseRoute(g.addresses || [], direction);
+      return {
+        ...g,
+        pickupDateISO: toDDMMYY(g.pickupDateISO),
+        addresses: orderedAddresses
+      };
+    });
 
     res.json({ type, groups: formatted });
   } catch (e) {
