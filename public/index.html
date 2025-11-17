@@ -115,54 +115,54 @@
         </div>
       </div>
     </div>
-<!-- Charging / approvals -->
-<div class="two">
-  <div class="row">
-    <label>Reason Code (2 chars, e.g., P1) *</label>
-    <input
-      id="reasonCode"
-      maxlength="2"
-      inputmode="text"
-      autocapitalize="characters"
-      placeholder="e.g. P1 — patient transfer"
-      required
-    />
-    <div class="hint">Use two letters/numbers (e.g., P1, OT, A3).</div>
-  </div>
-  <div class="row">
-    <label>Budget Number (6 digits) *</label>
-    <input
-      id="budgetNumber"
-      maxlength="6"
-      inputmode="numeric"
-      pattern="[0-9]*"
-      placeholder="e.g. 123456"
-      required
-    />
-    <div class="hint">Enter exactly 6 digits with no spaces.</div>
-  </div>
-</div>
 
-<div class="row">
-  <label>Full Name – Budget Holder *</label>
-  <input
-    id="budgetHolderName"
-    autocapitalize="words"
-    placeholder="e.g. Dr Jane Smith (who approved the booking)"
-    required
-  />
-  <div class="hint">Person authorising this journey’s cost centre.</div>
-</div>
+    <!-- Charging / approvals -->
+    <div class="two">
+      <div class="row">
+        <label>Reason Code (2 chars, e.g., P1) *</label>
+        <input
+          id="reasonCode"
+          maxlength="2"
+          inputmode="text"
+          autocapitalize="characters"
+          placeholder="e.g. P1 — patient transfer"
+          required
+        />
+        <div class="hint">Use two letters/numbers (e.g., P1, OT, A3).</div>
+      </div>
+      <div class="row">
+        <label>Budget Number (6 digits) *</label>
+        <input
+          id="budgetNumber"
+          maxlength="6"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          placeholder="e.g. 123456"
+          required
+        />
+        <div class="hint">Enter exactly 6 digits with no spaces.</div>
+      </div>
+    </div>
 
-<div class="row">
-  <label>Budget Holder Signature (optional)</label>
-  <canvas id="sig" width="700" height="160"></canvas>
-  <div class="sig-actions">
-    <button type="button" id="clearSig" style="background:#777;">Clear Signature</button>
-  </div>
-  <div class="hint">Signature is optional; enter the name above even if no signature.</div>
-</div>
+    <div class="row">
+      <label>Full Name – Budget Holder *</label>
+      <input
+        id="budgetHolderName"
+        autocapitalize="words"
+        placeholder="e.g. Dr Jane Smith (who approved the booking)"
+        required
+      />
+      <div class="hint">Person authorising this journey’s cost centre.</div>
+    </div>
 
+    <div class="row">
+      <label>Budget Holder Signature (optional)</label>
+      <canvas id="sig" width="700" height="160"></canvas>
+      <div class="sig-actions">
+        <button type="button" id="clearSig" style="background:#777;">Clear Signature</button>
+      </div>
+      <div class="hint">Signature is optional; enter the name above even if no signature.</div>
+    </div>
 
     <button type="submit">Submit Booking</button>
     <div id="msg"></div>
@@ -173,7 +173,11 @@
   </footer>
 
   <script>
-    const apiBase = "http://localhost:4000";
+    // Dynamic API base: localhost in dev, Render origin in production
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
+
     const state = {
       shiftType: "start",
       pickup: null,
@@ -235,19 +239,19 @@
       const input = document.getElementById(inputId);
       const status = document.getElementById(statusId);
       const ac = new google.maps.places.Autocomplete(input, {
-  fields: ["place_id", "geometry", "formatted_address", "name"],
-  componentRestrictions: { country: ["gb"] },
-  types: ["geocode"],
-});
+        fields: ["place_id", "geometry", "formatted_address", "name"],
+        componentRestrictions: { country: ["gb"] },
+        types: ["geocode"],
+      });
 
-const plymouthCenter = new google.maps.LatLng(50.3755, -4.1427);
-const biasBounds = new google.maps.Circle({
-  center: plymouthCenter,
-  radius: 20000, // ~20km around Plymouth
-}).getBounds();
+      const plymouthCenter = new google.maps.LatLng(50.3755, -4.1427);
+      const biasBounds = new google.maps.Circle({
+        center: plymouthCenter,
+        radius: 20000, // ~20km around Plymouth
+      }).getBounds();
 
-ac.setBounds(biasBounds);
-ac.setOptions({ strictBounds: false });
+      ac.setBounds(biasBounds);
+      ac.setOptions({ strictBounds: false });
 
       ac.addListener("place_changed", () => {
         const place = ac.getPlace();
