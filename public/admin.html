@@ -180,7 +180,8 @@
         <p class="muted" style="margin-top:6px">
           Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then clusters nearby
           pickups using the radius and assigns the <strong>smallest suitable vehicle</strong> for each cluster
-          (4 / 6 / 7 / 8 / 19 seats). The numbered list under each taxi shows the suggested pickup / drop sequence.
+          (4 / 6 / 7 / 8 / 19 seats). Only bookings within roughly <strong>1 hour of each other</strong> are grouped
+          in the same vehicle. The numbered list under each taxi shows the suggested pickup / drop sequence.
         </p>
       </section>
 
@@ -292,6 +293,30 @@
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
     }
 
+    function timeToMinutes(t){
+      const v = (t || "").trim();
+      if (!v) return null;
+
+      // HH:MM
+      if (/^\d{1,2}:\d{2}$/.test(v)) {
+        const [h, m] = v.split(":").map(Number);
+        if (h >= 0 && h < 24 && m >= 0 && m < 60) return h * 60 + m;
+      }
+      // HHMM (e.g. 0730 or 730)
+      if (/^\d{3,4}$/.test(v)) {
+        const hh = v.length === 3 ? v.slice(0,1) : v.slice(0,2);
+        const mm = v.slice(-2);
+        const h = Number(hh), m = Number(mm);
+        if (h >= 0 && h < 24 && m >= 0 && m < 60) return h * 60 + m;
+      }
+      // HH
+      if (/^\d{1,2}$/.test(v)) {
+        const h = Number(v);
+        if (h >= 0 && h < 24) return h * 60;
+      }
+      return null;
+    }
+
     function setToday(inputEl){
       if(!inputEl.value){
         const d=new Date();
@@ -333,19 +358,19 @@
     }
 
     function normalizeAddr(rec,zone,time){
-      if(typeof rec==="object")return{
-        formatted:rec.formatted,
-        lat:rec.lat,
-        lng:rec.lng,
-        zone:zone||"(unknown)",
-        time:time||""
-      };
-      return{
-        formatted:String(rec||""),
-        lat:null,
-        lng:null,
-        zone:zone||"(unknown)",
-        time:time||""
+      const formatted = (typeof rec === "object") ? rec.formatted : String(rec || "");
+      const lat = (typeof rec === "object") ? rec.lat : null;
+      const lng = (typeof rec === "object") ? rec.lng : null;
+      const t = time || "";
+      const timeMinutes = timeToMinutes(t);
+
+      return {
+        formatted,
+        lat,
+        lng,
+        zone: zone || "(unknown)",
+        time: t,
+        timeMinutes
       };
     }
 
@@ -363,24 +388,38 @@
     }
 
     // Cluster by radius with maximum capacity 19 per cluster
+    // and only include bookings within 60 minutes of the seed time
     function greedyCluster(addresses, radius){
       const CAPACITY = 19; // max per vehicle cluster
-      const unassigned=addresses.map((a,i)=>({...a,_i:i}));
-      const taxis=[];
+      const MAX_TIME_DIFF_MIN = 60; // 1 hour window
+
+      const unassigned = addresses.map((a,i)=>({...a,_i:i}));
+      const taxis = [];
+
       while(unassigned.length){
-        let seedIdx=unassigned.findIndex(x=>x.lat!=null);
+        let seedIdx = unassigned.findIndex(x=>x.lat!=null);
         if(seedIdx===-1)seedIdx=0;
-        const seed=unassigned.splice(seedIdx,1)[0];
-        const pack=[seed];
+        const seed = unassigned.splice(seedIdx,1)[0];
+        const pack = [seed];
+
         if(CAPACITY>1){
-          const scored=unassigned
-            .map(x=>({x,d:haversineMeters(seed,x)}))
+          const scored = unassigned
+            .map(x => {
+              const d = haversineMeters(seed, x);
+              let dt = 1e9;
+              if (seed.timeMinutes != null && x.timeMinutes != null) {
+                dt = Math.abs(seed.timeMinutes - x.timeMinutes);
+              }
+              return { x, d, dt };
+            })
             .sort((a,b)=>a.d-b.d);
+
           for(const s of scored){
-            if(pack.length>=CAPACITY)break;
-            if(s.d<=radius){
-              const idx=unassigned.findIndex(u=>u._i===s.x._i);
-              if(idx>-1){pack.push(s.x);unassigned.splice(idx,1);}
+            if(pack.length>=CAPACITY) break;
+            // Must be within radius AND within 60 minutes
+            if(s.d <= radius && s.dt <= MAX_TIME_DIFF_MIN){
+              const idx = unassigned.findIndex(u=>u._i===s.x._i);
+              if(idx>-1){ pack.push(s.x); unassigned.splice(idx,1); }
             }
           }
         }
@@ -410,7 +449,6 @@
           const pax = pack.length;
           const vehicleSize = pickVehicleCapacity(pax);
 
-          // Build numbered list items
           const list = pack.map((a, idx) => ({
             idx: idx + 1,
             text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
