@@ -25,40 +25,49 @@
     .nav-left a.active{background:var(--brand);color:#111}
 
     .page{max-width:1100px;margin:22px auto;padding:0 16px}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    h1{font-size:20px;margin:12px 0}
-    .tools{background:var(--card);border:1px solid var(--line);padding:10px;border-radius:var(--radius);margin-bottom:14px}
-    select, input, button{
-      background:var(--btn); color:var(--ink); border:1px solid var(--line);
-      border-radius:10px; padding:10px 12px; font:inherit;
+    h1{font-size:22px;margin:0 0 14px}
+    .muted{color:var(--muted);font-size:13px;}
+
+    .tools{margin-bottom:10px}
+    .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    select, input[type="date"]{
+      background:#111827;border-radius:10px;border:1px solid #253142;
+      color:var(--ink);padding:7px 10px;font:inherit;min-width:130px;
     }
-    select:hover, input:hover{border-color:#2a3342}
-    button{cursor:pointer}
-    button.primary{background:var(--brand);color:#111;border-color:#e0b21e}
-    button.ghost{background:transparent}
+    button{
+      background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid #263445;
+      padding:8px 12px;font:inherit;cursor:pointer;
+    }
     button:hover{background:var(--btnHover)}
-    button.primary:hover{filter:brightness(0.95)}
-    .table-wrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
-    table{width:100%;border-collapse:collapse;min-width:860px}
-    th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
-    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
-    tr:hover td{background:#0f141b}
-    .ref{display:flex;flex-direction:column;gap:4px;min-width:120px}
-    .shortRef{font-weight:800;letter-spacing:0.3px;color:var(--brand)}
-    .legacyRef{font-size:12px;color:var(--muted)}
-    .addr{font-size:13px;color:#d7e0ea}
-    .addr small{display:block;color:var(--muted);margin-top:4px}
-    .chip{background:var(--chip);border:1px solid var(--line);padding:4px 8px;border-radius:999px;font-size:12px;color:#cfd8e3}
-    .chip.pending{border-color:#3a4b63}
-    .chip.approved{border-color:#245e49;color:#b2f1d7}
-    .chip.declined{border-color:#6a2d2d;color:#ffb3b3}
+    button.ghost{background:transparent}
+
+    table{width:100%;border-collapse:collapse;margin-top:6px}
+    th,td{border-bottom:1px solid var(--line);padding:10px 6px;vertical-align:top}
+    th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;background:#111827}
+    tr:hover td{background:#0e141c}
+    .ref{display:flex;flex-direction:column;gap:2px}
+    .shortRef{font-weight:700}
+    .legacyRef{font-size:11px;color:var(--muted)}
+    .pill{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
+    }
+    .pill.pending{background:#1f2937;color:#fbbf24}
+    .pill.approved{background:#022c22;color:#6ee7b7}
+    .pill.declined{background:#2f1417;color:#fecaca}
+
+    .trip{white-space:pre-line;font-size:13px}
+    .staff{white-space:pre-line;font-size:13px}
+    .zone{font-size:13px}
+    .badge{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:2px 8px;border-radius:999px;font-size:11px;background:#101827;color:#9ca3af;
+    }
     .actions{display:flex;gap:6px;flex-wrap:wrap}
-    .btn-approve{background:#113c2c;border-color:#1a5d45}
-    .btn-decline{background:#3a1c1c;border-color:#6a2d2d}
-    .btn-delete{background:#2a2a2a;border-color:#3a3a3a}
-    .btn-approve:hover{background:#164c38}
-    .btn-decline:hover{background:#472222}
-    .btn-delete:hover{background:#333}
+    .btn-approve{background:var(--ok);border-color:#16a34a;color:#041107}
+    .btn-decline{background:#3b0b0b;border-color:#7f1d1d;color:#fecaca}
+    .btn-delete{background:#111827;border-color:#374151;color:#e5e7eb}
+
     .statusbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
     .right{margin-left:auto}
     .empty{padding:30px;text-align:center;color:var(--muted)}
@@ -87,7 +96,7 @@
   </nav>
 
   <div class="page">
-    <h1>Bookings</h1>
+    <h1>Bookings <span id="totalCount" class="muted"></span></h1>
 
     <div class="tools">
       <div class="statusbar row">
@@ -100,6 +109,14 @@
             <option value="declined">Declined</option>
           </select>
         </div>
+        <div class="row" style="gap:8px">
+          <label for="dateFrom" style="color:var(--muted)">From</label>
+          <input type="date" id="dateFrom" />
+        </div>
+        <div class="row" style="gap:8px">
+          <label for="dateTo" style="color:var(--muted)">To</label>
+          <input type="date" id="dateTo" />
+        </div>
         <div class="right row">
           <button id="refreshBtn" class="ghost">Refresh</button>
           <a id="csvLink" href="#" download="bookings_export.csv"><button class="ghost">Export CSV</button></a>
@@ -107,12 +124,12 @@
       </div>
     </div>
 
-    <div class="table-wrap">
-      <table id="tbl">
+    <div class="card">
+      <table id="bookingsTbl">
         <thead>
           <tr>
-            <th>Reference</th>
-            <th>Ward / Staff</th>
+            <th>Ref</th>
+            <th>Ward &amp; Staff</th>
             <th>Date &amp; Time</th>
             <th>Zone</th>
             <th>Trip</th>
@@ -138,6 +155,9 @@
     const empty = document.getElementById("empty");
     const csvLink = document.getElementById("csvLink");
     const toastEl = document.getElementById("toast");
+    const dateFromEl = document.getElementById("dateFrom");
+    const dateToEl = document.getElementById("dateTo");
+    const totalEl = document.getElementById("totalCount");
 
     function toast(msg){
       toastEl.textContent = msg;
@@ -145,32 +165,61 @@
       setTimeout(()=>toastEl.classList.remove("show"), 2200);
     }
     function esc(s){ return String(s ?? "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
     function toDDMMYY(iso){
-      if(!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso||"";
-      const [y,m,d]=iso.split("-");
-      return `${d}-${m}-${y.slice(2)}`;
+      if(!iso) return "";
+      const [y,m,d] = String(iso).split("-");
+      if(!y||!m||!d) return iso;
+      return `${d}-${m}-${y}`;
     }
-    function shortAddr(s){ return (s||"").length>72 ? (s||"").slice(0,69)+"..." : (s||""); }
+
+    function statusChip(status){
+      const s = status || "pending";
+      if (s === "approved") return `<span class="pill approved">Approved</span>`;
+      if (s === "declined") return `<span class="pill declined">Declined</span>`;
+      return `<span class="pill pending">Pending</span>`;
+    }
 
     function fmtWardStaff(b){
-      return `<div><strong>${esc(b.wardName)}</strong><br/>
-        <span class="addr">${esc(b.staffName)}<small>${esc(b.staffPhone||"")}</small></span></div>`;
+      const ward = b.wardName || "(no ward)";
+      const staff = b.staffName || "";
+      const phone = b.staffPhone || "";
+      const wardPhone = b.wardPhone || "";
+      return `<div class="staff">
+        <strong>${esc(ward)}</strong>
+        ${staff ? `<span>${esc(staff)}</span>` : ""}
+        ${phone ? `<span>Staff: ${esc(phone)}</span>` : ""}
+        ${wardPhone ? `<span>Ward: ${esc(wardPhone)}</span>` : ""}
+      </div>`;
     }
+
     function fmtDateTime(b){
-      return `<div>${esc(toDDMMYY(b.pickupDateISO))}<br/><span class="addr"><small>${esc(b.onOffDutyTime)}</small></span></div>`;
+      const date = toDDMMYY(b.pickupDateISO);
+      const time = b.onOffDutyTime || "";
+      const shift = b.shiftType === "finish" ? "Finish" : "Start";
+      return `<div>
+        <div>${date || "—"} ${time ? " @ " + esc(time) : ""}</div>
+        <div><span class="badge">${shift}</span></div>
+      </div>`;
     }
+
     function fmtZones(b){
-      const pick = b?.pickup?.zone?.name || "";
-      const dest = b?.destination?.zone?.name || "";
-      return `<div class="addr">${esc(pick)}<br/><small>→ ${esc(dest)}</small></div>`;
+      const pz = b.pickup?.zone?.name || "";
+      const dz = b.destination?.zone?.name || "";
+      if (!pz && !dz) return "";
+      if (pz === dz) return `<span class="zone">${esc(pz)}</span>`;
+      return `<span class="zone">${esc(pz)} → ${esc(dz)}</span>`;
     }
+
     function fmtTrip(b){
-      return `<div class="addr">${esc(shortAddr(b.pickup?.formatted||""))}
-        <br/><small>→ ${esc(shortAddr(b.destination?.formatted||""))}</small></div>`;
-    }
-    function statusChip(status){
-      const cls = status === "approved" ? "approved" : status === "declined" ? "declined" : "pending";
-      return `<span class="chip ${cls}">${esc(status||"pending")}</span>`;
+      const pick = b.pickup?.formatted || "";
+      const drop = b.destination?.formatted || "";
+      const ret = b.requireReturn ? "Return required" : "";
+      return `<div class="trip">
+        ${esc(pick)}
+        ${drop ? "<br>↓<br>" + esc(drop) : ""}
+        ${ret ? "<br><span class='badge'>Return</span>" : ""}
+      </div>`;
     }
 
     function renderRow(b){
@@ -202,11 +251,11 @@
       ];
       const rows = items.map(b => ([
         toDDMMYY(b.pickupDateISO),
-        b.onOffDutyTime,
-        b.shiftType,
-        (b.wardName||"").replace(/,/g," "),
-        (b.staffName||"").replace(/,/g," "),
-        (b.staffPhone||""),
+        (b.onOffDutyTime || ""),
+        (b.shiftType || ""),
+        (b.wardName || "").replace(/,/g," "),
+        (b.staffName || "").replace(/,/g," "),
+        (b.staffPhone || "").replace(/,/g," "),
         (b.pickup?.formatted||"").replace(/,/g," "),
         (b.pickup?.zone?.name||"").replace(/,/g," "),
         (b.destination?.formatted||"").replace(/,/g," "),
@@ -225,11 +274,15 @@
       const wantsPending = statusSel.value === "pending";
       const qs = new URLSearchParams();
       if (!wantsPending && statusSel.value) qs.set("status", statusSel.value);
+      if (dateFromEl && dateFromEl.value) qs.set("dateFrom", dateFromEl.value);
+      if (dateToEl && dateToEl.value) qs.set("dateTo", dateToEl.value);
       qs.set("limit", "200");
       const url = `${api}/api/bookings?${qs.toString()}`;
 
       tbody.innerHTML = "";
       empty.style.display = "none";
+      if (totalEl) totalEl.textContent = "";
+
       try{
         const r = await fetch(url);
         if(!r.ok) throw new Error("Failed to load bookings");
@@ -237,8 +290,36 @@
         let items = data.items || [];
 
         if (wantsPending) {
-          items = items.filter(b => (b.status === "pending") || (b.status === undefined || b.status === null || b.status === ""));
+          items = items.filter(b =>
+            (b.status === "pending") ||
+            b.status === undefined ||
+            b.status === null ||
+            b.status === ""
+          );
         }
+
+        if (totalEl) totalEl.textContent = `Total: ${items.length}`;
+
+        if (items.length === 0){
+          empty.style.display = "block";
+
+          // Even with no items, keep CSV export consistent
+          const csvText = toCSV(items);
+          const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+          const urlObj = URL.createObjectURL(blob);
+          csvLink.href = urlObj;
+          csvLink.download = wantsPending ? "bookings_pending.csv" : "bookings_export.csv";
+
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const b of items){
+          const tr = document.createElement("tr");
+          tr.innerHTML = renderRow(b);
+          frag.appendChild(tr);
+        }
+        tbody.appendChild(frag);
 
         if (wantsPending) {
           const csvText = toCSV(items);
@@ -250,34 +331,34 @@
           csvLink.href = `${api}/api/bookings/export?${qs.toString()}`;
           csvLink.download = "bookings_export.csv";
         }
-
-        if (items.length === 0){
-          empty.style.display = "block";
-          return;
-        }
-        tbody.innerHTML = items.map(renderRow).join("");
-      }catch(e){
+      } catch (err){
+        console.error(err);
+        toast("Failed to load bookings");
         empty.style.display = "block";
-        toast(e.message || "Error");
+        if (totalEl) totalEl.textContent = "Total: 0";
       }
     }
 
     function grabRowBooking(row){
-      const cells = row.querySelectorAll("td");
-      const [refCell, wardCell, dtCell, , tripCell] = cells;
-      const shortRef = refCell.querySelector(".shortRef")?.textContent.trim();
-      const legacyRef = refCell.querySelector(".legacyRef")?.textContent.trim();
-      const staffLine = wardCell.textContent.trim();
-      const dt = dtCell.textContent.trim().split(/\s+/);
-      const date = dt[0] || "";
-      const time = dt[1] || "";
-      const tripLines = tripCell.textContent.split("→");
+      const id = row.getAttribute("data-id");
+      const shortRefEl = row.querySelector(".shortRef");
+      const legacyRefEl = row.querySelector(".legacyRef");
+      const tripEl = row.querySelector(".trip");
+      const staffEl = row.querySelector(".staff");
+      const dateTimeEl = row.querySelector("td:nth-child(3)");
+      const tripLines = (tripEl?.innerText || "").split("\n");
+      const staffLines = (staffEl?.innerText || "").split("\n");
+      const dateLine = (dateTimeEl?.innerText || "").split("\n")[0] || "";
+      const [date, time] = dateLine.split("@").map(s => s.trim());
+      const shortRef = shortRefEl?.innerText || "";
+      const legacyRef = legacyRefEl?.innerText || "";
       const pick = (tripLines[0]||"").trim();
       const drop = (tripLines[1]||"").trim();
       return {
+        _id:id,
         shortRef, reference: legacyRef, pickupDateISO: date, onOffDutyTime: time,
         pickup:{ formatted: pick }, destination:{ formatted: drop },
-        staffName: staffLine.split("\n")[0] || ""
+        staffName: staffLines[1] || ""
       };
     }
 
@@ -287,28 +368,33 @@
       return (
         `Your request for your Christmas staff booking for Derriford Hospital on ${dateNice} at ${b.onOffDutyTime}. ` +
         `Pick up: ${b.pickup.formatted}. Drop off: ${b.destination.formatted}. In the name ${b.staffName} has been approved. ` +
-        `Your reference number is ${b.shortRef||""}. Thanks Need-A-Cab Taxis`
+        `Your reference number is ${b.reference}.`
+      );
+    }
+
+    function buildDeclineMessage(row, reason){
+      const b = grabRowBooking(row);
+      const dateNice = toDDMMYY(b.pickupDateISO);
+      return (
+        `Your request for your Christmas staff booking for Derriford Hospital on ${dateNice} at ${b.onOffDutyTime}. ` +
+        `Pick up: ${b.pickup.formatted}. Drop off: ${b.destination.formatted}. In the name ${b.staffName} has been declined. ` +
+        `Reason: ${reason}`
       );
     }
 
     async function approve(id, row){
-      const defaultMsg = buildApproveMessage(row);
-      const msg = prompt("SMS to customer (edit if needed):", defaultMsg);
-      if (msg === null) return;
-
-      const r = await fetch(`${api}/api/bookings/${id}/approve`, {
-        method:"PATCH", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ message: msg })
-      });
+      const r = await fetch(`${api}/api/bookings/${id}/approve`, { method:"PATCH" });
       const js = await r.json();
       if(!r.ok){ toast(js.error||"Approve failed"); return; }
       toast("Approved ✔");
       updateRowFromPayload(row, js.booking);
+      const msg = buildApproveMessage(row);
+      console.log("APPROVE SMS:", msg);
     }
 
     async function decline(id, row){
-      const reason = prompt("Enter a short reason to send to the customer:");
-      if (reason === null) return;
+      const reason = prompt("Reason for declining?");
+      if(reason === null) return;
       const trimmed = String(reason).trim();
       if (!trimmed){ toast("Decline reason required"); return; }
 
@@ -320,6 +406,8 @@
       if(!r.ok){ toast(js.error||"Decline failed"); return; }
       toast("Declined ✖");
       updateRowFromPayload(row, js.booking);
+      const msg = buildDeclineMessage(row, trimmed);
+      console.log("DECLINE SMS:", msg);
     }
 
     async function deleteBooking(id, row){
@@ -340,8 +428,8 @@
       cells[5].innerHTML = statusChip(b.status);
     }
 
-    tbody.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act]");
+    tbody.addEventListener("click", (e)=>{
+      const btn = e.target.closest("button");
       if(!btn) return;
       const id = btn.getAttribute("data-id");
       const row = btn.closest("tr");
@@ -353,6 +441,8 @@
 
     statusSel.addEventListener("change", load);
     refreshBtn.addEventListener("click", load);
+    if (dateFromEl) dateFromEl.addEventListener("change", load);
+    if (dateToEl) dateToEl.addEventListener("change", load);
     load();
   </script>
 </body>
