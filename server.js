@@ -42,6 +42,9 @@ if (!AUTOCAB_SUBSCRIPTION_KEY) console.warn("WARNING: Missing AUTOCAB_SUBSCRIPTI
 
 await mongoose.connect(MONGODB_URI);
 
+// Autocab booking endpoint (for Smart Pack → Book Taxi)
+const AUTOCAB_BOOKING_URL = `${AUTOCAB_BASE}/booking/v1/booking`;
+
 // ===== Helpers =====
 const Counter = mongoose.model(
   "Counter",
@@ -780,6 +783,131 @@ app.delete("/api/bookings/:id", async (req, res) => {
     res.json({ ok: true, deletedId: req.params.id });
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+/* ---------- Smart Pack → Autocab booking ---------- */
+
+// Map Smart Pack stop -> Autocab address object
+function mapSmartStopToAutocabAddress(stop) {
+  const text = stop.formatted || "";
+  const hasCoords = typeof stop.lat === "number" && typeof stop.lng === "number";
+  return {
+    bookingPriority: 0,
+    coordinate: hasCoords
+      ? { latitude: stop.lat, longitude: stop.lng }
+      : null,
+    id: "-1",
+    isCustom: true,
+    postCode: "",
+    source: "Custom",
+    street: text,
+    text,
+    town: "Plymouth",
+    zoneId: null
+  };
+}
+
+app.post("/api/autocab/book-smartpack", async (req, res) => {
+  try {
+    const { date, time, passengers, vehicleCapacity, stops, meta } = req.body || {};
+    if (!date || !time || !Array.isArray(stops) || !stops.length) {
+      return res.status(400).json({ error: "Missing date, time or stops" });
+    }
+
+    const dtLocal = new Date(`${date}T${time}:00`);
+    if (isNaN(dtLocal.getTime())) {
+      return res.status(400).json({ error: "Invalid date/time" });
+    }
+    // Autocab expects ISO timestamps
+    const iso = dtLocal.toISOString();
+
+    const pickupStop = stops[0];
+    const destStop = stops[stops.length - 1];
+    const viaStops = stops.slice(1, -1);
+
+    const payload = {
+      capabilities: [27],
+      companyId: Number(AUTOCAB_COMPANY_ID),
+      customerEmail: "",
+      driverConstraints: {
+        forbiddenDrivers: [],
+        requestedDrivers: []
+      },
+      vehicleConstraints: {
+        forbiddenVehicles: [],
+        requestedVehicles: []
+      },
+      driverNote: meta?.bucketLabel
+        ? `SmartPack ${meta.bucketLabel}`
+        : "SmartPack booking",
+      officeNote: meta?.shiftType
+        ? `Shift type: ${meta.shiftType}`
+        : "",
+      name: "Derriford Staff Taxi",
+      passengers: String(passengers || stops.length),
+      luggage: 0,
+      telephoneNumber: "",
+      ourReference: meta?.bucketLabel || "",
+      pickup: {
+        address: mapSmartStopToAutocabAddress(pickupStop),
+        note: "",
+        passengerDetailsIndex: null,
+        type: "Pickup"
+      },
+      vias: viaStops.map(v => ({
+        address: mapSmartStopToAutocabAddress(v),
+        note: "",
+        passengerDetailsIndex: null,
+        type: "Via"
+      })),
+      destination: {
+        address: mapSmartStopToAutocabAddress(destStop),
+        note: "",
+        passengerDetailsIndex: null,
+        type: "Destination"
+      },
+      pickupDueTime: iso,
+      pickupDueTimeUtc: iso,
+      priority: 1,
+      priorityOverride: true,
+      yourReferences: {
+        yourReference1: meta?.shiftType || "",
+        yourReference2: ""
+      },
+      hold: false
+    };
+
+    if (!AUTOCAB_SUBSCRIPTION_KEY) {
+      return res.status(500).json({ error: "Autocab key not configured" });
+    }
+
+    const apiRes = await fetch(AUTOCAB_BOOKING_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Ocp-Apim-Subscription-Key": AUTOCAB_SUBSCRIPTION_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const body = await apiRes.json().catch(() => ({}));
+
+    if (!apiRes.ok) {
+      console.error("Autocab booking failed:", apiRes.status, body);
+      return res.status(apiRes.status).json({
+        error: "Autocab booking failed",
+        details: body
+      });
+    }
+
+    return res.json({
+      ok: true,
+      bookingResponse: body
+    });
+  } catch (err) {
+    console.error("Error in /api/autocab/book-smartpack:", err);
+    res.status(500).json({ error: "Server error while creating booking" });
   }
 });
 
