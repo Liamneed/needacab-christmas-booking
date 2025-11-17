@@ -171,6 +171,12 @@
             <input type="number" id="radiusKm" value="2" step="0.5" min="0.5">
           </label>
 
+          <div id="routeToggle" style="display:flex;gap:8px;align-items:center;">
+            <span class="muted">Route order:</span>
+            <span class="pill active" data-route="distance">Optimise by distance</span>
+            <span class="pill" data-route="time">Keep time order</span>
+          </div>
+
           <button id="loadGroups" class="btn alt">Load</button>
           <button id="smartPack" class="btn primary">Smart Pack All</button>
           <button id="exportSmartCsv" class="btn ghost" disabled>Export Smart Pack CSV</button>
@@ -181,8 +187,11 @@
           Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then:
           <br>• Groups nearby <strong>home addresses</strong> using the radius, with a max of <strong>19 passengers per vehicle</strong>.
           <br>• Only groups bookings that are within roughly <strong>1 hour of each other</strong> in time.
-          <br>• For <strong>Shift Start</strong> the route is ordered <strong>Homes → Derriford</strong> (furthest first).
-          <br>• For <strong>Shift Finish</strong> the route is ordered <strong>Derriford → Homes</strong> (closest first).
+          <br>• <strong>Route order toggle:</strong>
+          <br>&nbsp;&nbsp;&nbsp;– <strong>Optimise by distance</strong>: 
+          Start = <strong>homes → Derriford</strong> (furthest first), 
+          Finish = <strong>Derriford → homes</strong> (closest first).
+          <br>&nbsp;&nbsp;&nbsp;– <strong>Keep time order</strong>: within each taxi, stops are ordered mainly by <strong>time</strong>.
           <br>The numbered list under each taxi shows the suggested pickup / drop sequence.
         </p>
       </section>
@@ -353,6 +362,18 @@
       clearSmartState();
     }));
 
+    // Route mode toggle
+    const routePills = document.querySelectorAll("#routeToggle .pill");
+    let routeMode = "distance"; // 'distance' | 'time'
+    routePills.forEach(p => {
+      p.addEventListener("click", () => {
+        routePills.forEach(x => x.classList.remove("active"));
+        p.classList.add("active");
+        routeMode = p.dataset.route || "distance";
+        clearSmartState();
+      });
+    });
+
     let currentGroups=[];
     let lastSmartBuckets=null;
     let lastSmartParams=null;
@@ -448,10 +469,26 @@
     }
 
     // Order the pack along the route relative to Derriford:
-    // start: Homes -> Derriford (furthest first)
-    // finish: Derriford -> Homes (closest first)
-    function orderPackForRoute(pack, shiftType) {
-      const arr = pack.map(a => ({...a, _d: distToDerriford(a)}));
+    // start: Homes -> Derriford (furthest first in distance mode)
+    // finish: Derriford -> Homes (closest first in distance mode)
+    // time mode: mainly by time, then distance
+    function orderPackForRoute(pack, shiftType, mode) {
+      const arr = pack.map(a => ({
+        ...a,
+        _d: distToDerriford(a),
+        _t: a.timeMinutes != null ? a.timeMinutes : 0
+      }));
+
+      if (mode === "time") {
+        // Sort by time ascending, then by distance (closer first)
+        arr.sort((a,b) => {
+          if (a._t !== b._t) return a._t - b._t;
+          return a._d - b._d;
+        });
+        return arr;
+      }
+
+      // Distance mode
       if (shiftType === "finish") {
         // Derriford -> homes: drop closer homes first
         arr.sort((a,b) => a._d - b._d);
@@ -476,7 +513,7 @@
         const col=document.createElement("div");
         col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span> <span class="subtag">${routeLabelText}</span></h4>`;
         bucket.taxis.forEach(pack=>{
-          const orderedPack = orderPackForRoute(pack, groupType);
+          const orderedPack = orderPackForRoute(pack, groupType, routeMode);
           const pax = orderedPack.length;
           const vehicleSize = pickVehicleCapacity(pax);
 
@@ -536,7 +573,8 @@
       lastSmartParams = {
         date: document.getElementById("grpDate").value || "",
         type: groupType,
-        radiusKm: radiusKm
+        radiusKm: radiusKm,
+        routeMode: routeMode
       };
       document.getElementById("exportSmartCsv").disabled = !buckets.length;
       renderSmartOutput(buckets);
@@ -544,6 +582,7 @@
       console.log("SmartPack summary:", {
         radiusKm,
         shiftType: groupType,
+        routeMode,
         totalPax: allAddrs.length,
         clusters: clusters.map(c => c.length)
       });
@@ -575,11 +614,12 @@
       let taxiNoGlobal = 1;
       const metaDate = params?.date || "";
       const metaShift = (params?.type === "finish" ? "finish" : "start");
+      const metaRouteMode = params?.routeMode || "distance";
       const routeLabel = metaShift === "finish" ? "Derriford → homes" : "homes → Derriford";
 
       buckets.forEach(bucket => {
         bucket.taxis.forEach(pack => {
-          const orderedPack = orderPackForRoute(pack, metaShift);
+          const orderedPack = orderPackForRoute(pack, metaShift, metaRouteMode);
           const zones = Array.from(new Set(orderedPack.map(a=>a.zone))).filter(Boolean).join(", ");
           const addresses = orderedPack
             .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`)
@@ -590,6 +630,7 @@
             Date: metaDate,
             Shift: metaShift,
             Route: routeLabel,
+            RouteMode: metaRouteMode,
             Taxi: `Taxi ${taxiNoGlobal++}`,
             Passengers: String(pax),
             SuggestedVehicle: vehicleSize,
@@ -604,7 +645,8 @@
       const d = params?.date || "all";
       const t = params?.type || "start";
       const r = (params?.radiusKm ?? 0)+"km";
-      return `smartpack_${d}_${t}_auto_${r}.csv`;
+      const m = params?.routeMode || "distance";
+      return `smartpack_${d}_${t}_${m}_${r}.csv`;
     }
     document.getElementById("exportSmartCsv").addEventListener("click", ()=>{
       if (!lastSmartBuckets || !lastSmartBuckets.length) return;
