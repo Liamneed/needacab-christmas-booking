@@ -29,15 +29,15 @@
     .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
     .card{
       background:var(--card);border:1px solid var(--line);
-      border-radius:var(--radius);padding:18px;  /* +2px padding for breathing room */
+      border-radius:var(--radius);padding:18px;
     }
     h1{font-size:20px;margin:0 0 12px}
     h2{font-size:18px;margin:0 0 12px}
     .muted{color:var(--muted);font-size:12px}
 
-    /* CONTROLS + BUTTONS (match bookings) */
+    /* CONTROLS + BUTTONS */
     .controls,.toolbar,.row-actions{
-      display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center; /* more space */
+      display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
     }
     .btn{
       background:var(--btn); color:var(--ink); border:1px solid var(--line);
@@ -50,28 +50,22 @@
     .btn.alt:hover{background:#164c38}
     .btn.ghost{background:transparent}
 
-    /* Make labels line up cleanly with inputs */
     label{display:flex;align-items:center;gap:8px}
 
-    /* Make inputs clearly visible and easy to tap */
     input[type="date"], input[type="number"], select{
       background:var(--btn); color:var(--ink); border:1px solid var(--line);
       border-radius:10px; padding:8px 10px; font:inherit;
-      min-height:40px;               /* taller touch target */
-      width:180px;                   /* visible width for date pickers */
+      min-height:40px;
+      width:180px;
     }
-    /* Narrow numeric fields keep a smaller width */
     #radiusKm, #tolMins { width: 100px; }
-
     input:hover, select:hover{border-color:#2a3342}
 
-    /* TABLES (match bookings) */
     table{width:100%;border-collapse:collapse}
     th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
     th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
     tr:hover td{background:#0f141b}
 
-    /* CHIPS / TAGS */
     .pill{
       display:inline-block;padding:6px 12px;border-radius:999px;font-weight:600;
       background:var(--chip);border:1px solid var(--line);color:#cfd8e3;cursor:pointer;
@@ -81,7 +75,6 @@
     .subtag{display:inline-block;padding:2px 6px;background:#263241;color:#cfd8e3;border-radius:999px;font-size:11px;margin-left:6px}
     .zonechip{display:inline-block;padding:2px 6px;background:var(--chip);color:#cfd8e3;border:1px solid var(--line);border-radius:999px;font-size:11px;margin-left:6px}
 
-    /* TAXI PACKS */
     .packs{display:flex;flex-direction:column;gap:10px}
     .taxi{
       border:1px dashed #334154;border-radius:10px;padding:12px;background:#0e141b;
@@ -89,12 +82,11 @@
     .taxi h4{margin:0 0 6px 0;font-size:13px;color:#d7e0ea}
     .addr{display:block;color:#d7e0ea;font-size:12px;line-height:1.3}
 
-    /* HR */
     .hr{height:1px;background:var(--line);margin:10px 0}
   </style>
 </head>
 <body>
-  <!-- NAVBAR (same links/order as bookings) -->
+  <!-- NAVBAR -->
   <nav class="navbar">
     <div class="nav-left">
       <a href="/">Home</a>
@@ -133,7 +125,9 @@
           <select id="seatSize">
             <option value="4">4 seats</option>
             <option value="6" selected>6 seats</option>
+            <option value="7">7 seats</option>
             <option value="8">8 seats</option>
+            <option value="19">19 seats (coach)</option>
           </select>
         </label>
 
@@ -151,7 +145,9 @@
       </div>
 
       <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
-      <p class="muted" style="margin-top:6px">Smart Pack automatically groups nearby pickups for the same shift and fills 4/6/8-seater taxis.</p>
+      <p class="muted" style="margin-top:6px">
+        Smart Pack automatically groups nearby pickups for the same shift and fills 4/6/7/8-seater taxis or 19-seat coaches.
+      </p>
     </section>
 
     <!-- LEGACY REPORTS -->
@@ -183,14 +179,12 @@
     </section>
   </div>
 
-  <!-- JS -->
   <script>
-    // Dynamic API base: localhost in dev, current origin on Render/production
+    // Dynamic API base: localhost in dev, current origin in production
     const apiBase = window.location.origin.includes("localhost")
       ? "http://localhost:4000"
       : window.location.origin;
 
-    // Show which base we're using
     const apiBaseLabel = document.getElementById("apiBaseLabel");
     if (apiBaseLabel) apiBaseLabel.textContent = apiBase;
 
@@ -431,7 +425,7 @@
     document.getElementById("refreshOld").addEventListener("click",refreshOld);
     document.getElementById("legacyLoad").addEventListener("click",refreshOld);
 
-    // Initial load
+    // Initial legacy load
     refreshOld();
   </script>
 </body>
