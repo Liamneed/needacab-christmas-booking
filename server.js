@@ -51,6 +51,10 @@ const DH_LNG = -4.1090;
 const DERRIFORD_TEXT = "Derriford Hospital, Derriford Road, Plymouth PL6 8DH";
 const DERRIFORD_POSTCODE = "PL6 8DH";
 
+// Derriford Autocab customer/account ID for Smart Pack jobs
+// Defaults to 2139 but can be overridden via DERRIFORD_CUSTOMER_ID in .env
+const DERRIFORD_CUSTOMER_ID = Number(process.env.DERRIFORD_CUSTOMER_ID || "2139");
+
 // ===== Helpers =====
 const Counter = mongoose.model(
   "Counter",
@@ -116,7 +120,7 @@ function withinMeters(lat1, lng1, lat2, lng2, meters) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
+  const dLng = toRad(lat2 - lng1);
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
@@ -904,6 +908,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     const payload = {
       capabilities,
       companyId: Number(AUTOCAB_COMPANY_ID),
+      customerId: DERRIFORD_CUSTOMER_ID,          // 👈 NEW – force onto Derriford customer
       customerEmail: "",
       driverConstraints: {
         forbiddenDrivers: [],
