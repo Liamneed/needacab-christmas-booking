@@ -61,6 +61,12 @@
     #radiusKm, #tolMins { width: 100px; }
     input:hover, select:hover{border-color:#2a3342}
 
+    /* Make the calendar icon visible on dark background */
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      filter: invert(1);
+      cursor: pointer;
+    }
+
     /* TABLES */
     table{width:100%;border-collapse:collapse}
     th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
@@ -150,7 +156,7 @@
     <!-- REPORTS TAB -->
     <div data-tab-content="reports">
       <section class="card">
-        <h2>Smart Pack — Fill Taxis by Nearby Pickups</h2>
+        <h2>Smart Pack — Best Vehicle per Cluster</h2>
         <div class="toolbar">
           <label>Date
             <input type="date" id="grpDate">
@@ -161,22 +167,8 @@
             <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
           </div>
 
-          <label>Seat size
-            <select id="seatSize">
-              <option value="4">4 seats</option>
-              <option value="6" selected>6 seats</option>
-              <option value="7">7 seats</option>
-              <option value="8">8 seats</option>
-              <option value="19">19 seats (coach)</option>
-            </select>
-          </label>
-
           <label>Radius (km)
             <input type="number" id="radiusKm" value="2" step="0.5" min="0.5">
-          </label>
-
-          <label>Time tolerance (mins)
-            <input type="number" id="tolMins" value="0" step="5" min="0">
           </label>
 
           <button id="loadGroups" class="btn alt">Load</button>
@@ -186,8 +178,9 @@
 
         <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
         <p class="muted" style="margin-top:6px">
-          Smart Pack groups nearby pickups for the same shift and fills vehicles up to the selected capacity (4 / 6 / 7 / 8 / 19).
-          Use the time tolerance if you want to combine close times (e.g. 30 mins).
+          Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then clusters nearby
+          pickups using the radius and assigns the <strong>smallest suitable vehicle</strong> for each cluster
+          (4 / 6 / 7 / 8 / 19 seats).
         </p>
       </section>
 
@@ -288,7 +281,7 @@
       });
     });
 
-    /* ---------- SMART PACK ---------- */
+    /* ---------- SMART PACK (auto best vehicle) ---------- */
     function toInt(val, fallback){ const n = Number(val); return Number.isFinite(n)&&n>0?Math.floor(n):fallback; }
     const R_EARTH=6371000; const toRad=d=>d*Math.PI/180;
     function haversineMeters(a,b){
@@ -298,8 +291,6 @@
       const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
     }
-    function mm(hhmm){const [h,m]=String(hhmm||"00:00").split(":").map(n=>parseInt(n||"0",10));return (h*60+m)|0;}
-    function withinTol(t1,t2,tol){return Math.abs(mm(t1)-mm(t2))<=tol;}
 
     function setToday(inputEl){
       if(!inputEl.value){
@@ -316,7 +307,6 @@
     let groupType="start";
     function clearSmartState(){
       lastSmartBuckets=null;
-      lastSmartSeat=null;
       lastSmartParams=null;
       document.getElementById("smartOutput").innerHTML="";
       document.getElementById("exportSmartCsv").disabled = true;
@@ -330,7 +320,6 @@
 
     let currentGroups=[];
     let lastSmartBuckets=null;
-    let lastSmartSeat=null;
     let lastSmartParams=null;
 
     async function loadGroups(){
@@ -343,21 +332,39 @@
       clearSmartState();
     }
 
-    function normalizeAddr(rec,zone){
-      if(typeof rec==="object")return{formatted:rec.formatted,lat:rec.lat,lng:rec.lng,zone:zone||"(unknown)"};
-      return{formatted:String(rec||""),lat:null,lng:null,zone:zone||"(unknown)"};
+    function normalizeAddr(rec,zone,time){
+      if(typeof rec==="object")return{
+        formatted:rec.formatted,
+        lat:rec.lat,
+        lng:rec.lng,
+        zone:zone||"(unknown)",
+        time:time||""
+      };
+      return{
+        formatted:String(rec||""),
+        lat:null,
+        lng:null,
+        zone:zone||"(unknown)",
+        time:time||""
+      };
     }
-    function flattenForTime(groups,time,tol){
+
+    // Instead of time buckets, flatten ALL bookings for date+shift
+    function flattenAll(groups){
       const out=[];
       for(const g of groups){
-        if(!withinTol(g.onOffDutyTime,time,tol))continue;
         const zone=g.zoneName||"(unknown)";
-        for(const a of(g.addresses||[]))out.push(normalizeAddr(a,zone));
+        const time=g.onOffDutyTime||"";
+        for(const a of (g.addresses||[])){
+          out.push(normalizeAddr(a,zone,time));
+        }
       }
       return out;
     }
 
-    function greedyCluster(addresses,seatCapacity,radius){
+    // Cluster by radius with maximum capacity 19 per cluster
+    function greedyCluster(addresses, radius){
+      const CAPACITY = 19; // max per vehicle cluster
       const unassigned=addresses.map((a,i)=>({...a,_i:i}));
       const taxis=[];
       while(unassigned.length){
@@ -365,12 +372,12 @@
         if(seedIdx===-1)seedIdx=0;
         const seed=unassigned.splice(seedIdx,1)[0];
         const pack=[seed];
-        if(seatCapacity>1){
+        if(CAPACITY>1){
           const scored=unassigned
             .map(x=>({x,d:haversineMeters(seed,x)}))
             .sort((a,b)=>a.d-b.d);
           for(const s of scored){
-            if(pack.length>=seatCapacity)break;
+            if(pack.length>=CAPACITY)break;
             if(s.d<=radius){
               const idx=unassigned.findIndex(u=>u._i===s.x._i);
               if(idx>-1){pack.push(s.x);unassigned.splice(idx,1);}
@@ -382,26 +389,33 @@
       return taxis;
     }
 
-    function uniqueTimes(groups){
-      return Array.from(new Set(groups.map(g=>g.onOffDutyTime||"00:00"))).sort((a,b)=>a.localeCompare(b));
+    // Pick the smallest vehicle that fits the pax
+    const VEHICLE_SIZES = [4,6,7,8,19];
+    function pickVehicleCapacity(pax){
+      for(const size of VEHICLE_SIZES){
+        if(pax <= size) return size;
+      }
+      return 19;
     }
 
-    function renderSmartOutput(buckets,seatCapacity){
+    function renderSmartOutput(buckets){
       const out=document.getElementById("smartOutput");
       out.innerHTML="";
       let taxiCounter=1;
       buckets.forEach(bucket=>{
         const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
         const col=document.createElement("div");
-        col.innerHTML=`<h4>${bucket.time} <span class="subtag">${seatCapacity}-seater</span> <span class="tag">${totalPax} pax total</span></h4>`;
+        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span></h4>`;
         bucket.taxis.forEach(pack=>{
+          const pax = pack.length;
+          const vehicleSize = pickVehicleCapacity(pax);
           const wrap=document.createElement("div");
           wrap.className="taxi";
-          const list=pack.map(a=>a.formatted);
+          const list=pack.map(a=>`${a.formatted}${a.time ? " ("+a.time+")" : ""}`);
           const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
           const listText=list.map(x=>`• ${x}`).join("\n");
           wrap.innerHTML=`
-            <h4>Taxi ${taxiCounter++} — ${list.length} / ${seatCapacity} pax <span class="zonechip">${zones}</span></h4>
+            <h4>Taxi ${taxiCounter++} — ${pax} pax — suggested ${vehicleSize}-seater <span class="zonechip">${zones}</span></h4>
             <div>${list.map(x=>`<span class="addr">${x}</span>`).join("")}</div>
             <div class="row-actions" style="margin-top:6px;">
               <button class="btn alt copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
@@ -421,31 +435,41 @@
     }
 
     async function smartPackAll(){
-      if(!currentGroups.length)await loadGroups();
+      if(!currentGroups.length) await loadGroups();
 
-      const seatCapacity = Number(document.getElementById("seatSize").value || "6");
       const radiusKm=Number(document.getElementById("radiusKm").value||2);
-      const tol=toInt(document.getElementById("tolMins").value,0);
       const radius=Math.max(200,radiusKm*1000);
 
-      const times=uniqueTimes(currentGroups);
-      const buckets=[];
-      for(const t of times){
-        const addrs=flattenForTime(currentGroups,t,tol);
-        if(!addrs.length)continue;
-        const clusters=greedyCluster(addrs,seatCapacity,radius);
-        buckets.push({time:t,taxis:clusters});
+      // Flatten all bookings for that date+shift into one list
+      const allAddrs = flattenAll(currentGroups);
+      if (!allAddrs.length){
+        document.getElementById("smartOutput").innerHTML =
+          "<p class='muted'>No bookings found for this date and shift.</p>";
+        document.getElementById("exportSmartCsv").disabled = true;
+        return;
       }
-      lastSmartBuckets=buckets;
-      lastSmartSeat=seatCapacity;
-      lastSmartParams={
+
+      const clusters = greedyCluster(allAddrs, radius);
+      const buckets = [{
+        label: `${document.getElementById("grpDate").value || "All"} — ${groupType.toUpperCase()}`,
+        taxis: clusters
+      }];
+
+      lastSmartBuckets = buckets;
+      lastSmartParams = {
         date: document.getElementById("grpDate").value || "",
         type: groupType,
-        radiusKm: radiusKm,
-        tolMins: tol
+        radiusKm: radiusKm
       };
       document.getElementById("exportSmartCsv").disabled = !buckets.length;
-      renderSmartOutput(buckets,seatCapacity);
+      renderSmartOutput(buckets);
+
+      console.log("SmartPack summary:", {
+        radiusKm,
+        shiftType: groupType,
+        totalPax: allAddrs.length,
+        clusters: clusters.map(c => c.length)
+      });
     }
 
     document.getElementById("loadGroups").addEventListener("click",loadGroups);
@@ -477,13 +501,15 @@
       buckets.forEach(bucket => {
         bucket.taxis.forEach(pack => {
           const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
-          const addresses = pack.map(a=>a.formatted).join(" | ");
+          const addresses = pack.map(a=>`${a.formatted}${a.time ? " ("+a.time+")" : ""}`).join(" | ");
+          const pax = pack.length;
+          const vehicleSize = pickVehicleCapacity(pax);
           rows.push({
             Date: metaDate,
             Shift: metaShift,
-            Time: bucket.time,
             Taxi: `Taxi ${taxiNoGlobal++}`,
-            Passengers: String(pack.length),
+            Passengers: String(pax),
+            SuggestedVehicle: vehicleSize,
             Zones: zones,
             Addresses: addresses
           });
@@ -491,18 +517,17 @@
       });
       return rows;
     }
-    function smartCsvFilename(params, seat){
+    function smartCsvFilename(params){
       const d = params?.date || "all";
       const t = params?.type || "start";
       const r = (params?.radiusKm ?? 0)+"km";
-      const tol = (params?.tolMins ?? 0)+"m";
-      return `smartpack_${d}_${t}_${seat}seat_${r}_tol${tol}.csv`;
+      return `smartpack_${d}_${t}_auto_${r}.csv`;
     }
     document.getElementById("exportSmartCsv").addEventListener("click", ()=>{
       if (!lastSmartBuckets || !lastSmartBuckets.length) return;
       const rows = buildSmartCsvRows(lastSmartBuckets, lastSmartParams);
       if (!rows.length) return;
-      downloadCSV(smartCsvFilename(lastSmartParams, lastSmartSeat), rows);
+      downloadCSV(smartCsvFilename(lastSmartParams), rows);
     });
 
     /* ---------- LEGACY REPORTS ---------- */
@@ -570,6 +595,7 @@
 
     // Initial loads
     refreshOld();
+    loadGroups();   // pre-load groups for today
     loadSmsTemplates();
   </script>
 </body>
