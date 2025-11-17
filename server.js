@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import Booking from "./models/Booking.js";
 
@@ -148,8 +149,86 @@ function toDDMMYY(iso) {
   return `${d}-${m}-${y.slice(2)}`;
 }
 
+/* ===== SMS TEMPLATE SETTINGS ===== */
+const SETTINGS_FILE = process.env.SETTINGS_FILE || path.join(__dirname, "settings.json");
+
+let smsTemplates = {
+  approve:
+    "Your request for your Christmas staff booking for Derriford Hospital on {{date}} at {{time}}. " +
+    "Pick up: {{pickup}}. Drop off: {{destination}}. " +
+    "In the name {{staff}} has been approved. " +
+    "Your reference number is {{ref}}. Thanks Need-A-Cab Taxis",
+  decline:
+    "Unfortunately your Christmas staff booking on {{date}} at {{time}} " +
+    "({{pickup}} to {{destination}}) has been declined. Reason: {{reason}}. — Need-A-Cab Taxis"
+};
+
+function loadSmsTemplatesFromFile() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const raw = fs.readFileSync(SETTINGS_FILE, "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        smsTemplates = {
+          approve: parsed.approve || smsTemplates.approve,
+          decline: parsed.decline || smsTemplates.decline
+        };
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load SMS templates", err);
+  }
+}
+
+function saveSmsTemplatesToFile() {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(smsTemplates, null, 2), "utf8");
+  } catch (err) {
+    console.error("Failed to save SMS templates", err);
+  }
+}
+
+function renderTemplate(tpl, booking, extra = {}) {
+  const map = {
+    date: toDDMMYY(booking.pickupDateISO),
+    time: booking.onOffDutyTime,
+    pickup: booking.pickup?.formatted ?? "",
+    destination: booking.destination?.formatted ?? "",
+    staff: booking.staffName ?? "",
+    ref: booking.shortRef ?? booking.reference ?? "",
+    reason: extra.reason ?? booking.declineReason ?? ""
+  };
+
+  return String(tpl || "").replace(/{{\s*(\w+)\s*}}/g, (_m, key) => {
+    return map[key] != null ? String(map[key]) : "";
+  });
+}
+
+loadSmsTemplatesFromFile();
+
 // ---------------------- Health ----------------------
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// ---------------------- SMS TEMPLATE SETTINGS API ----------------------
+app.get("/api/settings/sms-templates", (_req, res) => {
+  res.json(smsTemplates);
+});
+
+app.put("/api/settings/sms-templates", (req, res) => {
+  try {
+    const approve = String(req.body?.approve ?? "").trim();
+    const decline = String(req.body?.decline ?? "").trim();
+    if (!approve || !decline) {
+      return res.status(400).json({ error: "Both approve and decline templates are required" });
+    }
+    smsTemplates.approve = approve;
+    smsTemplates.decline = decline;
+    saveSmsTemplatesToFile();
+    res.json({ ok: true, approve, decline });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // ---------------------- Zone lookup proxy ----------------------
 app.get("/api/zone", async (req, res) => {
@@ -365,7 +444,7 @@ app.get("/api/bookings/export", async (req, res) => {
   res.send(csv);
 });
 
-// ---------------------- Legacy summaries (dates -> dd-mm-yy) ----------------------
+// ---------------------- Legacy summaries ----------------------
 app.get("/api/reports/by-zone", async (req, res) => {
   const date = (req.query.date || "").trim();
   const pipeline = [];
@@ -396,7 +475,7 @@ app.get("/api/reports/by-zone", async (req, res) => {
     count: z.count,
     items: (z.items || []).map(it => ({
       ...it,
-      pickupDateISO: toDDMMYY(it.pickupDateISO), // e.g. 24-12-25
+      pickupDateISO: toDDMMYY(it.pickupDateISO),
     })),
   }));
 
@@ -421,7 +500,7 @@ app.get("/api/reports/by-shift", async (req, res) => {
   res.json(result);
 });
 
-// ---------------------- Shift grouping (date -> dd-mm-yy) ----------------------
+// ---------------------- Shift grouping ----------------------
 app.get("/api/reports/shift-groups", async (req, res) => {
   try {
     const type = (req.query.type || "start").toLowerCase();
@@ -488,12 +567,9 @@ app.patch("/api/bookings/:id/approve", async (req, res) => {
     b.status = "approved";
     await b.save();
 
- const msg =
-  (req.body?.message && String(req.body.message).trim()) ||
-  `Your request for your Christmas staff booking for Derriford Hospital on ${toDDMMYY(b.pickupDateISO)} at ${b.onOffDutyTime}. ` +
-  `Pick up: ${b.pickup?.formatted ?? ""}. Drop off: ${b.destination?.formatted ?? ""}. ` +
-  `In the name ${b.staffName} has been approved. ` +
-  `Your reference number is ${b.shortRef}. Thanks Need-A-Cab Taxis`;
+    const templateFromBody = req.body?.message && String(req.body.message).trim();
+    const template = templateFromBody || smsTemplates.approve;
+    const msg = renderTemplate(template, b);
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
@@ -514,9 +590,9 @@ app.patch("/api/bookings/:id/decline", async (req, res) => {
     b.declineReason = reason;
     await b.save();
 
-    const msg =
-      `Unfortunately your Christmas staff booking on ${toDDMMYY(b.pickupDateISO)} at ${b.onOffDutyTime} ` +
-      `(${b.pickup.formatted} to ${b.destination.formatted}) has been declined. Reason: ${reason}. — Need-A-Cab Taxis`;
+    const templateFromBody = req.body?.message && String(req.body.message).trim();
+    const template = templateFromBody || smsTemplates.decline;
+    const msg = renderTemplate(template, b, { reason });
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
