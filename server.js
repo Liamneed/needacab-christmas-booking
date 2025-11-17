@@ -45,6 +45,12 @@ await mongoose.connect(MONGODB_URI);
 // Autocab booking endpoint (for Smart Pack → Book Taxi)
 const AUTOCAB_BOOKING_URL = `${AUTOCAB_BASE}/booking/v1/booking`;
 
+// Derriford constants
+const DH_LAT = 50.4195;
+const DH_LNG = -4.1090;
+const DERRIFORD_TEXT = "Derriford Hospital, Derriford Road, Plymouth PL6 8DH";
+const DERRIFORD_POSTCODE = "PL6 8DH";
+
 // ===== Helpers =====
 const Counter = mongoose.model(
   "Counter",
@@ -119,8 +125,6 @@ function withinMeters(lat1, lng1, lat2, lng2, meters) {
 }
 
 function isDerriford(lat, lng) {
-  const DH_LAT = 50.4195;
-  const DH_LNG = -4.1090;
   return withinMeters(lat, lng, DH_LAT, DH_LNG, 900);
 }
 
@@ -146,9 +150,6 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
  */
 function optimiseRoute(stops, direction = "inbound") {
   if (!stops || stops.length <= 1) return stops || [];
-
-  const DH_LAT = 50.4195;
-  const DH_LNG = -4.1090;
 
   const remaining = [...stops];
   const ordered = [];
@@ -788,7 +789,7 @@ app.delete("/api/bookings/:id", async (req, res) => {
 
 /* ---------- Smart Pack → Autocab booking ---------- */
 
-// Map Smart Pack stop -> Autocab address object
+// Map Smart Pack stop -> Autocab address object (for non-Derriford stops)
 function mapSmartStopToAutocabAddress(stop) {
   const text = stop.formatted || "";
   const hasCoords = typeof stop.lat === "number" && typeof stop.lng === "number";
@@ -808,6 +809,43 @@ function mapSmartStopToAutocabAddress(stop) {
   };
 }
 
+// Fixed Derriford address for start/finish shift logic
+function makeDerrifordAutocabAddress() {
+  return {
+    bookingPriority: 0,
+    coordinate: { latitude: DH_LAT, longitude: DH_LNG },
+    id: "-1",
+    isCustom: false,
+    postCode: DERRIFORD_POSTCODE,
+    source: "Custom",
+    street: "Derriford Hospital, Derriford Road",
+    text: DERRIFORD_TEXT,
+    town: "Plymouth",
+    zoneId: null
+  };
+}
+
+// Map vehicle capacity -> Autocab capabilities
+function mapCapacityToCapabilities(cap) {
+  const n = Number(cap) || 4;
+  switch (n) {
+    case 4:  // default car
+      return [27];
+    case 5:
+      return [22];
+    case 6:
+      return [4];
+    case 7:
+      return [20];
+    case 8:
+      return [5];
+    case 19:
+      return [27]; // 19-seater – keep default/base capability
+    default:
+      return [27];
+  }
+}
+
 app.post("/api/autocab/book-smartpack", async (req, res) => {
   try {
     const { date, time, passengers, vehicleCapacity, stops, meta } = req.body || {};
@@ -819,15 +857,40 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     if (isNaN(dtLocal.getTime())) {
       return res.status(400).json({ error: "Invalid date/time" });
     }
-    // Autocab expects ISO timestamps
     const iso = dtLocal.toISOString();
 
-    const pickupStop = stops[0];
-    const destStop = stops[stops.length - 1];
-    const viaStops = stops.slice(1, -1);
+    const shiftType = (meta?.shiftType || "").toLowerCase(); // "start" or "finish"
+    const derrifordAddr = makeDerrifordAutocabAddress();
+
+    let pickupAddress, destinationAddress, viaStops;
+
+    if (shiftType === "start") {
+      // START SHIFT: homes -> Derriford
+      // pickup = first address, vias = others, destination = Derriford
+      const pickupStop = stops[0];
+      viaStops = stops.slice(1);
+      pickupAddress = mapSmartStopToAutocabAddress(pickupStop);
+      destinationAddress = derrifordAddr;
+    } else if (shiftType === "finish") {
+      // FINISH SHIFT: Derriford -> homes
+      // pickup = Derriford, vias = all but last, destination = last address
+      const destStop = stops[stops.length - 1];
+      viaStops = stops.slice(0, -1);
+      pickupAddress = derrifordAddr;
+      destinationAddress = mapSmartStopToAutocabAddress(destStop);
+    } else {
+      // Fallback: treat first/last as pickup/destination, others as vias
+      const pickupStop = stops[0];
+      const destStop = stops[stops.length - 1];
+      viaStops = stops.slice(1, -1);
+      pickupAddress = mapSmartStopToAutocabAddress(pickupStop);
+      destinationAddress = mapSmartStopToAutocabAddress(destStop);
+    }
+
+    const capabilities = mapCapacityToCapabilities(vehicleCapacity);
 
     const payload = {
-      capabilities: [27],
+      capabilities,
       companyId: Number(AUTOCAB_COMPANY_ID),
       customerEmail: "",
       driverConstraints: {
@@ -850,7 +913,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
       telephoneNumber: "",
       ourReference: meta?.bucketLabel || "",
       pickup: {
-        address: mapSmartStopToAutocabAddress(pickupStop),
+        address: pickupAddress,
         note: "",
         passengerDetailsIndex: null,
         type: "Pickup"
@@ -862,7 +925,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
         type: "Via"
       })),
       destination: {
-        address: mapSmartStopToAutocabAddress(destStop),
+        address: destinationAddress,
         note: "",
         passengerDetailsIndex: null,
         type: "Destination"
@@ -872,7 +935,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
       priority: 1,
       priorityOverride: true,
       yourReferences: {
-        yourReference1: meta?.shiftType || "",
+        yourReference1: shiftType || "",
         yourReference2: ""
       },
       hold: false
