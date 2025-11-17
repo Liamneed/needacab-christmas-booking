@@ -447,14 +447,22 @@
       clearSmartState();
     }
 
+    // Now include richer fallback so house numbers are preserved if formatted is missing
     function normalizeAddr(rec,zone,time){
-      if(typeof rec==="object")return{
-        formatted:rec.formatted,
-        lat:rec.lat,
-        lng:rec.lng,
-        zone:zone||"(unknown)",
-        time:time||""
-      };
+      if(typeof rec==="object"){
+        const baseText =
+          rec.formatted ||
+          [rec.houseNumber, rec.street, rec.town, rec.postCode]
+            .filter(Boolean)
+            .join(" ");
+        return{
+          formatted: baseText,
+          lat: rec.lat,
+          lng: rec.lng,
+          zone: zone || "(unknown)",
+          time: time || ""
+        };
+      }
       return{
         formatted:String(rec||""),
         lat:null,
@@ -514,8 +522,10 @@
       return clusters;
     }
 
+    // Seat sizes we support: 4 / 5 / 6 / 7 / 8 / 19
     const VEHICLE_SIZES = [19,8,7,6,5,4];
 
+    // Split a cluster into full vehicles using the best-fitting size
     function splitClusterIntoFullVehicles(cluster){
       const result = [];
       const addrs = [...cluster];
