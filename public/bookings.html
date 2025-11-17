@@ -182,6 +182,12 @@
   <div class="wrap">
     <section class="card">
       <h1>Derriford Staff Taxi — Bookings</h1>
+
+      <!-- NEW: total bookings at top -->
+      <p class="muted" style="margin-bottom:4px;">
+        Total bookings loaded: <strong><span id="totalBookingsTop">0</span></strong>
+      </p>
+
       <p class="muted" id="dupInfo" style="margin-bottom:4px;">
         Double-click a row to edit key details. Possible duplicates detected:
         <strong><span id="dupCount">0</span></strong>
@@ -347,6 +353,7 @@
     const bookingsSummary = document.getElementById("bookingsSummary");
     const dupCountEl = document.getElementById("dupCount");
     const dupInfo = document.getElementById("dupInfo");
+    const totalBookingsTopEl = document.getElementById("totalBookingsTop");
 
     let allBookings = [];
 
@@ -382,6 +389,7 @@
       if (!allBookings.length) {
         bookingsSummary.textContent = "No bookings found for this filter.";
         if (dupCountEl) dupCountEl.textContent = "0";
+        if (totalBookingsTopEl) totalBookingsTopEl.textContent = "0";
         return;
       }
 
@@ -393,6 +401,9 @@
       });
       const dupBookings = allBookings.filter(b => counts[fingerprintBooking(b)] > 1);
       if (dupCountEl) dupCountEl.textContent = String(dupBookings.length);
+
+      // Update total bookings at top (always total loaded, not filtered)
+      if (totalBookingsTopEl) totalBookingsTopEl.textContent = String(allBookings.length);
 
       let rows = allBookings;
       const dupesOnly = filterDupes.checked;
@@ -456,6 +467,7 @@
         bookingsTableBody.innerHTML = "";
         bookingsSummary.textContent = "Error loading bookings: " + err.message;
         if (dupCountEl) dupCountEl.textContent = "0";
+        if (totalBookingsTopEl) totalBookingsTopEl.textContent = "0";
       }
     }
 
