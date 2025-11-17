@@ -49,9 +49,36 @@
     .btn.primary:hover{filter:brightness(0.95)}
     .btn.ghost{background:transparent}
     .btn.small{
-      padding:4px 8px;
+      padding:4px 10px;
       font-size:11px;
       border-radius:999px;
+      line-height:1.2;
+    }
+
+    /* Coloured action badges */
+    .btn.small[data-action="approve"]{
+      background:#113c2c;
+      border-color:#1a5d45;
+      color:#b7f7d4;
+    }
+    .btn.small[data-action="approve"]:hover{
+      background:#164c38;
+    }
+    .btn.small[data-action="decline"]{
+      background:#3b1616;
+      border-color:#6b1f1f;
+      color:#fbd5d5;
+    }
+    .btn.small[data-action="decline"]:hover{
+      background:#511c1c;
+    }
+    .btn.small[data-action="delete"]{
+      background:#3b2a16;
+      border-color:#8b5a1f;
+      color:#fde7c7;
+    }
+    .btn.small[data-action="delete"]:hover{
+      background:#513721;
     }
 
     label{display:flex;align-items:center;gap:6px;font-size:13px}
@@ -91,6 +118,14 @@
       gap:4px;
     }
 
+    /* Clickable dup info */
+    #dupInfo{
+      cursor:pointer;
+    }
+    #dupInfo:hover{
+      color:var(--brand);
+    }
+
     /* MODAL */
     .modal-backdrop{
       position:fixed;inset:0;background:rgba(0,0,0,0.6);
@@ -99,15 +134,21 @@
     }
     .modal{
       background:var(--card);border-radius:16px;border:1px solid var(--line);
-      width:100%;max-width:500px;padding:18px 18px 14px;
+      width:100%;max-width:620px;padding:18px 18px 14px;
       box-shadow:0 18px 45px rgba(0,0,0,0.55);
     }
     .modal-header{
-      display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+      display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;
+      gap:10px;
     }
-    .modal-title{font-size:16px;font-weight:600;}
+    .modal-title{font-size:16px;font-weight:600;margin-bottom:2px;}
+    .modal-subtitle{font-size:11px;color:var(--muted);}
     .modal-body{
-      display:grid;gap:10px;margin-bottom:10px;font-size:13px;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:10px 16px;
+      margin-bottom:10px;
+      font-size:13px;
     }
     .modal-row{
       display:flex;flex-direction:column;gap:4px;
@@ -141,8 +182,9 @@
   <div class="wrap">
     <section class="card">
       <h1>Derriford Staff Taxi — Bookings</h1>
-      <p class="muted" style="margin-bottom:4px;">
-        Double-click a row to edit key details. Possible duplicates detected: <strong><span id="dupCount">0</span></strong>
+      <p class="muted" id="dupInfo" style="margin-bottom:4px;">
+        Double-click a row to edit key details. Possible duplicates detected:
+        <strong><span id="dupCount">0</span></strong>
       </p>
       <p class="muted" style="margin-bottom:10px;">
         Duplicates are based on same date, time, ward, staff and pickup/destination.
@@ -210,8 +252,14 @@
   <div id="editModalWrap" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">Edit Booking</div>
-        <button class="btn ghost" id="btnEditClose">✕</button>
+        <div>
+          <div class="modal-title">Edit Booking</div>
+          <div class="modal-subtitle" id="editSubtitle"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="editStatusPill" class="status-pill status-pending hidden"></span>
+          <button class="btn ghost" id="btnEditClose">✕</button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="modal-row">
@@ -261,7 +309,7 @@
           <label for="editBudgetHolder">Budget Holder Name</label>
           <input id="editBudgetHolder" type="text">
         </div>
-        <div class="modal-row">
+        <div class="modal-row" style="grid-column:1/-1;">
           <span id="editError" class="error-text"></span>
         </div>
       </div>
@@ -298,6 +346,7 @@
     const bookingsTableBody = document.querySelector("#bookingsTable tbody");
     const bookingsSummary = document.getElementById("bookingsSummary");
     const dupCountEl = document.getElementById("dupCount");
+    const dupInfo = document.getElementById("dupInfo");
 
     let allBookings = [];
 
@@ -384,9 +433,9 @@
           <td>${isDup ? '<span class="dup-flag">Possible duplicate</span>' : ''}</td>
           <td>
             <div class="row-actions">
-              <button class="btn small" data-action="approve">Accept</button>
-              <button class="btn small" data-action="decline">Decline</button>
-              <button class="btn small" data-action="delete">Delete</button>
+              <button class="btn small" data-action="approve" title="Approve and send SMS">Accept</button>
+              <button class="btn small" data-action="decline" title="Decline and send SMS with reason">Decline</button>
+              <button class="btn small" data-action="delete" title="Delete booking">Delete</button>
             </div>
           </td>
         `;
@@ -417,6 +466,17 @@
       loadBookings();
     });
     filterDupes.addEventListener("change", renderBookings);
+
+    // Click on "Possible duplicates..." line to auto-filter to duplicates
+    dupInfo.addEventListener("click", () => {
+      if (!allBookings.length) return;
+      filterDupes.checked = true;
+      renderBookings();
+      const table = document.getElementById("bookingsTable");
+      if (table && table.scrollIntoView) {
+        table.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
 
     // ---------- APPROVE / DECLINE / DELETE ----------
     async function approveBooking(id) {
@@ -514,6 +574,8 @@
     const editBudgetNumber = document.getElementById("editBudgetNumber");
     const editBudgetHolder = document.getElementById("editBudgetHolder");
     const editError = document.getElementById("editError");
+    const editSubtitle = document.getElementById("editSubtitle");
+    const editStatusPill = document.getElementById("editStatusPill");
 
     let currentEditBookingId = null;
 
@@ -549,12 +611,32 @@
       editBudgetNumber.value = booking.budgetNumber || "";
       editBudgetHolder.value = booking.budgetHolderName || "";
 
+      // Subtitle: quick context
+      const subtitleParts = [
+        booking.pickupDateISO || "",
+        booking.onOffDutyTime || "",
+        booking.wardName || ""
+      ].filter(Boolean);
+      editSubtitle.textContent = subtitleParts.join(" • ");
+
+      // Status pill
+      let status = booking.status || "pending";
+      let statusClass = "status-pending";
+      if (status === "approved") statusClass = "status-approved";
+      if (status === "declined") statusClass = "status-declined";
+      editStatusPill.className = `status-pill ${statusClass}`;
+      editStatusPill.textContent = status;
+      editStatusPill.classList.remove("hidden");
+
       editModalWrap.classList.remove("hidden");
     }
 
     function closeEditModal() {
       currentEditBookingId = null;
       editModalWrap.classList.add("hidden");
+      editSubtitle.textContent = "";
+      editStatusPill.classList.add("hidden");
+      editStatusPill.textContent = "";
     }
 
     btnEditClose.addEventListener("click", closeEditModal);
