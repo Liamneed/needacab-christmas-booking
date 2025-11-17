@@ -15,28 +15,51 @@
     a{text-decoration:none;color:inherit}
 
     .navbar{
-      position:sticky;top:0;z-index:20;
-      display:flex;justify-content:space-between;align-items:center;
-      background:#0d1218;border-bottom:1px solid var(--line);padding:12px 20px;
+      position:sticky;top:0;z-index:10;
+      display:flex;align-items:center;gap:16px;
+      padding:10px 16px;background:rgba(11,13,16,0.96);
+      border-bottom:1px solid #111827;
+      backdrop-filter:blur(12px);
     }
-    .nav-left{display:flex;gap:16px;align-items:center}
-    .nav-left a{padding:8px 12px;border-radius:10px;font-weight:600}
-    .nav-left a:hover{background:#1a222d}
-    .nav-left a.active{background:var(--brand);color:#111}
-
-    .page{max-width:1100px;margin:22px auto;padding:0 16px}
-    h1{font-size:22px;margin:0 0 14px}
-    .muted{color:var(--muted);font-size:13px;}
-
-    .tools{margin-bottom:10px}
-    .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-    select, input[type="date"]{
-      background:#111827;border-radius:10px;border:1px solid #253142;
-      color:var(--ink);padding:7px 10px;font:inherit;min-width:130px;
+    .navbar a{
+      padding:6px 10px;border-radius:999px;
+      font-size:13px;color:var(--muted);
     }
+    .navbar a.active{
+      background:rgba(246,196,35,0.1);color:var(--brand);font-weight:600;
+    }
+
+    .wrap{
+      max-width:1200px;margin:18px auto;padding:0 12px 24px;
+      display:flex;flex-direction:column;gap:16px;
+    }
+    .card{
+      background:var(--card);border-radius:var(--radius);
+      border:1px solid #1f2937;padding:14px 14px 12px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.55);
+    }
+
+    h1{font-size:20px;margin:0 0 4px}
+    .muted{color:var(--muted);font-size:13px}
+
+    .toolbar{
+      display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;
+      margin-top:8px;
+    }
+    .toolbar .group{
+      display:flex;flex-direction:column;gap:4px;font-size:13px;
+    }
+    label{font-size:13px;color:var(--muted)}
+    select,input[type="date"]{
+      background:var(--btn);color:var(--ink);border-radius:10px;
+      border:1px solid var(--line);padding:7px 10px;
+      min-height:36px;font:inherit;
+    }
+    select:focus,input[type="date"]:focus{outline:none;border-color:#334155}
+
     button{
-      background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid #263445;
-      padding:8px 12px;font:inherit;cursor:pointer;
+      background:var(--btn);color:var(--ink);border-radius:999px;
+      border:1px solid #263445;padding:8px 12px;font:inherit;cursor:pointer;
     }
     button:hover{background:var(--btnHover)}
     button.ghost{background:transparent}
@@ -45,6 +68,23 @@
     th,td{border-bottom:1px solid var(--line);padding:10px 6px;vertical-align:top}
     th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;background:#111827}
     tr:hover td{background:#0e141c}
+    /* Highlight potential duplicate rows */
+    tr.duplicate td{background:#2b1a1a;}
+    .dupTag{
+      display:inline-flex;
+      padding:2px 6px;
+      border-radius:999px;
+      background:#7f1d1d;
+      color:#fecaca;
+      font-size:10px;
+      font-weight:600;
+      align-self:flex-start;
+    }
+    /* Make the calendar icon visible on dark background */
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      filter: invert(1);
+      cursor: pointer;
+    }
     .ref{display:flex;flex-direction:column;gap:2px}
     .shortRef{font-weight:700}
     .legacyRef{font-size:11px;color:var(--muted)}
@@ -52,77 +92,98 @@
       display:inline-flex;align-items:center;justify-content:center;
       padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
     }
-    .pill.pending{background:#1f2937;color:#fbbf24}
-    .pill.approved{background:#022c22;color:#6ee7b7}
-    .pill.declined{background:#2f1417;color:#fecaca}
-
-    .trip{white-space:pre-line;font-size:13px}
-    .staff{white-space:pre-line;font-size:13px}
-    .zone{font-size:13px}
+    .pill.pending{background:#1f2937;color:#e5e7eb;border:1px solid #4b5563}
+    .pill.approved{background:rgba(30,166,114,0.18);color:#6ee7b7;border:1px solid #22c55e}
+    .pill.declined{background:rgba(210,63,63,0.14);color:#fecaca;border:1px solid #f87171}
     .badge{
       display:inline-flex;align-items:center;justify-content:center;
-      padding:2px 8px;border-radius:999px;font-size:11px;background:#101827;color:#9ca3af;
+      border-radius:999px;padding:1px 7px;font-size:11px;font-weight:500;
+      background:#111827;color:#9ca3af;border:1px solid #374151;
     }
-    .actions{display:flex;gap:6px;flex-wrap:wrap}
-    .btn-approve{background:var(--ok);border-color:#16a34a;color:#041107}
-    .btn-decline{background:#3b0b0b;border-color:#7f1d1d;color:#fecaca}
-    .btn-delete{background:#111827;border-color:#374151;color:#e5e7eb}
+    .row{display:flex;align-items:center;gap:8px}
+    .row > *{flex:1}
+    .row .right{justify-content:flex-end}
 
-    .statusbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-    .right{margin-left:auto}
-    .empty{padding:30px;text-align:center;color:var(--muted)}
-    .toast{
-      position:fixed;right:16px;bottom:16px;background:#111a25;color:#e9eef4;
-      border:1px solid #223044;padding:10px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);
-      opacity:0;transform:translateY(6px);transition:.18s ease;max-width:80vw
+    .staff{font-size:13px;display:flex;flex-direction:column;gap:2px}
+    .staff span{color:var(--muted);font-size:12px}
+    .trip{font-size:13px}
+    .trip span{display:block}
+    .zones{font-size:12px;color:var(--muted)}
+
+    .actions{white-space:nowrap}
+    .actions button{font-size:12px;padding:6px 8px;margin-right:4px;border-radius:999px}
+    .btn-approve{border-color:#1ea672}
+    .btn-decline{border-color:#d23f3f}
+    .btn-delete{border-color:#4b5563;color:#9ca3af}
+
+    #empty{
+      text-align:center;padding:20px 6px;font-size:14px;color:var(--muted);
     }
-    .toast.show{opacity:1;transform:translateY(0)}
-    @media (max-width:720px){
-      th:nth-child(4), td:nth-child(4){display:none}
-      .actions{gap:4px}
-      button{padding:8px 10px}
+
+    #toast{
+      position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+      background:#111827;color:#e5e7eb;padding:8px 14px;border-radius:999px;
+      border:1px solid #1f2937;font-size:13px;opacity:0;pointer-events:none;
+      transition:opacity 0.18s ease-out,transform 0.18s ease-out;
+      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+      z-index:50;
+    }
+    #toast.show{
+      opacity:1;transform:translateX(-50%) translateY(-4px);
+    }
+
+    @media (max-width:768px){
+      .toolbar{flex-direction:column;align-items:stretch}
+      .toolbar .row{width:100%;justify-content:space-between}
+      .actions button{margin-bottom:4px}
+      th:nth-child(2),td:nth-child(2){min-width:160px}
+      th:nth-child(5),td:nth-child(5){min-width:140px}
     }
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <div class="nav-left">
-      <a href="/">Home</a>
-      <a href="/admin">Admin</a>
-      <a href="/staff_booker.html">Staff Booker</a>
-      <a href="/chat">Chat Booker</a>
-      <a href="/bookings" class="active">Bookings</a>
-    </div>
+    <a href="/">Home</a>
+    <a href="/admin">Admin</a>
+    <a href="/staff_booker.html">Staff Booker</a>
+    <a href="/chat">Chat Booker</a>
+    <a href="/bookings" class="active">Bookings</a>
   </nav>
 
-  <div class="page">
-    <h1>Bookings <span id="totalCount" class="muted"></span></h1>
+  <div class="wrap">
+    <header class="card">
+      <h1>Derriford Staff Taxi — Bookings</h1>
+      <p class="muted">Filter, approve, decline and export bookings. Pending view shows only unprocessed records.</p>
 
-    <div class="tools">
-      <div class="statusbar row">
-        <div class="row" style="gap:8px">
-          <label for="statusSel" style="color:var(--muted)">Status</label>
-          <select id="statusSel">
-            <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="declined">Declined</option>
-          </select>
+      <div class="toolbar">
+        <div class="row" style="gap:10px;flex-wrap:wrap">
+          <div class="group">
+            <label for="statusSel">Status</label>
+            <select id="statusSel">
+              <option value="">All</option>
+              <option value="pending">Pending only</option>
+              <option value="approved">Approved</option>
+              <option value="declined">Declined</option>
+            </select>
+          </div>
+          <div class="group">
+            <label for="dateFrom">From</label>
+            <input type="date" id="dateFrom" />
+          </div>
+          <div class="group">
+            <label for="dateTo">To</label>
+            <input type="date" id="dateTo" />
+          </div>
         </div>
-        <div class="row" style="gap:8px">
-          <label for="dateFrom" style="color:var(--muted)">From</label>
-          <input type="date" id="dateFrom" />
-        </div>
-        <div class="row" style="gap:8px">
-          <label for="dateTo" style="color:var(--muted)">To</label>
-          <input type="date" id="dateTo" />
-        </div>
-        <div class="right row">
+        <div class="row right">
           <button id="refreshBtn" class="ghost">Refresh</button>
-          <a id="csvLink" href="#" download="bookings_export.csv"><button class="ghost">Export CSV</button></a>
+          <a id="csvLink" href="#" download="bookings_export.csv">
+            <button class="ghost">Export CSV</button>
+          </a>
         </div>
       </div>
-    </div>
+      <p id="totalCount" class="muted" style="margin-top:6px;font-size:12px;">Total: 0</p>
+    </header>
 
     <div class="card">
       <table id="bookingsTbl">
@@ -139,12 +200,11 @@
         </thead>
         <tbody id="tbody"></tbody>
       </table>
+      <div id="empty" style="display:none;">No bookings found for the current filter.</div>
     </div>
-
-    <div id="empty" class="empty" style="display:none">No bookings found.</div>
   </div>
 
-  <div id="toast" class="toast"></div>
+  <div id="toast"></div>
 
   <script>
     const api = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4000" : "";
@@ -159,29 +219,35 @@
     const dateToEl = document.getElementById("dateTo");
     const totalEl = document.getElementById("totalCount");
 
+    // Will hold IDs of potential duplicate bookings for highlighting
+    let duplicateIdSet = new Set();
+
     function toast(msg){
       toastEl.textContent = msg;
       toastEl.classList.add("show");
       setTimeout(()=>toastEl.classList.remove("show"), 2200);
     }
-    function esc(s){ return String(s ?? "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+    function esc(s){ return String(s ?? "").replace(/[<>&]/g, c => (
+      c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;"
+    )); }
 
     function toDDMMYY(iso){
       if(!iso) return "";
       const [y,m,d] = String(iso).split("-");
       if(!y||!m||!d) return iso;
-      return `${d}-${m}-${y}`;
+      return `${d}-${m}-${y.slice(-2)}`;
     }
 
     function statusChip(status){
-      const s = status || "pending";
-      if (s === "approved") return `<span class="pill approved">Approved</span>`;
-      if (s === "declined") return `<span class="pill declined">Declined</span>`;
-      return `<span class="pill pending">Pending</span>`;
+      const s = (status||"").toLowerCase();
+      if(!s) return `<span class="pill pending">Pending</span>`;
+      if(s==="approved") return `<span class="pill approved">Approved</span>`;
+      if(s==="declined") return `<span class="pill declined">Declined</span>`;
+      return `<span class="pill">${esc(status)}</span>`;
     }
 
     function fmtWardStaff(b){
-      const ward = b.wardName || "(no ward)";
+      const ward = b.wardName || "Unknown ward";
       const staff = b.staffName || "";
       const phone = b.staffPhone || "";
       const wardPhone = b.wardPhone || "";
@@ -200,39 +266,42 @@
       return `<div>
         <div>${date || "—"} ${time ? " @ " + esc(time) : ""}</div>
         <div><span class="badge">${shift}</span></div>
-      </div>`;
+      </div>`
     }
 
     function fmtZones(b){
-      const pz = b.pickup?.zone?.name || "";
-      const dz = b.destination?.zone?.name || "";
-      if (!pz && !dz) return "";
-      if (pz === dz) return `<span class="zone">${esc(pz)}</span>`;
-      return `<span class="zone">${esc(pz)} → ${esc(dz)}</span>`;
+      const pz = b.pickup && b.pickup.zone && b.pickup.zone.name ? b.pickup.zone.name : "";
+      const dz = b.destination && b.destination.zone && b.destination.zone.name ? b.destination.zone.name : "";
+      return `<div class="zones">
+        ${pz ? `From: ${esc(pz)}` : ""}
+        ${dz ? `<br>To: ${esc(dz)}` : ""}
+      </div>`;
     }
 
     function fmtTrip(b){
-      const pick = b.pickup?.formatted || "";
-      const drop = b.destination?.formatted || "";
-      const ret = b.requireReturn ? "Return required" : "";
+      const p = b.pickup && b.pickup.formatted ? b.pickup.formatted : "";
+      const d = b.destination && b.destination.formatted ? b.destination.formatted : "";
       return `<div class="trip">
-        ${esc(pick)}
-        ${drop ? "<br>↓<br>" + esc(drop) : ""}
-        ${ret ? "<br><span class='badge'>Return</span>" : ""}
+        <span>${esc(p)}</span>
+        <span>➜ ${esc(d)}</span>
       </div>`;
     }
 
     function renderRow(b){
+      const isDup = duplicateIdSet && duplicateIdSet.has(String(b._id));
       const refBlock = `
         <div class="ref">
           <span class="shortRef">${esc(b.shortRef || "—")}</span>
           <span class="legacyRef">${esc(b.reference || "")}</span>
+          ${isDup ? `<span class="dupTag">DUPLICATE</span>` : ""}
         </div>`;
       const actApprove = `<button class="btn-approve" data-act="approve" data-id="${b._id}">Accept</button>`;
       const actDecline = `<button class="btn-decline" data-act="decline" data-id="${b._id}">Decline</button>`;
       const actDelete  = `<button class="btn-delete"  data-act="delete"  data-id="${b._id}">Delete</button>`;
 
-      return `<tr data-id="${b._id}">
+      const rowClass = isDup ? ' class="duplicate"' : "";
+
+      return `<tr data-id="${b._id}"${rowClass}>
         <td>${refBlock}</td>
         <td>${fmtWardStaff(b)}</td>
         <td>${fmtDateTime(b)}</td>
@@ -249,24 +318,24 @@
         "pickup.formatted","pickup.zone.name","destination.formatted","destination.zone.name",
         "reference","requireReturn","isReturn","status","shortRef","declineReason"
       ];
-      const rows = items.map(b => ([
-        toDDMMYY(b.pickupDateISO),
-        (b.onOffDutyTime || ""),
-        (b.shiftType || ""),
-        (b.wardName || "").replace(/,/g," "),
-        (b.staffName || "").replace(/,/g," "),
-        (b.staffPhone || "").replace(/,/g," "),
-        (b.pickup?.formatted||"").replace(/,/g," "),
-        (b.pickup?.zone?.name||"").replace(/,/g," "),
-        (b.destination?.formatted||"").replace(/,/g," "),
-        (b.destination?.zone?.name||"").replace(/,/g," "),
-        (b.reference||""),
-        b.requireReturn ? "TRUE" : "FALSE",
-        b.isReturn ? "TRUE" : "FALSE",
-        b.status||"",
-        b.shortRef||"",
-        (b.declineReason||"").replace(/,/g," ")
-      ].join(",")));
+      const rows = items.map(b => [
+        b.pickupDateISO || "",
+        b.onOffDutyTime || "",
+        b.shiftType || "",
+        b.wardName || "",
+        b.staffName || "",
+        b.staffPhone || "",
+        (b.pickup && b.pickup.formatted) || "",
+        (b.pickup && b.pickup.zone && b.pickup.zone.name) || "",
+        (b.destination && b.destination.formatted) || "",
+        (b.destination && b.destination.zone && b.destination.zone.name) || "",
+        b.reference || "",
+        String(b.requireReturn ?? ""),
+        String(b.isReturn ?? ""),
+        b.status || "",
+        b.shortRef || "",
+        b.declineReason || ""
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","));
       return [header.join(","), ...rows].join("\n");
     }
 
@@ -296,6 +365,30 @@
             b.status === null ||
             b.status === ""
           );
+        }
+
+        // Identify potential duplicate bookings:
+        // same staff phone, date, time, pickup and destination
+        duplicateIdSet = new Set();
+        const dupGroups = new Map();
+        for (const b of items) {
+          const key = [
+            (b.staffPhone || "").trim(),
+            b.pickupDateISO || "",
+            b.onOffDutyTime || "",
+            b.pickup && b.pickup.formatted ? b.pickup.formatted : "",
+            b.destination && b.destination.formatted ? b.destination.formatted : ""
+          ].join("||");
+          const list = dupGroups.get(key) || [];
+          list.push(b);
+          dupGroups.set(key, list);
+        }
+        for (const list of dupGroups.values()) {
+          if (list.length > 1) {
+            for (const b of list) {
+              if (b && b._id) duplicateIdSet.add(String(b._id));
+            }
+          }
         }
 
         if (totalEl) totalEl.textContent = `Total: ${items.length}`;
@@ -365,21 +458,15 @@
     function buildApproveMessage(row){
       const b = grabRowBooking(row);
       const dateNice = toDDMMYY(b.pickupDateISO);
-      return (
-        `Your request for your Christmas staff booking for Derriford Hospital on ${dateNice} at ${b.onOffDutyTime}. ` +
-        `Pick up: ${b.pickup.formatted}. Drop off: ${b.destination.formatted}. In the name ${b.staffName} has been approved. ` +
-        `Your reference number is ${b.reference}.`
-      );
+      const timeNice = b.onOffDutyTime || "";
+      return `Hi ${b.staffName || "there"}, your Christmas staff taxi booking for ${dateNice} at ${timeNice} has been approved. Your reference is ${b.shortRef || b.reference || "N/A"}. Thank you, Need-A-Cab Taxis.`;
     }
 
     function buildDeclineMessage(row, reason){
       const b = grabRowBooking(row);
       const dateNice = toDDMMYY(b.pickupDateISO);
-      return (
-        `Your request for your Christmas staff booking for Derriford Hospital on ${dateNice} at ${b.onOffDutyTime}. ` +
-        `Pick up: ${b.pickup.formatted}. Drop off: ${b.destination.formatted}. In the name ${b.staffName} has been declined. ` +
-        `Reason: ${reason}`
-      );
+      const timeNice = b.onOffDutyTime || "";
+      return `Hi ${b.staffName || "there"}, unfortunately your Christmas staff taxi booking for ${dateNice} at ${timeNice} has been declined. Reason: ${reason}. — Need-A-Cab Taxis`;
     }
 
     async function approve(id, row){
@@ -408,10 +495,16 @@
       updateRowFromPayload(row, js.booking);
       const msg = buildDeclineMessage(row, trimmed);
       console.log("DECLINE SMS:", msg);
+
+      // After sending the decline SMS, automatically delete the booking
+      await deleteBooking(id, row, { skipConfirm: true });
     }
 
-    async function deleteBooking(id, row){
-      if(!confirm("Delete this booking? This cannot be undone.")) return;
+    async function deleteBooking(id, row, opts = {}){
+      const skipConfirm = opts && opts.skipConfirm;
+      if(!skipConfirm){
+        if(!confirm("Delete this booking? This cannot be undone.")) return;
+      }
       const r = await fetch(`${api}/api/bookings/${id}`, { method:"DELETE" });
       const js = await r.json();
       if(!r.ok){ toast(js.error||"Delete failed"); return; }
@@ -422,9 +515,21 @@
 
     function updateRowFromPayload(row, b){
       const cells = row.querySelectorAll("td");
-      cells[0].innerHTML = `<div class="ref">
-        <span class="shortRef">${esc(b.shortRef||"—")}</span>
-        <span class="legacyRef">${esc(b.reference||"")}</span></div>`;
+      const wardCell = cells[1];
+      const dateCell = cells[2];
+      const zoneCell = cells[3];
+      const tripCell = cells[4];
+
+      wardCell.innerHTML = fmtWardStaff(b);
+      dateCell.innerHTML = fmtDateTime(b);
+      zoneCell.innerHTML = fmtZones(b);
+      tripCell.innerHTML = fmtTrip(b);
+
+      const refBlockEl = cells[0].querySelector(".ref");
+      if (refBlockEl){
+        refBlockEl.querySelector(".shortRef").textContent = b.shortRef || "—";
+        refBlockEl.querySelector(".legacyRef").textContent = b.reference || "";
+      }
       cells[5].innerHTML = statusChip(b.status);
     }
 
