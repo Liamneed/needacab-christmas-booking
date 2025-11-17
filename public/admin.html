@@ -180,7 +180,7 @@
         <p class="muted" style="margin-top:6px">
           Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then clusters nearby
           pickups using the radius and assigns the <strong>smallest suitable vehicle</strong> for each cluster
-          (4 / 6 / 7 / 8 / 19 seats).
+          (4 / 6 / 7 / 8 / 19 seats). The numbered list under each taxi shows the suggested pickup / drop sequence.
         </p>
       </section>
 
@@ -409,14 +409,22 @@
         bucket.taxis.forEach(pack=>{
           const pax = pack.length;
           const vehicleSize = pickVehicleCapacity(pax);
+
+          // Build numbered list items
+          const list = pack.map((a, idx) => ({
+            idx: idx + 1,
+            text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
+          }));
+          const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
+          const listText=list.map(item=>`${item.idx}. ${item.text}`).join("\n");
+
           const wrap=document.createElement("div");
           wrap.className="taxi";
-          const list=pack.map(a=>`${a.formatted}${a.time ? " ("+a.time+")" : ""}`);
-          const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
-          const listText=list.map(x=>`• ${x}`).join("\n");
           wrap.innerHTML=`
             <h4>Taxi ${taxiCounter++} — ${pax} pax — suggested ${vehicleSize}-seater <span class="zonechip">${zones}</span></h4>
-            <div>${list.map(x=>`<span class="addr">${x}</span>`).join("")}</div>
+            <div>
+              ${list.map(item=>`<span class="addr">${item.idx}. ${item.text}</span>`).join("")}
+            </div>
             <div class="row-actions" style="margin-top:6px;">
               <button class="btn alt copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
             </div>
@@ -501,7 +509,9 @@
       buckets.forEach(bucket => {
         bucket.taxis.forEach(pack => {
           const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
-          const addresses = pack.map(a=>`${a.formatted}${a.time ? " ("+a.time+")" : ""}`).join(" | ");
+          const addresses = pack
+            .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`)
+            .join(" | ");
           const pax = pack.length;
           const vehicleSize = pickVehicleCapacity(pax);
           rows.push({
