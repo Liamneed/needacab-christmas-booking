@@ -949,7 +949,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
       },
       pickupDueTime: iso,
       pickupDueTimeUtc: iso,
-      priority: 1,
+      priority: 9,
       priorityOverride: true,
       yourReferences: {
         yourReference1: shiftType || "",
