@@ -237,7 +237,7 @@
     }
     .modal{
       background:var(--card);border-radius:16px;border:1px solid var(--line);
-      width:100%;max-width:440px;padding:18px 18px 14px;
+      width:100%;max-width:480px;padding:18px 18px 14px;
       box-shadow:0 18px 45px rgba(0,0,0,0.55);
     }
     .modal-header{
@@ -439,7 +439,7 @@
     </div>
   </div>
 
-  <!-- INLINE ADDRESS EDIT MODAL -->
+  <!-- INLINE ADDRESS EDIT MODAL (still available if you want to hook it later) -->
   <div id="editAddrModalWrap" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
@@ -474,7 +474,7 @@
     </div>
   </div>
 
-  <!-- FULL BOOKING EDIT MODAL -->
+  <!-- FULL BOOKING EDIT MODAL (opened on row double-click) -->
   <div id="editBookingModalWrap" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
@@ -519,6 +519,14 @@
             <input type="checkbox" id="editBookingReturn">
             <span>Return requested</span>
           </label>
+        </div>
+        <div class="modal-row">
+          <label for="editBookingPickup">Pickup address</label>
+          <input type="text" id="editBookingPickup" disabled>
+        </div>
+        <div class="modal-row">
+          <label for="editBookingDest">Destination address</label>
+          <input type="text" id="editBookingDest" disabled>
         </div>
         <div class="modal-row">
           <span id="editBookingError" class="error-text"></span>
@@ -816,8 +824,6 @@
           <td>
             <div class="row-actions">
               <button class="btn small btn-approve" data-action="approve" data-id="${b._id}">Approve</button>
-              <button class="btn small" data-action="edit-booking" data-id="${b._id}">Edit booking</button>
-              <button class="btn small" data-action="edit-address" data-id="${b._id}">Edit address</button>
               <button class="btn small danger" data-action="decline" data-id="${b._id}">Decline</button>
               <button class="btn small" data-action="delete" data-id="${b._id}">Delete</button>
             </div>
@@ -989,7 +995,7 @@
       }
     }
 
-    // ----- Inline address edit flow -----
+    // ----- Inline address edit flow (unchanged) -----
     const editAddrModalWrap = document.getElementById("editAddrModalWrap");
     const editPickupLine = document.getElementById("editPickupLine");
     const editDestLine = document.getElementById("editDestLine");
@@ -1067,7 +1073,7 @@
       }
     });
 
-    // ----- Full booking edit flow -----
+    // ----- Full booking edit flow (double-click) -----
     const editBookingModalWrap = document.getElementById("editBookingModalWrap");
     const editBookingDate = document.getElementById("editBookingDate");
     const editBookingTime = document.getElementById("editBookingTime");
@@ -1077,6 +1083,8 @@
     const editBookingStaffPhone = document.getElementById("editBookingStaffPhone");
     const editBookingRef = document.getElementById("editBookingRef");
     const editBookingReturn = document.getElementById("editBookingReturn");
+    const editBookingPickup = document.getElementById("editBookingPickup");
+    const editBookingDest = document.getElementById("editBookingDest");
     const editBookingError = document.getElementById("editBookingError");
     const btnEditBookingClose = document.getElementById("btnEditBookingClose");
     const btnEditBookingCancel = document.getElementById("btnEditBookingCancel");
@@ -1096,6 +1104,8 @@
       editBookingStaffPhone.value = b.staffPhone || "";
       editBookingRef.value = b.reference || b.shortRef || "";
       editBookingReturn.checked = !!b.requireReturn;
+      editBookingPickup.value = (b.pickup && b.pickup.formatted) || "";
+      editBookingDest.value = (b.destination && b.destination.formatted) || "";
       editBookingError.textContent = "";
 
       editBookingModalWrap.classList.remove("hidden");
@@ -1163,6 +1173,7 @@
 
     function wireTableActions() {
       const tbody = document.getElementById("bookingsTableBody");
+      // Button clicks: approve / decline / delete
       tbody.addEventListener("click", (e) => {
         const btn = e.target.closest("button[data-action]");
         if (!btn) return;
@@ -1176,11 +1187,18 @@
           openDeclineModal(id);
         } else if (action === "delete") {
           deleteBooking(id);
-        } else if (action === "edit-address") {
-          openEditAddressModal(id);
-        } else if (action === "edit-booking") {
-          openEditBookingModal(id);
         }
+      });
+
+      // Row double-click: open full edit modal
+      tbody.addEventListener("dblclick", (e) => {
+        const tr = e.target.closest("tr");
+        if (!tr) return;
+        const anyBtn = tr.querySelector("button[data-id]");
+        if (!anyBtn) return;
+        const id = anyBtn.dataset.id;
+        if (!id) return;
+        openEditBookingModal(id);
       });
     }
 
@@ -1210,8 +1228,6 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      // Default: no dates set -> loads all bookings on first fetch
-
       document.getElementById("btnSearch").addEventListener("click", () => fetchBookings(1));
       document.getElementById("btnClear").addEventListener("click", () => {
         clearFilters();
