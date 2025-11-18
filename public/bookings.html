@@ -81,7 +81,7 @@
     label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);}
     label span{color:var(--ink);font-size:13px;font-weight:500;}
 
-    input[type="date"], input[type="text"], select{
+    input[type="date"], input[type="text"], input[type="tel"], select{
       background:var(--btn); color:var(--ink); border:1px solid var(--line);
       border-radius:10px; padding:7px 9px; font:inherit;
       min-height:36px;
@@ -251,7 +251,7 @@
       display:flex;flex-direction:column;gap:4px;
     }
     .modal-row label{font-size:13px;color:var(--muted);}
-    .modal-row textarea,.modal-row input{
+    .modal-row textarea,.modal-row input,.modal-row select{
       width:100%;
       min-height:34px;
       padding:6px 9px;
@@ -374,12 +374,7 @@
           <span class="value" id="statMissing">0</span>
         </div>
       </div>
-
-      <p class="muted" style="margin-top:8px;">
-        Rows tagged as <span class="flag-pill flag-missing-addr">Missing address</span> are missing a
-        house number or place name (e.g. <em>Pottery Road, Plymouth…</em> with no number).<br>
-        <span class="flag-pill flag-duplicate">Duplicate</span> highlights similar bookings so you can decide what to keep.
-      </p>
+      <!-- Info text about Missing address / Duplicate removed as requested -->
     </header>
 
     <section class="card">
@@ -394,7 +389,7 @@
             <th>Destination</th>
             <th>Ref / Flags</th>
             <th>Status</th>
-            <th style="width:210px;">Actions</th>
+            <th style="width:260px;">Actions</th>
           </tr>
         </thead>
         <tbody id="bookingsTableBody">
@@ -479,6 +474,63 @@
     </div>
   </div>
 
+  <!-- FULL BOOKING EDIT MODAL -->
+  <div id="editBookingModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Edit Booking</div>
+        <button class="btn small" id="btnEditBookingClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label for="editBookingDate">Date</label>
+          <input type="date" id="editBookingDate">
+        </div>
+        <div class="modal-row">
+          <label for="editBookingTime">Time (HH:MM)</label>
+          <input type="text" id="editBookingTime" placeholder="e.g. 06:30">
+        </div>
+        <div class="modal-row">
+          <label for="editBookingShiftType">Shift</label>
+          <select id="editBookingShiftType">
+            <option value="">Not set</option>
+            <option value="start">Start (to Derriford)</option>
+            <option value="finish">Finish (from Derriford)</option>
+          </select>
+        </div>
+        <div class="modal-row">
+          <label for="editBookingWard">Ward</label>
+          <input type="text" id="editBookingWard" placeholder="Ward name">
+        </div>
+        <div class="modal-row">
+          <label for="editBookingStaffName">Staff name</label>
+          <input type="text" id="editBookingStaffName" placeholder="Staff name">
+        </div>
+        <div class="modal-row">
+          <label for="editBookingStaffPhone">Staff phone</label>
+          <input type="tel" id="editBookingStaffPhone" placeholder="Staff phone">
+        </div>
+        <div class="modal-row">
+          <label for="editBookingRef">Reference</label>
+          <input type="text" id="editBookingRef" placeholder="Reference">
+        </div>
+        <div class="modal-row">
+          <label class="checkbox-row">
+            <input type="checkbox" id="editBookingReturn">
+            <span>Return requested</span>
+          </label>
+        </div>
+        <div class="modal-row">
+          <span id="editBookingError" class="error-text"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnEditBookingCancel">Cancel</button>
+        <button class="btn primary" id="btnEditBookingSave">Save changes</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const apiBase = window.location.origin.includes("localhost")
       ? "http://localhost:4000"
@@ -493,6 +545,8 @@
     let editBookingId = null;
     let editPickupAddr = null;
     let editDestAddr = null;
+
+    let fullEditBookingId = null; // for full booking edit modal
 
     // Stats state
     let lastMissingCount = 0;
@@ -762,6 +816,7 @@
           <td>
             <div class="row-actions">
               <button class="btn small btn-approve" data-action="approve" data-id="${b._id}">Approve</button>
+              <button class="btn small" data-action="edit-booking" data-id="${b._id}">Edit booking</button>
               <button class="btn small" data-action="edit-address" data-id="${b._id}">Edit address</button>
               <button class="btn small danger" data-action="decline" data-id="${b._id}">Decline</button>
               <button class="btn small" data-action="delete" data-id="${b._id}">Delete</button>
@@ -1012,6 +1067,100 @@
       }
     });
 
+    // ----- Full booking edit flow -----
+    const editBookingModalWrap = document.getElementById("editBookingModalWrap");
+    const editBookingDate = document.getElementById("editBookingDate");
+    const editBookingTime = document.getElementById("editBookingTime");
+    const editBookingShiftType = document.getElementById("editBookingShiftType");
+    const editBookingWard = document.getElementById("editBookingWard");
+    const editBookingStaffName = document.getElementById("editBookingStaffName");
+    const editBookingStaffPhone = document.getElementById("editBookingStaffPhone");
+    const editBookingRef = document.getElementById("editBookingRef");
+    const editBookingReturn = document.getElementById("editBookingReturn");
+    const editBookingError = document.getElementById("editBookingError");
+    const btnEditBookingClose = document.getElementById("btnEditBookingClose");
+    const btnEditBookingCancel = document.getElementById("btnEditBookingCancel");
+    const btnEditBookingSave = document.getElementById("btnEditBookingSave");
+
+    function openEditBookingModal(id) {
+      const b = currentItems.find(x => x._id === id);
+      if (!b) return;
+
+      fullEditBookingId = id;
+
+      editBookingDate.value = (b.pickupDateISO || "").slice(0, 10);
+      editBookingTime.value = b.onOffDutyTime || "";
+      editBookingShiftType.value = b.shiftType || "";
+      editBookingWard.value = b.wardName || "";
+      editBookingStaffName.value = b.staffName || "";
+      editBookingStaffPhone.value = b.staffPhone || "";
+      editBookingRef.value = b.reference || b.shortRef || "";
+      editBookingReturn.checked = !!b.requireReturn;
+      editBookingError.textContent = "";
+
+      editBookingModalWrap.classList.remove("hidden");
+    }
+
+    function closeEditBookingModal() {
+      fullEditBookingId = null;
+      editBookingModalWrap.classList.add("hidden");
+    }
+
+    btnEditBookingClose.addEventListener("click", closeEditBookingModal);
+    btnEditBookingCancel.addEventListener("click", closeEditBookingModal);
+    editBookingModalWrap.addEventListener("click",(e)=>{
+      if (e.target === editBookingModalWrap) closeEditBookingModal();
+    });
+
+    btnEditBookingSave.addEventListener("click", async () => {
+      if (!fullEditBookingId) return;
+
+      const date = editBookingDate.value.trim();
+      const time = editBookingTime.value.trim();
+      const shiftType = editBookingShiftType.value || "";
+      const wardName = editBookingWard.value.trim();
+      const staffName = editBookingStaffName.value.trim();
+      const staffPhone = editBookingStaffPhone.value.trim();
+      const reference = editBookingRef.value.trim();
+      const requireReturn = editBookingReturn.checked;
+
+      if (!date) {
+        editBookingError.textContent = "Please enter a valid date.";
+        return;
+      }
+      if (!time) {
+        editBookingError.textContent = "Please enter a time in HH:MM format.";
+        return;
+      }
+
+      editBookingError.textContent = "";
+      btnEditBookingSave.disabled = true;
+
+      try {
+        await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(fullEditBookingId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pickupDateISO: date,
+            onOffDutyTime: time,
+            shiftType,
+            wardName,
+            staffName,
+            staffPhone,
+            reference,
+            requireReturn
+          })
+        });
+
+        closeEditBookingModal();
+        await fetchBookings(currentPage);
+      } catch (err) {
+        editBookingError.textContent = err.message || "Failed to save booking.";
+      } finally {
+        btnEditBookingSave.disabled = false;
+      }
+    });
+
     function wireTableActions() {
       const tbody = document.getElementById("bookingsTableBody");
       tbody.addEventListener("click", (e) => {
@@ -1029,6 +1178,8 @@
           deleteBooking(id);
         } else if (action === "edit-address") {
           openEditAddressModal(id);
+        } else if (action === "edit-booking") {
+          openEditBookingModal(id);
         }
       });
     }
