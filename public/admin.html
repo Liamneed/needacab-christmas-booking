@@ -165,6 +165,18 @@
     }
     .hidden{display:none;}
     .error-text{color:var(--err);font-size:12px;}
+
+    /* QUICK DATES */
+    .quick-dates{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+      font-size:12px;
+    }
+    .quick-dates span{
+      color:var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -203,6 +215,18 @@
             <input type="date" id="grpDate">
           </label>
 
+          <div class="quick-dates">
+            <span>Quick:</span>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="0">Today</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="1">Tomorrow</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="7">+7 days</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="xmas-eve">Christmas Eve</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="xmas-day">Christmas Day</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="boxing-day">Boxing Day</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="nye">New Year's Eve</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="nyd">New Year's Day</button>
+          </div>
+
           <div id="typeToggle" style="display:flex;gap:8px;align-items:center">
             <span class="pill active" data-type="start">Shift Start (to Derriford)</span>
             <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
@@ -237,6 +261,19 @@
           <label>Date
             <input type="date" id="legacyDate">
           </label>
+
+          <div class="quick-dates">
+            <span>Quick:</span>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-offset="0">Today</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-offset="1">Tomorrow</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-offset="7">+7 days</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-special="xmas-eve">Christmas Eve</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-special="xmas-day">Christmas Day</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-special="boxing-day">Boxing Day</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-special="nye">New Year's Eve</button>
+            <button class="btn small ghost" data-qdate-target="legacyDate" data-qdate-special="nyd">New Year's Day</button>
+          </div>
+
           <button id="legacyLoad" class="btn alt">Load Legacy by Date</button>
         </div>
 
@@ -889,8 +926,8 @@
       bookModalWrap.classList.add("hidden");
     }
 
-    document.getElementById("btnBookClose").addEventListener("click", closeBookModal);
-    document.getElementById("btnBookCancel").addEventListener("click", closeBookModal);
+    btnBookClose.addEventListener("click", closeBookModal);
+    btnBookCancel.addEventListener("click", closeBookModal);
     bookModalWrap.addEventListener("click",(e)=>{
       if (e.target === bookModalWrap) closeBookModal();
     });
@@ -965,6 +1002,82 @@
       } finally {
         btnBookConfirm.disabled = false;
       }
+    });
+
+    /* ---------- QUICK DATES LOGIC ---------- */
+    function setDateOffset(inputId, offsetDays) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      const iso = d.toISOString().slice(0,10);
+      input.value = iso;
+    }
+
+    function setDateIso(inputId, iso){
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.value = iso;
+    }
+
+    function getSpecialDateIso(key){
+      const now = new Date();
+      let year = now.getFullYear();
+      function mk(month, day){
+        return new Date(year, month - 1, day);
+      }
+      let d;
+      switch(key){
+        case "xmas-eve":
+          d = mk(12, 24);
+          break;
+        case "xmas-day":
+          d = mk(12, 25);
+          break;
+        case "boxing-day":
+          d = mk(12, 26);
+          break;
+        case "nye":
+          d = mk(12, 31);
+          break;
+        case "nyd":
+          d = mk(1, 1);
+          break;
+        default:
+          d = now;
+      }
+      // If we've already passed this date this year, use next year
+      if (now > d){
+        year = year + 1;
+        const month = d.getMonth() + 1;
+        const day = d.getDate();
+        d = new Date(year, month - 1, day);
+      }
+      return d.toISOString().slice(0,10);
+    }
+
+    function handleQuickDate(target, offset, special){
+      if (special){
+        const iso = getSpecialDateIso(special);
+        setDateIso(target, iso);
+      } else {
+        setDateOffset(target, offset);
+      }
+
+      if (target === "grpDate") {
+        loadGroups();
+      } else if (target === "legacyDate") {
+        refreshOld();
+      }
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-qdate-target]");
+      if (!btn) return;
+      const target = btn.getAttribute("data-qdate-target");
+      const offset = Number(btn.getAttribute("data-qdate-offset") || "0");
+      const special = btn.getAttribute("data-qdate-special") || "";
+      handleQuickDate(target, offset, special);
     });
 
     // Initial loads
