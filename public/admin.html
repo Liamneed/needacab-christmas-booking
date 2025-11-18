@@ -455,12 +455,21 @@
           [rec.houseNumber, rec.street, rec.town, rec.postCode]
             .filter(Boolean)
             .join(" ");
+        const staffName = rec.staffName || "";
+        const staffPhone = rec.staffPhone || "";
+        const noteParts = [];
+        if (staffName) noteParts.push(`Customer: ${staffName}`);
+        if (staffPhone) noteParts.push(`Tel: ${staffPhone}`);
+        const note = noteParts.join(" | ");
         return{
           formatted: baseText,
           lat: rec.lat,
           lng: rec.lng,
           zone: zone || "(unknown)",
-          time: time || ""
+          time: time || "",
+          staffName,
+          staffPhone,
+          note
         };
       }
       return{
@@ -468,7 +477,10 @@
         lat:null,
         lng:null,
         zone:zone||"(unknown)",
-        time:time||""
+        time:time||"",
+        staffName:"",
+        staffPhone:"",
+        note:""
       };
     }
 
@@ -586,13 +598,13 @@
 
           const list = pack.map((a, idx) => ({
             idx: idx + 1,
-            text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`
+            text: `${a.formatted}${a.time ? " ("+a.time+")" : ""}`,
+            note: a.note || ""
           }));
           const zones=Array.from(new Set(pack.map(a=>a.zone))).join(", ");
-          const listText=list.map(item=>`${item.idx}. ${item.text}`).join("\n");
-
-          const bookedLabel = pack._booked ? "Booked" : "Book Taxi";
-          const bookedDisabled = pack._booked ? "disabled" : "";
+          const listText=list
+            .map(item=>`${item.idx}. ${item.text}${item.note ? " — " + item.note : ""}`)
+            .join("\n");
 
           const wrap=document.createElement("div");
           wrap.className="taxi";
@@ -603,7 +615,7 @@
               ${pack._booked ? '<span class="subtag">Booked</span>' : ''}
             </h4>
             <div>
-              ${list.map(item=>`<span class="addr">${item.idx}. ${item.text}</span>`).join("")}
+              ${list.map(item=>`<span class="addr">${item.idx}. ${item.text}${item.note ? ' — ' + item.note.replace(/</g,'&lt;') : ''}</span>`).join("")}
             </div>
             <div class="row-actions" style="margin-top:6px;">
               <button class="btn alt small copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
@@ -611,8 +623,8 @@
                 class="btn primary small"
                 data-book-bucket="${bIndex}"
                 data-book-taxi="${tIndex}"
-                ${bookedDisabled}
-              >${bookedLabel}</button>
+                ${pack._booked ? 'disabled' : ''}
+              >${pack._booked ? 'Booked' : 'Book Taxi'}</button>
             </div>
           `;
           col.appendChild(wrap);
@@ -707,7 +719,7 @@
         bucket.taxis.forEach(pack => {
           const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
           const addresses = pack
-            .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`)
+            .map((a, idx)=>`${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}${a.note ? " — " + a.note : ""}`)
             .join(" | ");
           const pax = pack.length;
           const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
@@ -841,7 +853,7 @@
       bookError.textContent = "";
 
       const lines = pack.map((a, idx) =>
-        `${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}`
+        `${idx+1}. ${a.formatted}${a.time ? " ("+a.time+")" : ""}${a.note ? " — " + a.note : ""}`
       );
       bookStops.value = lines.join("\n");
       bookPassengers.value = pack.length;
@@ -901,7 +913,8 @@
       const stops = pack.map(a => ({
         formatted: a.formatted,
         lat: a.lat,
-        lng: a.lng
+        lng: a.lng,
+        note: a.note || ""
       }));
 
       const payload = {
