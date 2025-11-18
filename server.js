@@ -61,20 +61,6 @@ const Counter = mongoose.model(
   new mongoose.Schema({ _id: String, seq: { type: Number, default: 0 } }, { collection: "counters" })
 );
 
-// Settings model (for SMS templates etc.)
-const Settings = mongoose.model(
-  "Settings",
-  new mongoose.Schema(
-    {
-      smsTemplates: {
-        approve: { type: String, default: "" },
-        decline: { type: String, default: "" }
-      }
-    },
-    { collection: "settings", timestamps: true }
-  )
-);
-
 async function nextShortRef() {
   const c = await Counter.findOneAndUpdate(
     { _id: "booking_short_ref" },
@@ -134,7 +120,7 @@ function withinMeters(lat1, lng1, lat2, lng2, meters) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lat2 - lng1);
+  const dLng = toRad(lng2 - lng1);
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
@@ -254,9 +240,10 @@ function toDDMMYY(iso) {
   return `${d}-${m}-${y.slice(2)}`;
 }
 
-/* ===== SMS TEMPLATE SETTINGS (Mongo) ===== */
+/* ===== SMS TEMPLATE SETTINGS ===== */
+const SETTINGS_FILE = process.env.SETTINGS_FILE || path.join(__dirname, "settings.json");
 
-const DEFAULT_SMS_TEMPLATES = {
+let smsTemplates = {
   approve:
     "Your request for your Christmas staff booking for Derriford Hospital on {{date}} at {{time}}. " +
     "Pick up: {{pickup}}. Drop off: {{destination}}. " +
@@ -267,19 +254,28 @@ const DEFAULT_SMS_TEMPLATES = {
     "({{pickup}} to {{destination}}) has been declined. Reason: {{reason}}.  Need-A-Cab Taxis"
 };
 
-async function getSmsTemplates() {
+function loadSmsTemplatesFromFile() {
   try {
-    const settings = await Settings.findOne().lean();
-    if (!settings || !settings.smsTemplates) {
-      return DEFAULT_SMS_TEMPLATES;
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const raw = fs.readFileSync(SETTINGS_FILE, "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        smsTemplates = {
+          approve: parsed.approve || smsTemplates.approve,
+          decline: parsed.decline || smsTemplates.decline
+        };
+      }
     }
-    return {
-      approve: settings.smsTemplates.approve || DEFAULT_SMS_TEMPLATES.approve,
-      decline: settings.smsTemplates.decline || DEFAULT_SMS_TEMPLATES.decline
-    };
   } catch (err) {
-    console.error("getSmsTemplates error", err);
-    return DEFAULT_SMS_TEMPLATES;
+    console.error("Failed to load SMS templates", err);
+  }
+}
+
+function saveSmsTemplatesToFile() {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(smsTemplates, null, 2), "utf8");
+  } catch (err) {
+    console.error("Failed to save SMS templates", err);
   }
 }
 
@@ -299,42 +295,59 @@ function renderTemplate(tpl, booking, extra = {}) {
   });
 }
 
+loadSmsTemplatesFromFile();
+
+/* ===== Address normaliser (handles placeId-only payloads) ===== */
+function normaliseAddressShape(raw, label) {
+  if (!raw) return null;
+
+  const lat = typeof raw.lat === "number" ? raw.lat : Number(raw.lat);
+  const lng = typeof raw.lng === "number" ? raw.lng : Number(raw.lng);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+  const formatted =
+    raw.formatted ||
+    raw.text ||
+    raw.description ||
+    raw.street ||
+    raw.placeId ||
+    "";
+
+  return {
+    formatted,
+    text: raw.text || raw.description || formatted,
+    placeId: raw.placeId || null,
+    houseNumber: raw.houseNumber || "",
+    street: raw.street || "",
+    town: raw.town || "Plymouth",
+    postCode: raw.postCode || "",
+    lat,
+    lng,
+    zone: raw.zone || null
+  };
+}
+
 // ---------------------- Health ----------------------
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // ---------------------- SMS TEMPLATE SETTINGS API ----------------------
-app.get("/api/settings/sms-templates", async (_req, res) => {
-  try {
-    const tpls = await getSmsTemplates();
-    res.json(tpls);
-  } catch (err) {
-    console.error("GET /api/settings/sms-templates error", err);
-    res.status(500).json({ error: "Failed to load SMS templates" });
-  }
+app.get("/api/settings/sms-templates", (_req, res) => {
+  res.json(smsTemplates);
 });
 
-app.put("/api/settings/sms-templates", async (req, res) => {
+app.put("/api/settings/sms-templates", (req, res) => {
   try {
     const approve = String(req.body?.approve ?? "").trim();
     const decline = String(req.body?.decline ?? "").trim();
     if (!approve || !decline) {
       return res.status(400).json({ error: "Both approve and decline templates are required" });
     }
-
-    let settings = await Settings.findOne();
-    if (!settings) {
-      settings = new Settings({
-        smsTemplates: { approve, decline }
-      });
-    } else {
-      settings.smsTemplates = { approve, decline };
-    }
-    await settings.save();
-
+    smsTemplates.approve = approve;
+    smsTemplates.decline = decline;
+    saveSmsTemplatesToFile();
     res.json({ ok: true, approve, decline });
   } catch (err) {
-    console.error("PUT /api/settings/sms-templates error", err);
-    res.status(500).json({ error: "Failed to save SMS templates" });
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -376,12 +389,21 @@ app.post("/api/bookings", async (req, res) => {
         return res.status(400).json({ error: "Invalid signature format (must be PNG data URL) or leave blank." });
       }
     }
-    for (const f of ["pickup", "destination"]) {
-      const a = b?.[f];
-      if (!a?.formatted || typeof a.lat !== "number" || typeof a.lng !== "number") {
-        return res.status(400).json({ error: `Invalid ${f} address. Please select from suggestions.` });
-      }
+
+    // Normalise addresses from frontend (supports placeId-only)
+    const normPickup = normaliseAddressShape(b.pickup, "pickup");
+    const normDest = normaliseAddressShape(b.destination, "destination");
+    if (!normPickup) {
+      return res.status(400).json({ error: "Invalid pickup address. Please select from suggestions." });
     }
+    if (!normDest) {
+      return res.status(400).json({ error: "Invalid destination address. Please select from suggestions." });
+    }
+
+    b.pickup = normPickup;
+    b.destination = normDest;
+
+    // Derriford rules
     if (b.shiftType === "start") {
       if (!isDerriford(b.destination.lat, b.destination.lng)) {
         return res.status(400).json({ error: "For Shift Start, the drop-off must be Derriford Hospital." });
@@ -391,6 +413,7 @@ app.post("/api/bookings", async (req, res) => {
         return res.status(400).json({ error: "For Shift Finish, the pickup must be Derriford Hospital." });
       }
     }
+
     if (!b.pickup.zone) b.pickup.zone = await lookupZone(b.pickup.lat, b.pickup.lng);
     if (!b.destination.zone) b.destination.zone = await lookupZone(b.destination.lat, b.destination.lng);
 
@@ -410,6 +433,12 @@ app.post("/api/bookings", async (req, res) => {
           ? b.returnOnOffDutyTime.trim()
           : b.onOffDutyTime;
 
+      const rbPickup = normaliseAddressShape(b.destination, "returnPickup");
+      const rbDest = normaliseAddressShape(b.pickup, "returnDestination");
+      if (!rbPickup || !rbDest) {
+        return res.status(400).json({ error: "Return booking addresses invalid." });
+      }
+
       const rb = {
         wardName: b.wardName,
         wardPhone: b.wardPhone,
@@ -418,8 +447,8 @@ app.post("/api/bookings", async (req, res) => {
         shiftType: flipShift(b.shiftType),
         onOffDutyTime: returnTime,
         pickupDateISO: b.returnDateISO,
-        pickup: { ...b.destination },
-        destination: { ...b.pickup },
+        pickup: rbPickup,
+        destination: rbDest,
         requireReturn: false,
         reasonCode: b.reasonCode,
         budgetNumber: b.budgetNumber,
@@ -775,17 +804,12 @@ app.patch("/api/bookings/:id/approve", async (req, res) => {
     await b.save();
 
     const templateFromBody = req.body?.message && String(req.body.message).trim();
-    let template = templateFromBody;
-    if (!template) {
-      const tpls = await getSmsTemplates();
-      template = tpls.approve;
-    }
+    const template = templateFromBody || smsTemplates.approve;
     const msg = renderTemplate(template, b);
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
   } catch (e) {
-    console.error("approve error", e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -803,17 +827,12 @@ app.patch("/api/bookings/:id/decline", async (req, res) => {
     await b.save();
 
     const templateFromBody = req.body?.message && String(req.body.message).trim();
-    let template = templateFromBody;
-    if (!template) {
-      const tpls = await getSmsTemplates();
-      template = tpls.decline;
-    }
+    const template = templateFromBody || smsTemplates.decline;
     const msg = renderTemplate(template, b, { reason });
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
   } catch (e) {
-    console.error("decline error", e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -1018,6 +1037,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
 
     return res.json({
       ok: true,
+      message: "Smart Pack booking created in Autocab.",
       bookingResponse: body
     });
   } catch (err) {
