@@ -33,12 +33,12 @@
     }
     h1{margin:0 0 6px}
     .page-title{
-      font-size:1.7rem;
+      font-size:1.8rem;
       font-weight:600;
       letter-spacing:0.01em;
     }
     .page-subtitle{
-      font-size:0.95rem;
+      font-size:1.05rem;
       color:var(--muted);
       margin:0;
     }
@@ -68,6 +68,15 @@
       color:#fecaca;
     }
     .btn.danger:hover{background:#4b1010;}
+    /* Green approve button */
+    .btn-approve{
+      background:#166534;
+      border-color:#15803d;
+      color:#dcfce7;
+    }
+    .btn-approve:hover{
+      background:#15803d;
+    }
 
     label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);}
     label span{color:var(--ink);font-size:13px;font-weight:500;}
@@ -300,10 +309,21 @@
         <button type="button" data-quick-date="nyd">New Year’s Day</button>
       </div>
 
+      <div class="filter-row" style="margin-top:10px;">
+        <label class="checkbox-row">
+          <input type="checkbox" id="filterMissing">
+          <span>Show only missing address</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="filterDuplicates">
+          <span>Show only duplicates</span>
+        </label>
+      </div>
+
       <p class="muted" style="margin-top:8px;">
         Rows tagged as <span class="flag-pill flag-missing-addr">Missing address</span> are missing a
-        house number or place name. <span class="flag-pill flag-duplicate">Duplicate</span> highlights
-        similar bookings so you can decide what to keep.
+        house number or place name (e.g. <em>Pottery Road, Plymouth…</em> with no number).<br>
+        <span class="flag-pill flag-duplicate">Duplicate</span> highlights similar bookings so you can decide what to keep.
       </p>
     </header>
 
@@ -319,7 +339,7 @@
             <th>Destination</th>
             <th>Ref / Flags</th>
             <th>Status</th>
-            <th style="width:180px;">Actions</th>
+            <th style="width:210px;">Actions</th>
           </tr>
         </thead>
         <tbody id="bookingsTableBody">
@@ -369,6 +389,41 @@
     </div>
   </div>
 
+  <!-- INLINE ADDRESS EDIT MODAL -->
+  <div id="editAddrModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Fix Address (House Number)</div>
+        <button class="btn small" id="btnEditAddrClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label>Pickup address</label>
+          <div id="editPickupLine" class="muted"></div>
+        </div>
+        <div class="modal-row">
+          <label for="editPickupHouse">Pickup house number / name</label>
+          <input id="editPickupHouse" type="text" placeholder="e.g. 10 or Flat 2">
+        </div>
+        <div class="modal-row">
+          <label>Destination address</label>
+          <div id="editDestLine" class="muted"></div>
+        </div>
+        <div class="modal-row">
+          <label for="editDestHouse">Destination house number / name</label>
+          <input id="editDestHouse" type="text" placeholder="e.g. 24A">
+        </div>
+        <div class="modal-row">
+          <span id="editAddrError" class="error-text"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnEditAddrCancel">Cancel</button>
+        <button class="btn primary" id="btnEditAddrSave">Save address</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const apiBase = window.location.origin.includes("localhost")
       ? "http://localhost:4000"
@@ -379,6 +434,10 @@
     let lastQuery = {};
     let currentItems = [];
     let declineBookingId = null;
+
+    let editBookingId = null;
+    let editPickupAddr = null;
+    let editDestAddr = null;
 
     function toStatusPill(status) {
       const s = (status || "").toLowerCase();
@@ -485,6 +544,60 @@
       return counts;
     }
 
+    // ---- Missing-address helpers ----
+    function isDerrifordAddress(addr){
+      if (!addr) return false;
+      const formatted = (addr.formatted || "").toLowerCase();
+      const text = (addr.text || "").toLowerCase();
+      const postCode = (addr.postCode || "").toUpperCase();
+      return formatted.includes("derriford hospital") ||
+             text.includes("derriford hospital") ||
+             formatted.includes("pl6 8dh") ||
+             text.includes("pl6 8dh") ||
+             postCode === "PL6 8DH";
+    }
+
+    function hasStreetComponent(addr){
+      return !!(addr && (addr.street || addr.text || addr.formatted));
+    }
+
+    function hasHouseNumberOrName(addr){
+      if (!addr) return false;
+      if (addr.houseNumber && String(addr.houseNumber).trim() !== "") return true;
+      const formatted = addr.formatted || "";
+      const firstPart = (formatted.split(",")[0] || "").trim();
+      if (/\d/.test(firstPart)) return true; // any digit in first segment = house number
+      return false;
+    }
+
+    function applyRowFilters() {
+      const onlyMissing = document.getElementById("filterMissing").checked;
+      const onlyDup = document.getElementById("filterDuplicates").checked;
+      const tbody = document.getElementById("bookingsTableBody");
+
+      Array.from(tbody.querySelectorAll("tr")).forEach(tr => {
+        // skip placeholder rows
+        if (tr.querySelector("td") && tr.querySelector("td").colSpan === 9 && tr.classList.length === 0) {
+          tr.style.display = "";
+          return;
+        }
+
+        const isMissing = tr.classList.contains("missing-address");
+        const isDup = tr.classList.contains("duplicate-row");
+
+        let show = true;
+        if (onlyMissing && !onlyDup) {
+          show = isMissing;
+        } else if (!onlyMissing && onlyDup) {
+          show = isDup;
+        } else if (onlyMissing && onlyDup) {
+          show = isMissing || isDup; // union
+        }
+
+        tr.style.display = show ? "" : "none";
+      });
+    }
+
     function renderBookingsTable(items) {
       const tbody = document.getElementById("bookingsTableBody");
       tbody.innerHTML = "";
@@ -502,24 +615,32 @@
         const pickup = b.pickup || {};
         const dest   = b.destination || {};
 
-        const pickupHasStreet = !!(pickup.street || pickup.text || pickup.formatted);
-        const destHasStreet   = !!(dest.street || dest.text || dest.formatted);
+        const pickupFormatted = pickup.formatted || "";
+        const destFormatted   = dest.formatted || "";
 
-        const pickupHasHouse  = !!pickup.houseNumber;
-        const destHasHouse    = !!dest.houseNumber;
+        const pickupHasStreet = hasStreetComponent(pickup);
+        const destHasStreet   = hasStreetComponent(dest);
 
-        const missingHouseNumber = !pickupHasHouse || !destHasHouse;
-        const missingPlaceName   = !pickupHasStreet || !destHasStreet;
+        const pickupHasHouse  = hasHouseNumberOrName(pickup);
+        const destHasHouse    = hasHouseNumberOrName(dest);
 
-        if (missingHouseNumber || missingPlaceName) {
+        const pickupIsDerriford = isDerrifordAddress(pickup);
+        const destIsDerriford   = isDerrifordAddress(dest);
+
+        // Only flag non-Derriford addresses that have a street but no house number
+        const pickupMissing = pickupHasStreet && !pickupHasHouse && !pickupIsDerriford;
+        const destMissing   = destHasStreet && !destHasHouse && !destIsDerriford;
+        const missingAddress = pickupMissing || destMissing;
+
+        if (missingAddress) {
           tr.classList.add("missing-address");
         }
 
         const date = b.pickupDateISO || "";
         const time = b.onOffDutyTime || "";
         const staffName = (b.staffName || "").trim().toLowerCase();
-        const pickupKey = pickup.formatted ? pickup.formatted.trim().toLowerCase() : "";
-        const destKey   = dest.formatted ? dest.formatted.trim().toLowerCase() : "";
+        const pickupKey = pickupFormatted ? pickupFormatted.trim().toLowerCase() : "";
+        const destKey   = destFormatted ? destFormatted.trim().toLowerCase() : "";
         const dupKey = [date, time, staffName, pickupKey, destKey].join("|");
         const isDuplicate = dupKey && dupCounts.get(dupKey) > 1;
 
@@ -530,7 +651,7 @@
         const flags = [];
         if (b.requireReturn) flags.push('<span class="badge">Return Requested</span>');
         if (isDuplicate) flags.push('<span class="flag-pill flag-duplicate">Duplicate</span>');
-        if (missingHouseNumber || missingPlaceName) {
+        if (missingAddress) {
           flags.push('<span class="flag-pill flag-missing-addr">Missing address</span>');
         }
 
@@ -549,11 +670,11 @@
             <div class="muted">${b.staffName || ""} ${b.staffPhone ? " \u00b7 " + b.staffPhone : ""}</div>
           </td>
           <td>
-            <div>${pickup.formatted || ""}</div>
+            <div>${pickupFormatted}</div>
             <div class="muted">${pickup.zone && pickup.zone.name ? pickup.zone.name : ""}</div>
           </td>
           <td>
-            <div>${dest.formatted || ""}</div>
+            <div>${destFormatted}</div>
             <div class="muted">${dest.zone && dest.zone.name ? dest.zone.name : ""}</div>
           </td>
           <td>
@@ -563,7 +684,8 @@
           <td>${toStatusPill(b.status)}</td>
           <td>
             <div class="row-actions">
-              <button class="btn small" data-action="approve" data-id="${b._id}">Approve</button>
+              <button class="btn small btn-approve" data-action="approve" data-id="${b._id}">Approve</button>
+              <button class="btn small" data-action="edit-address" data-id="${b._id}">Edit address</button>
               <button class="btn small danger" data-action="decline" data-id="${b._id}">Decline</button>
               <button class="btn small" data-action="delete" data-id="${b._id}">Delete</button>
             </div>
@@ -572,6 +694,8 @@
 
         tbody.appendChild(tr);
       });
+
+      applyRowFilters();
     }
 
     async function fetchBookings(page = 1) {
@@ -722,6 +846,84 @@
       }
     }
 
+    // ----- Inline address edit flow -----
+    const editAddrModalWrap = document.getElementById("editAddrModalWrap");
+    const editPickupLine = document.getElementById("editPickupLine");
+    const editDestLine = document.getElementById("editDestLine");
+    const editPickupHouse = document.getElementById("editPickupHouse");
+    const editDestHouse = document.getElementById("editDestHouse");
+    const editAddrError = document.getElementById("editAddrError");
+    const btnEditAddrClose = document.getElementById("btnEditAddrClose");
+    const btnEditAddrCancel = document.getElementById("btnEditAddrCancel");
+    const btnEditAddrSave = document.getElementById("btnEditAddrSave");
+
+    function openEditAddressModal(bookingId) {
+      const b = currentItems.find(x => x._id === bookingId);
+      if (!b) return;
+
+      editBookingId = bookingId;
+      editPickupAddr = b.pickup || {};
+      editDestAddr = b.destination || {};
+      editPickupLine.textContent = editPickupAddr.formatted || "";
+      editDestLine.textContent = editDestAddr.formatted || "";
+      editPickupHouse.value = (editPickupAddr.houseNumber || "").toString();
+      editDestHouse.value = (editDestAddr.houseNumber || "").toString();
+      editAddrError.textContent = "";
+      editAddrModalWrap.classList.remove("hidden");
+    }
+
+    function closeEditAddressModal() {
+      editBookingId = null;
+      editPickupAddr = null;
+      editDestAddr = null;
+      editAddrModalWrap.classList.add("hidden");
+    }
+
+    btnEditAddrClose.addEventListener("click", closeEditAddressModal);
+    btnEditAddrCancel.addEventListener("click", closeEditAddressModal);
+    editAddrModalWrap.addEventListener("click",(e)=>{
+      if (e.target === editAddrModalWrap) closeEditAddressModal();
+    });
+
+    btnEditAddrSave.addEventListener("click", async () => {
+      if (!editBookingId) return;
+      const pickupHouse = editPickupHouse.value.trim();
+      const destHouse = editDestHouse.value.trim();
+
+      if (!pickupHouse && !destHouse) {
+        editAddrError.textContent = "Enter at least one house number / name to update.";
+        return;
+      }
+
+      editAddrError.textContent = "";
+      btnEditAddrSave.disabled = true;
+
+      try {
+        // Build updated nested address objects based on what we already have
+        const updatedPickup = Object.assign({}, editPickupAddr);
+        const updatedDest   = Object.assign({}, editDestAddr);
+
+        if (pickupHouse) updatedPickup.houseNumber = pickupHouse;
+        if (destHouse)   updatedDest.houseNumber = destHouse;
+
+        await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(editBookingId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pickup: updatedPickup,
+            destination: updatedDest
+          })
+        });
+
+        closeEditAddressModal();
+        await fetchBookings(currentPage);
+      } catch (err) {
+        editAddrError.textContent = err.message || "Failed to save address.";
+      } finally {
+        btnEditAddrSave.disabled = false;
+      }
+    });
+
     function wireTableActions() {
       const tbody = document.getElementById("bookingsTableBody");
       tbody.addEventListener("click", (e) => {
@@ -737,6 +939,8 @@
           openDeclineModal(id);
         } else if (action === "delete") {
           deleteBooking(id);
+        } else if (action === "edit-address") {
+          openEditAddressModal(id);
         }
       });
     }
@@ -759,6 +963,9 @@
       document.getElementById("nextPage").addEventListener("click", () => {
         if (currentPage < totalPages) fetchBookings(currentPage + 1);
       });
+
+      document.getElementById("filterMissing").addEventListener("change", applyRowFilters);
+      document.getElementById("filterDuplicates").addEventListener("change", applyRowFilters);
 
       wireTableActions();
       setupQuickDateButtons();
