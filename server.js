@@ -61,6 +61,20 @@ const Counter = mongoose.model(
   new mongoose.Schema({ _id: String, seq: { type: Number, default: 0 } }, { collection: "counters" })
 );
 
+// Settings model (for SMS templates etc.)
+const Settings = mongoose.model(
+  "Settings",
+  new mongoose.Schema(
+    {
+      smsTemplates: {
+        approve: { type: String, default: "" },
+        decline: { type: String, default: "" }
+      }
+    },
+    { collection: "settings", timestamps: true }
+  )
+);
+
 async function nextShortRef() {
   const c = await Counter.findOneAndUpdate(
     { _id: "booking_short_ref" },
@@ -240,10 +254,9 @@ function toDDMMYY(iso) {
   return `${d}-${m}-${y.slice(2)}`;
 }
 
-/* ===== SMS TEMPLATE SETTINGS ===== */
-const SETTINGS_FILE = process.env.SETTINGS_FILE || path.join(__dirname, "settings.json");
+/* ===== SMS TEMPLATE SETTINGS (Mongo) ===== */
 
-let smsTemplates = {
+const DEFAULT_SMS_TEMPLATES = {
   approve:
     "Your request for your Christmas staff booking for Derriford Hospital on {{date}} at {{time}}. " +
     "Pick up: {{pickup}}. Drop off: {{destination}}. " +
@@ -254,28 +267,19 @@ let smsTemplates = {
     "({{pickup}} to {{destination}}) has been declined. Reason: {{reason}}.  Need-A-Cab Taxis"
 };
 
-function loadSmsTemplatesFromFile() {
+async function getSmsTemplates() {
   try {
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const raw = fs.readFileSync(SETTINGS_FILE, "utf8");
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        smsTemplates = {
-          approve: parsed.approve || smsTemplates.approve,
-          decline: parsed.decline || smsTemplates.decline
-        };
-      }
+    const settings = await Settings.findOne().lean();
+    if (!settings || !settings.smsTemplates) {
+      return DEFAULT_SMS_TEMPLATES;
     }
+    return {
+      approve: settings.smsTemplates.approve || DEFAULT_SMS_TEMPLATES.approve,
+      decline: settings.smsTemplates.decline || DEFAULT_SMS_TEMPLATES.decline
+    };
   } catch (err) {
-    console.error("Failed to load SMS templates", err);
-  }
-}
-
-function saveSmsTemplatesToFile() {
-  try {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(smsTemplates, null, 2), "utf8");
-  } catch (err) {
-    console.error("Failed to save SMS templates", err);
+    console.error("getSmsTemplates error", err);
+    return DEFAULT_SMS_TEMPLATES;
   }
 }
 
@@ -295,29 +299,42 @@ function renderTemplate(tpl, booking, extra = {}) {
   });
 }
 
-loadSmsTemplatesFromFile();
-
 // ---------------------- Health ----------------------
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // ---------------------- SMS TEMPLATE SETTINGS API ----------------------
-app.get("/api/settings/sms-templates", (_req, res) => {
-  res.json(smsTemplates);
+app.get("/api/settings/sms-templates", async (_req, res) => {
+  try {
+    const tpls = await getSmsTemplates();
+    res.json(tpls);
+  } catch (err) {
+    console.error("GET /api/settings/sms-templates error", err);
+    res.status(500).json({ error: "Failed to load SMS templates" });
+  }
 });
 
-app.put("/api/settings/sms-templates", (req, res) => {
+app.put("/api/settings/sms-templates", async (req, res) => {
   try {
     const approve = String(req.body?.approve ?? "").trim();
     const decline = String(req.body?.decline ?? "").trim();
     if (!approve || !decline) {
       return res.status(400).json({ error: "Both approve and decline templates are required" });
     }
-    smsTemplates.approve = approve;
-    smsTemplates.decline = decline;
-    saveSmsTemplatesToFile();
+
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings({
+        smsTemplates: { approve, decline }
+      });
+    } else {
+      settings.smsTemplates = { approve, decline };
+    }
+    await settings.save();
+
     res.json({ ok: true, approve, decline });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("PUT /api/settings/sms-templates error", err);
+    res.status(500).json({ error: "Failed to save SMS templates" });
   }
 });
 
@@ -758,12 +775,17 @@ app.patch("/api/bookings/:id/approve", async (req, res) => {
     await b.save();
 
     const templateFromBody = req.body?.message && String(req.body.message).trim();
-    const template = templateFromBody || smsTemplates.approve;
+    let template = templateFromBody;
+    if (!template) {
+      const tpls = await getSmsTemplates();
+      template = tpls.approve;
+    }
     const msg = renderTemplate(template, b);
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
   } catch (e) {
+    console.error("approve error", e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -781,12 +803,17 @@ app.patch("/api/bookings/:id/decline", async (req, res) => {
     await b.save();
 
     const templateFromBody = req.body?.message && String(req.body.message).trim();
-    const template = templateFromBody || smsTemplates.decline;
+    let template = templateFromBody;
+    if (!template) {
+      const tpls = await getSmsTemplates();
+      template = tpls.decline;
+    }
     const msg = renderTemplate(template, b, { reason });
 
     const sms = await sendSMS(b.staffPhone, msg);
     res.json({ ok: true, booking: b, sms });
   } catch (e) {
+    console.error("decline error", e);
     res.status(400).json({ error: e.message });
   }
 });
