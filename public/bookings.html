@@ -31,102 +31,156 @@
       background:var(--card);border:1px solid var(--line);
       border-radius:var(--radius);padding:18px;
     }
-    h1{font-size:20px;margin:0 0 6px}
-    h2{font-size:18px;margin:0 0 12px}
+    h1{margin:0 0 6px}
+    .page-title{
+      font-size:1.7rem;
+      font-weight:600;
+      letter-spacing:0.01em;
+    }
+    .page-subtitle{
+      font-size:0.95rem;
+      color:var(--muted);
+      margin:0;
+    }
     .muted{color:var(--muted);font-size:12px}
 
     /* CONTROLS + BUTTONS */
-    .controls,.toolbar{
+    .controls,.filter-row,.row-actions{
       display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
     }
+    .controls{margin-top:10px}
     .btn{
       background:var(--btn); color:var(--ink); border:1px solid var(--line);
-      border-radius:10px; padding:8px 11px; font:inherit; cursor:pointer;
-      font-size:13px;
+      border-radius:10px; padding:9px 12px; font:inherit; cursor:pointer;
+      font-size:14px;
     }
     .btn:hover{background:var(--btnHover)}
     .btn.primary{background:var(--brand);color:#111;border-color:#e0b21e}
     .btn.primary:hover{filter:brightness(0.95)}
-    .btn.ghost{background:transparent}
     .btn.small{
-      padding:4px 10px;
-      font-size:11px;
+      padding:5px 9px;
+      font-size:12px;
       border-radius:999px;
-      line-height:1.2;
     }
+    .btn.danger{
+      background:#3b0b0b;
+      border-color:#7f1d1d;
+      color:#fecaca;
+    }
+    .btn.danger:hover{background:#4b1010;}
 
-    /* Coloured action badges */
-    .btn.small[data-action="approve"]{
-      background:#113c2c;
-      border-color:#1a5d45;
-      color:#b7f7d4;
-    }
-    .btn.small[data-action="approve"]:hover{
-      background:#164c38;
-    }
-    .btn.small[data-action="decline"]{
-      background:#3b1616;
-      border-color:#6b1f1f;
-      color:#fbd5d5;
-    }
-    .btn.small[data-action="decline"]:hover{
-      background:#511c1c;
-    }
-    .btn.small[data-action="delete"]{
-      background:#3b2a16;
-      border-color:#8b5a1f;
-      color:#fde7c7;
-    }
-    .btn.small[data-action="delete"]:hover{
-      background:#513721;
-    }
-
-    label{display:flex;align-items:center;gap:6px;font-size:13px}
+    label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);}
+    label span{color:var(--ink);font-size:13px;font-weight:500;}
 
     input[type="date"], input[type="text"], select{
       background:var(--btn); color:var(--ink); border:1px solid var(--line);
-      border-radius:10px; padding:6px 9px; font:inherit;
-      min-height:34px;
+      border-radius:10px; padding:7px 9px; font:inherit;
+      min-height:36px;
     }
-    input[type="date"]{width:150px;}
-    input[type="text"]{width:150px;}
-    select{width:130px;}
+    input[type="date"], input[name="dateFrom"], input[name="dateTo"]{
+      min-width:150px;
+    }
+    input[type="text"]{min-width:140px;}
+    select{min-width:130px;}
     input:hover, select:hover{border-color:#2a3342}
 
-    /* Make the calendar icon visible on dark background */
+    /* Calendar icon visible on dark */
     input[type="date"]::-webkit-calendar-picker-indicator{
       filter: invert(1);
       cursor: pointer;
     }
 
+    /* QUICK DATES */
+    .quick-dates {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .quick-dates span {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .quick-dates button {
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #111827;
+      color: #e5e7eb;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .quick-dates button:hover {
+      background: #1f2937;
+      border-color: #9ca3af;
+    }
+
     /* TABLES */
     table{width:100%;border-collapse:collapse;font-size:13px;}
     th,td{border-bottom:1px solid var(--line);padding:8px 8px;vertical-align:top}
-    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
-    tr:hover td{background:#0f141b;cursor:pointer}
+    th{
+      font-weight:600;text-align:left;color:var(--muted);
+      position:sticky;top:0;background:var(--card);z-index:1;
+    }
+    tr:hover td{background:#0f141b}
+
     .status-pill{
-      display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;
+      display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;
     }
-    .status-pending{background:#1b222c;color:#e9eef4;}
-    .status-approved{background:#113c2c;color:#b7f7d4;}
-    .status-declined{background:#3b1616;color:#f7c2c2;}
-    .dup-flag{color:var(--warn);font-size:12px;}
+    .status-pending{background:#1f2937;color:#e5e7eb;}
+    .status-approved{background:rgba(22,163,74,0.18);color:#bbf7d0;border:1px solid rgba(34,197,94,0.6);}
+    .status-declined{background:rgba(220,38,38,0.16);color:#fecaca;border:1px solid rgba(248,113,113,0.7);}
 
-    .row-actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:4px;
+    .flag-pill{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:999px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      margin-right:4px;
+    }
+    .flag-duplicate{
+      background:rgba(248,113,113,0.12);
+      color:#fecaca;
+      border:1px solid rgba(248,113,113,0.6);
+    }
+    .flag-missing-addr{
+      background:rgba(234,179,8,0.10);
+      color:#fef3c7;
+      border:1px solid rgba(234,179,8,0.7);
     }
 
-    /* Clickable dup info */
-    #dupInfo{
-      cursor:pointer;
+    /* Highlight rows with missing address details */
+    tr.missing-address {
+      background-color: rgba(234, 179, 8, 0.06);
     }
-    #dupInfo:hover{
-      color:var(--brand);
+    tr.missing-address:hover td{
+      background-color: rgba(234, 179, 8, 0.12);
     }
 
-    /* MODAL */
+    /* Highlight duplicates */
+    tr.duplicate-row{
+      box-shadow: inset 4px 0 0 rgba(248,113,113,0.7);
+    }
+
+    /* PAGINATION + SUMMARY */
+    .summary-row{
+      display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;
+      gap:10px;margin-top:10px;font-size:12px;color:var(--muted);
+    }
+    .pager{
+      display:flex;align-items:center;gap:8px;
+    }
+    .pager span{min-width:120px;text-align:center;}
+    .pager button{font-size:12px;padding:5px 9px;}
+
+    /* MODALS */
     .modal-backdrop{
       position:fixed;inset:0;background:rgba(0,0,0,0.6);
       display:flex;align-items:center;justify-content:center;
@@ -134,46 +188,44 @@
     }
     .modal{
       background:var(--card);border-radius:16px;border:1px solid var(--line);
-      width:100%;max-width:620px;padding:18px 18px 14px;
+      width:100%;max-width:440px;padding:18px 18px 14px;
       box-shadow:0 18px 45px rgba(0,0,0,0.55);
     }
     .modal-header{
-      display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;
-      gap:10px;
+      display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
     }
-    .modal-title{font-size:16px;font-weight:600;margin-bottom:2px;}
-    .modal-subtitle{font-size:11px;color:var(--muted);}
+    .modal-title{font-size:16px;font-weight:600;}
     .modal-body{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-      gap:10px 16px;
-      margin-bottom:10px;
-      font-size:13px;
+      display:grid;gap:10px;margin-bottom:10px;font-size:13px;
     }
     .modal-row{
       display:flex;flex-direction:column;gap:4px;
     }
-    .modal-row label{font-size:12px;color:var(--muted);}
-    .modal-row input,
-    .modal-row select,
-    .modal-row textarea{
+    .modal-row label{font-size:13px;color:var(--muted);}
+    .modal-row textarea,.modal-row input{
       width:100%;
       min-height:34px;
       padding:6px 9px;
       background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid var(--line);
       font:inherit;
     }
-    .modal-row textarea{
-      min-height:60px;
-      resize:vertical;
-      font-size:12px;
-    }
+    .modal-row textarea{min-height:80px;resize:vertical;}
     .modal-footer{
       display:flex;justify-content:space-between;align-items:center;margin-top:6px;
     }
-    .hidden{display:none;}
     .error-text{color:var(--err);font-size:12px;}
-    .readonly-note{font-size:11px;color:var(--muted);}
+    .hidden{display:none;}
+
+    .checkbox-row{
+      display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+      margin-top:2px;
+    }
+    .checkbox-row input{width:auto;min-height:auto;}
+
+    .badge{
+      display:inline-block;padding:3px 7px;border-radius:999px;
+      background:var(--chip);border:1px solid var(--line);font-size:11px;
+    }
   </style>
 </head>
 <body>
@@ -188,172 +240,199 @@
   </nav>
 
   <div class="wrap">
-    <section class="card">
-      <h1>Derriford Staff Taxi — Bookings</h1>
+    <header class="card">
+      <h1 class="page-title">Bookings</h1>
+      <p class="page-subtitle">Search, review and manage Derriford staff bookings.</p>
 
-      <!-- NEW: total bookings at top -->
-      <p class="muted" style="margin-bottom:4px;">
-        Total bookings loaded: <strong><span id="totalBookingsTop">0</span></strong>
-      </p>
-
-      <p class="muted" id="dupInfo" style="margin-bottom:4px;">
-        Double-click a row to edit key details. Possible duplicates detected:
-        <strong><span id="dupCount">0</span></strong>
-      </p>
-      <p class="muted" style="margin-bottom:10px;">
-        Duplicates are based on same date, time, ward, staff and pickup/destination.
-      </p>
-
-      <div class="toolbar" style="margin-bottom:10px;">
-        <label>From
-          <input type="date" id="filterDateFrom">
+      <div class="controls" style="margin-top:14px;">
+        <label>
+          <span>Date from</span>
+          <input type="date" id="dateFrom" name="dateFrom">
         </label>
-        <label>To
-          <input type="date" id="filterDateTo">
+        <label>
+          <span>Date to</span>
+          <input type="date" id="dateTo" name="dateTo">
         </label>
-        <label>Ward
-          <input type="text" id="filterWard" placeholder="Ward name">
-        </label>
-        <label>Staff
-          <input type="text" id="filterStaff" placeholder="Staff name">
-        </label>
-        <label>Shift
-          <select id="filterShift">
+        <label>
+          <span>Shift</span>
+          <select id="shiftType">
             <option value="">All</option>
-            <option value="start">Start</option>
-            <option value="finish">Finish</option>
+            <option value="start">Start (to Derriford)</option>
+            <option value="finish">Finish (from Derriford)</option>
           </select>
         </label>
-        <label>Status
-          <select id="filterStatus">
+        <label>
+          <span>Zone</span>
+          <input type="text" id="zone" placeholder="e.g. Crownhill">
+        </label>
+        <label>
+          <span>Ward</span>
+          <input type="text" id="ward" placeholder="Ward name">
+        </label>
+        <label>
+          <span>Staff</span>
+          <input type="text" id="staff" placeholder="Staff name">
+        </label>
+        <label>
+          <span>Ref</span>
+          <input type="text" id="reference" placeholder="Reference">
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status">
             <option value="">All</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="declined">Declined</option>
           </select>
         </label>
-        <label style="gap:4px;">
-          <input type="checkbox" id="filterDupes">
-          <span>Show duplicates only</span>
-        </label>
-        <button class="btn" id="btnClearDates">Clear dates</button>
-        <button class="btn primary" id="btnApplyFilters">Refresh</button>
+
+        <button class="btn primary" id="btnSearch">Search</button>
+        <button class="btn" id="btnClear">Clear</button>
       </div>
 
-      <table id="bookingsTable">
+      <div class="quick-dates">
+        <span>Quick dates:</span>
+        <button type="button" data-quick-date="xmas-eve">Christmas Eve</button>
+        <button type="button" data-quick-date="xmas-day">Christmas Day</button>
+        <button type="button" data-quick-date="boxing-day">Boxing Day</button>
+        <button type="button" data-quick-date="nye">New Year’s Eve</button>
+        <button type="button" data-quick-date="nyd">New Year’s Day</button>
+      </div>
+
+      <p class="muted" style="margin-top:8px;">
+        Rows tagged as <span class="flag-pill flag-missing-addr">Missing address</span> are missing a
+        house number or place name. <span class="flag-pill flag-duplicate">Duplicate</span> highlights
+        similar bookings so you can decide what to keep.
+      </p>
+    </header>
+
+    <section class="card">
+      <table>
         <thead>
           <tr>
             <th>Date</th>
             <th>Time</th>
             <th>Shift</th>
-            <th>Ward</th>
-            <th>Staff</th>
-            <th>Pickup → Destination</th>
-            <th>Ref</th>
+            <th>Ward / Staff</th>
+            <th>Pickup</th>
+            <th>Destination</th>
+            <th>Ref / Flags</th>
             <th>Status</th>
-            <th>Flags</th>
-            <th>Actions</th>
+            <th style="width:180px;">Actions</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody id="bookingsTableBody">
+          <tr><td colspan="9" class="muted">Loading…</td></tr>
+        </tbody>
       </table>
 
-      <p class="muted" id="bookingsSummary" style="margin-top:8px;"></p>
+      <div class="summary-row">
+        <div>
+          <span id="summaryText" class="muted">No results yet.</span>
+        </div>
+        <div class="pager">
+          <button id="prevPage" class="btn small">&laquo; Prev</button>
+          <span id="pageInfo">Page 1 of 1</span>
+          <button id="nextPage" class="btn small">Next &raquo;</button>
+        </div>
+      </div>
     </section>
   </div>
 
-  <!-- EDIT MODAL -->
-  <div id="editModalWrap" class="modal-backdrop hidden">
+  <!-- DECLINE MODAL -->
+  <div id="declineModalWrap" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
-        <div>
-          <div class="modal-title">Edit Booking</div>
-          <div class="modal-subtitle" id="editSubtitle"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span id="editStatusPill" class="status-pill status-pending hidden"></span>
-          <button class="btn ghost" id="btnEditClose">✕</button>
-        </div>
+        <div class="modal-title">Decline Booking</div>
+        <button class="btn small" id="btnDeclineClose">✕</button>
       </div>
       <div class="modal-body">
         <div class="modal-row">
-          <label for="editShortRef">Reference</label>
-          <input id="editShortRef" type="text" disabled>
+          <label for="declineReason">Reason to send to staff</label>
+          <textarea id="declineReason" placeholder="e.g. Budget not approved, please speak to your manager."></textarea>
         </div>
         <div class="modal-row">
-          <label for="editDate">Pickup Date</label>
-          <input id="editDate" type="date">
+          <div class="checkbox-row">
+            <input type="checkbox" id="declineDeleteAfter">
+            <label for="declineDeleteAfter">Delete this booking after sending SMS</label>
+          </div>
         </div>
         <div class="modal-row">
-          <label for="editTime">On/Off Duty Time (e.g. 07:30)</label>
-          <input id="editTime" type="text" placeholder="HH:MM or HHMM">
-        </div>
-        <div class="modal-row">
-          <label for="editShift">Shift Type</label>
-          <select id="editShift">
-            <option value="start">Shift Start (to Derriford)</option>
-            <option value="finish">Shift Finish (from Derriford)</option>
-          </select>
-        </div>
-        <div class="modal-row">
-          <label for="editWard">Ward Name</label>
-          <input id="editWard" type="text">
-        </div>
-        <div class="modal-row">
-          <label for="editWardPhone">Ward Phone</label>
-          <input id="editWardPhone" type="text">
-        </div>
-        <div class="modal-row">
-          <label for="editStaff">Staff Name</label>
-          <input id="editStaff" type="text">
-        </div>
-        <div class="modal-row">
-          <label for="editStaffPhone">Staff Phone</label>
-          <input id="editStaffPhone" type="text">
-        </div>
-        <div class="modal-row">
-          <label for="editReasonCode">Reason Code (2 chars, e.g. P1)</label>
-          <input id="editReasonCode" type="text" maxlength="2">
-        </div>
-        <div class="modal-row">
-          <label for="editBudgetNumber">Budget Number (6 digits)</label>
-          <input id="editBudgetNumber" type="text" maxlength="6">
-        </div>
-        <div class="modal-row">
-          <label for="editBudgetHolder">Budget Holder Name</label>
-          <input id="editBudgetHolder" type="text">
-        </div>
-
-        <!-- NEW: Pickup & Destination read-only fields -->
-        <div class="modal-row" style="grid-column:1/-1;">
-          <label for="editPickupAddress">
-            Pickup Address <span class="readonly-note">(read-only)</span>
-          </label>
-          <textarea id="editPickupAddress" readonly></textarea>
-        </div>
-        <div class="modal-row" style="grid-column:1/-1;">
-          <label for="editDestinationAddress">
-            Destination Address <span class="readonly-note">(read-only)</span>
-          </label>
-          <textarea id="editDestinationAddress" readonly></textarea>
-        </div>
-
-        <div class="modal-row" style="grid-column:1/-1;">
-          <span id="editError" class="error-text"></span>
+          <span id="declineError" class="error-text"></span>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" id="btnEditCancel">Cancel</button>
-        <button class="btn primary" id="btnEditSave">Save Changes</button>
+        <button class="btn" id="btnDeclineCancel">Cancel</button>
+        <button class="btn danger" id="btnDeclineConfirm">Send SMS &amp; Decline</button>
       </div>
     </div>
   </div>
 
   <script>
-    // API base: localhost in dev, origin in prod
     const apiBase = window.location.origin.includes("localhost")
       ? "http://localhost:4000"
       : window.location.origin;
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let lastQuery = {};
+    let currentItems = [];
+    let declineBookingId = null;
+
+    function toStatusPill(status) {
+      const s = (status || "").toLowerCase();
+      if (s === "approved") return '<span class="status-pill status-approved">Approved</span>';
+      if (s === "declined") return '<span class="status-pill status-declined">Declined</span>';
+      return '<span class="status-pill status-pending">Pending</span>';
+    }
+
+    function isoDateFromParts(year, month, day) {
+      const mm = String(month).padStart(2, "0");
+      const dd = String(day).padStart(2, "0");
+      return `${year}-${mm}-${dd}`;
+    }
+
+    function setupQuickDateButtons() {
+      const buttons = document.querySelectorAll("[data-quick-date]");
+      const fromInput = document.getElementById("dateFrom");
+      const toInput = document.getElementById("dateTo");
+
+      if (!buttons.length || !fromInput || !toInput) return;
+
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const existing =
+            (fromInput.value || toInput.value || new Date().toISOString().slice(0, 10));
+          const year = parseInt(existing.slice(0, 4), 10);
+
+          let value;
+          switch (btn.dataset.quickDate) {
+            case "xmas-eve":
+              value = isoDateFromParts(year, 12, 24);
+              break;
+            case "xmas-day":
+              value = isoDateFromParts(year, 12, 25);
+              break;
+            case "boxing-day":
+              value = isoDateFromParts(year, 12, 26);
+              break;
+            case "nye":
+              value = isoDateFromParts(year, 12, 31);
+              break;
+            case "nyd":
+              value = isoDateFromParts(year + 1, 1, 1); // New Year’s Day following year
+              break;
+            default:
+              return;
+          }
+
+          fromInput.value = value;
+          toInput.value = value;
+          fetchBookings(1);
+        });
+      });
+    }
 
     async function fetchJSON(url, opts) {
       const r = await fetch(url, opts);
@@ -362,383 +441,329 @@
       return data;
     }
 
-    // ---------- FILTERS + TABLE ----------
-    const filterDateFrom = document.getElementById("filterDateFrom");
-    const filterDateTo = document.getElementById("filterDateTo");
-    const filterWard = document.getElementById("filterWard");
-    const filterStaff = document.getElementById("filterStaff");
-    const filterShift = document.getElementById("filterShift");
-    const filterStatus = document.getElementById("filterStatus");
-    const filterDupes = document.getElementById("filterDupes");
-    const btnClearDates = document.getElementById("btnClearDates");
-    const btnApplyFilters = document.getElementById("btnApplyFilters");
-    const bookingsTableBody = document.querySelector("#bookingsTable tbody");
-    const bookingsSummary = document.getElementById("bookingsSummary");
-    const dupCountEl = document.getElementById("dupCount");
-    const dupInfo = document.getElementById("dupInfo");
-    const totalBookingsTopEl = document.getElementById("totalBookingsTop");
+    function readFilters() {
+      const dateFrom = document.getElementById("dateFrom").value || "";
+      const dateTo = document.getElementById("dateTo").value || "";
+      const shiftType = document.getElementById("shiftType").value || "";
+      const zone = document.getElementById("zone").value || "";
+      const ward = document.getElementById("ward").value || "";
+      const staff = document.getElementById("staff").value || "";
+      const reference = document.getElementById("reference").value || "";
+      const status = document.getElementById("status").value || "";
 
-    let allBookings = [];
-
-    function buildBookingsQueryUrl() {
-      const url = new URL(apiBase + "/api/bookings");
-      // Dates ONLY included if you set them – so initial load shows all bookings
-      if (filterDateFrom.value) url.searchParams.set("dateFrom", filterDateFrom.value);
-      if (filterDateTo.value) url.searchParams.set("dateTo", filterDateTo.value);
-      if (filterWard.value.trim()) url.searchParams.set("ward", filterWard.value.trim());
-      if (filterStaff.value.trim()) url.searchParams.set("staff", filterStaff.value.trim());
-      if (filterShift.value) url.searchParams.set("shiftType", filterShift.value);
-      if (filterStatus.value) url.searchParams.set("status", filterStatus.value);
-      url.searchParams.set("limit", "500");
-      url.searchParams.set("sort", "pickupDateISO:asc,onOffDutyTime:asc");
-      return url.toString();
+      return { dateFrom, dateTo, shiftType, zone, ward, staff, reference, status };
     }
 
-    function fingerprintBooking(b) {
-      // Simple fingerprint to spot duplicates
-      return [
-        b.pickupDateISO || "",
-        (b.onOffDutyTime || "").trim(),
-        (b.shiftType || "").trim(),
-        (b.wardName || "").trim().toLowerCase(),
-        (b.staffName || "").trim().toLowerCase(),
-        (b.pickup?.formatted || "").trim().toLowerCase(),
-        (b.destination?.formatted || "").trim().toLowerCase()
-      ].join("|");
+    function buildQueryString(filters, page) {
+      const params = new URLSearchParams();
+      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) params.set("dateTo", filters.dateTo);
+      if (filters.shiftType) params.set("shiftType", filters.shiftType);
+      if (filters.zone) params.set("zone", filters.zone);
+      if (filters.ward) params.set("ward", filters.ward);
+      if (filters.staff) params.set("staff", filters.staff);
+      if (filters.reference) params.set("reference", filters.reference);
+      if (filters.status) params.set("status", filters.status);
+      params.set("page", String(page || 1));
+      params.set("limit", "100");
+      params.set("sort", "pickupDateISO:asc,onOffDutyTime:asc");
+      return params.toString();
     }
 
-    function renderBookings() {
-      bookingsTableBody.innerHTML = "";
-      if (!allBookings.length) {
-        bookingsSummary.textContent = "No bookings found for this filter.";
-        if (dupCountEl) dupCountEl.textContent = "0";
-        if (totalBookingsTopEl) totalBookingsTopEl.textContent = "0";
+    function computeDuplicateKeys(items) {
+      const counts = new Map();
+      items.forEach(b => {
+        const date = b.pickupDateISO || "";
+        const time = b.onOffDutyTime || "";
+        const staff = (b.staffName || "").trim().toLowerCase();
+        const pickup = (b.pickup && b.pickup.formatted) ? b.pickup.formatted.trim().toLowerCase() : "";
+        const dest = (b.destination && b.destination.formatted) ? b.destination.formatted.trim().toLowerCase() : "";
+        const key = [date, time, staff, pickup, dest].join("|");
+        if (!key.trim()) return;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      return counts;
+    }
+
+    function renderBookingsTable(items) {
+      const tbody = document.getElementById("bookingsTableBody");
+      tbody.innerHTML = "";
+
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">No bookings found for this filter.</td></tr>';
         return;
       }
 
-      // Duplicate detection map (always based on ALL bookings)
-      const counts = {};
-      allBookings.forEach(b => {
-        const key = fingerprintBooking(b);
-        counts[key] = (counts[key] || 0) + 1;
-      });
-      const dupBookings = allBookings.filter(b => counts[fingerprintBooking(b)] > 1);
-      if (dupCountEl) dupCountEl.textContent = String(dupBookings.length);
+      const dupCounts = computeDuplicateKeys(items);
 
-      // Update total bookings at top (always total loaded, not filtered)
-      if (totalBookingsTopEl) totalBookingsTopEl.textContent = String(allBookings.length);
-
-      let rows = allBookings;
-      const dupesOnly = filterDupes.checked;
-      if (dupesOnly) {
-        rows = rows.filter(b => counts[fingerprintBooking(b)] > 1);
-      }
-
-      rows.forEach((b, idx) => {
+      items.forEach(b => {
         const tr = document.createElement("tr");
-        tr.dataset.id = b._id;
-        tr.dataset.index = idx;
 
-        const status = b.status || "pending";
-        let statusClass = "status-pending";
-        if (status === "approved") statusClass = "status-approved";
-        if (status === "declined") statusClass = "status-declined";
+        const pickup = b.pickup || {};
+        const dest   = b.destination || {};
 
-        const isDup = counts[fingerprintBooking(b)] > 1;
+        const pickupHasStreet = !!(pickup.street || pickup.text || pickup.formatted);
+        const destHasStreet   = !!(dest.street || dest.text || dest.formatted);
 
-        const dateLabel = b.pickupDateISO || "";
-        const timeLabel = b.onOffDutyTime || "";
-        const shiftLabel = b.shiftType === "finish" ? "Finish" : "Start";
-        const pickupLabel = (b.pickup?.formatted || "").replace(/,/g, " ");
-        const destLabel = (b.destination?.formatted || "").replace(/,/g, " ");
-        const staffLabel = b.staffName || "";
-        const wardLabel = b.wardName || "";
-        const refLabel = b.shortRef || b.reference || "";
+        const pickupHasHouse  = !!pickup.houseNumber;
+        const destHasHouse    = !!dest.houseNumber;
+
+        const missingHouseNumber = !pickupHasHouse || !destHasHouse;
+        const missingPlaceName   = !pickupHasStreet || !destHasStreet;
+
+        if (missingHouseNumber || missingPlaceName) {
+          tr.classList.add("missing-address");
+        }
+
+        const date = b.pickupDateISO || "";
+        const time = b.onOffDutyTime || "";
+        const staffName = (b.staffName || "").trim().toLowerCase();
+        const pickupKey = pickup.formatted ? pickup.formatted.trim().toLowerCase() : "";
+        const destKey   = dest.formatted ? dest.formatted.trim().toLowerCase() : "";
+        const dupKey = [date, time, staffName, pickupKey, destKey].join("|");
+        const isDuplicate = dupKey && dupCounts.get(dupKey) > 1;
+
+        if (isDuplicate) {
+          tr.classList.add("duplicate-row");
+        }
+
+        const flags = [];
+        if (b.requireReturn) flags.push('<span class="badge">Return Requested</span>');
+        if (isDuplicate) flags.push('<span class="flag-pill flag-duplicate">Duplicate</span>');
+        if (missingHouseNumber || missingPlaceName) {
+          flags.push('<span class="flag-pill flag-missing-addr">Missing address</span>');
+        }
+
+        const shiftLabel = b.shiftType === "start"
+          ? "Start \u2014 to Derriford"
+          : b.shiftType === "finish"
+            ? "Finish \u2014 from Derriford"
+            : (b.shiftType || "");
 
         tr.innerHTML = `
-          <td>${dateLabel}</td>
-          <td>${timeLabel}</td>
+          <td>${date}</td>
+          <td>${time}</td>
           <td>${shiftLabel}</td>
-          <td>${wardLabel}</td>
-          <td>${staffLabel}</td>
-          <td>${pickupLabel} → ${destLabel}</td>
-          <td>${refLabel}</td>
-          <td><span class="status-pill ${statusClass}">${status}</span></td>
-          <td>${isDup ? '<span class="dup-flag">Possible duplicate</span>' : ''}</td>
+          <td>
+            <div>${b.wardName || ""}</div>
+            <div class="muted">${b.staffName || ""} ${b.staffPhone ? " \u00b7 " + b.staffPhone : ""}</div>
+          </td>
+          <td>
+            <div>${pickup.formatted || ""}</div>
+            <div class="muted">${pickup.zone && pickup.zone.name ? pickup.zone.name : ""}</div>
+          </td>
+          <td>
+            <div>${dest.formatted || ""}</div>
+            <div class="muted">${dest.zone && dest.zone.name ? dest.zone.name : ""}</div>
+          </td>
+          <td>
+            <div>${b.shortRef || b.reference || ""}</div>
+            <div>${flags.join(" ")}</div>
+          </td>
+          <td>${toStatusPill(b.status)}</td>
           <td>
             <div class="row-actions">
-              <button class="btn small" data-action="approve" title="Approve and send SMS">Accept</button>
-              <button class="btn small" data-action="decline" title="Decline and send SMS with reason">Decline</button>
-              <button class="btn small" data-action="delete" title="Delete booking">Delete</button>
+              <button class="btn small" data-action="approve" data-id="${b._id}">Approve</button>
+              <button class="btn small danger" data-action="decline" data-id="${b._id}">Decline</button>
+              <button class="btn small" data-action="delete" data-id="${b._id}">Delete</button>
             </div>
           </td>
         `;
-        bookingsTableBody.appendChild(tr);
-      });
 
-      bookingsSummary.textContent = `Showing ${rows.length} of ${allBookings.length} bookings${filterDupes.checked ? " (duplicates only)" : ""}.`;
+        tbody.appendChild(tr);
+      });
     }
 
-    async function loadBookings() {
+    async function fetchBookings(page = 1) {
       try {
-        const url = buildBookingsQueryUrl();
+        const filters = readFilters();
+        lastQuery = { ...filters };
+        currentPage = page;
+
+        const qs = buildQueryString(filters, page);
+        const url = `${apiBase}/api/bookings?${qs}`;
+
+        const tbody = document.getElementById("bookingsTableBody");
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">Loading…</td></tr>';
+
         const data = await fetchJSON(url);
-        allBookings = data.items || [];
-        renderBookings();
+        currentItems = data.items || [];
+        totalPages = data.pages || 1;
+        currentPage = data.page || 1;
+
+        renderBookingsTable(currentItems);
+        updateSummary(data);
       } catch (err) {
         console.error(err);
-        bookingsTableBody.innerHTML = "";
-        bookingsSummary.textContent = "Error loading bookings: " + err.message;
-        if (dupCountEl) dupCountEl.textContent = "0";
-        if (totalBookingsTopEl) totalBookingsTopEl.textContent = "0";
+        const tbody = document.getElementById("bookingsTableBody");
+        tbody.innerHTML = `<tr><td colspan="9" class="muted">Error loading bookings: ${err.message}</td></tr>`;
+        document.getElementById("summaryText").textContent = "Error loading bookings.";
       }
     }
 
-    btnApplyFilters.addEventListener("click", loadBookings);
-    btnClearDates.addEventListener("click", () => {
-      filterDateFrom.value = "";
-      filterDateTo.value = "";
-      loadBookings();
-    });
-    filterDupes.addEventListener("change", renderBookings);
+    function updateSummary(data) {
+      const total = data.total || 0;
+      const page  = data.page || 1;
+      const limit = data.limit || currentItems.length;
+      const from  = total ? ( (page - 1) * limit + 1 ) : 0;
+      const to    = total ? Math.min(page * limit, total) : 0;
 
-    // Click on "Possible duplicates..." line to auto-filter to duplicates
-    dupInfo.addEventListener("click", () => {
-      if (!allBookings.length) return;
-      filterDupes.checked = true;
-      renderBookings();
-      const table = document.getElementById("bookingsTable");
-      if (table && table.scrollIntoView) {
-        table.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
+      const summary = document.getElementById("summaryText");
+      summary.textContent = total
+        ? `Showing ${from}–${to} of ${total} bookings`
+        : "No bookings for this filter.";
 
-    // ---------- APPROVE / DECLINE / DELETE ----------
+      document.getElementById("pageInfo").textContent = `Page ${page} of ${data.pages || 1}`;
+
+      document.getElementById("prevPage").disabled = page <= 1;
+      document.getElementById("nextPage").disabled = page >= (data.pages || 1);
+    }
+
+    function clearFilters() {
+      document.getElementById("dateFrom").value = "";
+      document.getElementById("dateTo").value = "";
+      document.getElementById("shiftType").value = "";
+      document.getElementById("zone").value = "";
+      document.getElementById("ward").value = "";
+      document.getElementById("staff").value = "";
+      document.getElementById("reference").value = "";
+      document.getElementById("status").value = "";
+    }
+
     async function approveBooking(id) {
       if (!id) return;
-      const ok = confirm("Approve this booking and send the approval SMS?");
-      if (!ok) return;
+      if (!confirm("Approve this booking and send the standard SMS?")) return;
       try {
-        await fetchJSON(`${apiBase}/api/bookings/${id}/approve`, {
+        await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}/approve`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}) // use server template
+          body: JSON.stringify({})
         });
-        await loadBookings();
+        await fetchBookings(currentPage);
       } catch (err) {
-        alert("Approve failed: " + (err.message || "Unknown error"));
+        alert("Approve failed: " + err.message);
       }
     }
 
-    async function declineBooking(id) {
-      if (!id) return;
-      const reason = prompt("Enter decline reason (this will appear in the SMS):");
-      if (!reason || !reason.trim()) {
-        return; // cancelled / empty
+    // ----- Decline flow -----
+    const declineModalWrap = document.getElementById("declineModalWrap");
+    const declineReasonInput = document.getElementById("declineReason");
+    const declineDeleteAfterInput = document.getElementById("declineDeleteAfter");
+    const declineError = document.getElementById("declineError");
+    const btnDeclineClose = document.getElementById("btnDeclineClose");
+    const btnDeclineCancel = document.getElementById("btnDeclineCancel");
+    const btnDeclineConfirm = document.getElementById("btnDeclineConfirm");
+
+    function openDeclineModal(id) {
+      declineBookingId = id;
+      declineReasonInput.value = "";
+      declineDeleteAfterInput.checked = false;
+      declineError.textContent = "";
+      declineModalWrap.classList.remove("hidden");
+    }
+
+    function closeDeclineModal() {
+      declineBookingId = null;
+      declineModalWrap.classList.add("hidden");
+    }
+
+    btnDeclineClose.addEventListener("click", closeDeclineModal);
+    btnDeclineCancel.addEventListener("click", closeDeclineModal);
+    declineModalWrap.addEventListener("click", (e) => {
+      if (e.target === declineModalWrap) closeDeclineModal();
+    });
+
+    btnDeclineConfirm.addEventListener("click", async () => {
+      if (!declineBookingId) return;
+      const reason = declineReasonInput.value.trim();
+      if (!reason) {
+        declineError.textContent = "Please enter a decline reason.";
+        return;
       }
+      declineError.textContent = "";
+      btnDeclineConfirm.disabled = true;
+
       try {
-        await fetchJSON(`${apiBase}/api/bookings/${id}/decline`, {
+        await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(declineBookingId)}/decline`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason: reason.trim() })
+          body: JSON.stringify({ reason })
         });
-        // Ask if you want to delete after sending decline SMS
-        const del = confirm("Declined and SMS sent.\n\nDo you also want to delete this booking now?");
-        if (del) {
-          await deleteBooking(id, true);
-        } else {
-          await loadBookings();
+
+        if (declineDeleteAfterInput.checked) {
+          try {
+            await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(declineBookingId)}`, {
+              method: "DELETE"
+            });
+          } catch (err) {
+            console.error("Delete after decline failed:", err);
+          }
         }
-      } catch (err) {
-        alert("Decline failed: " + (err.message || "Unknown error"));
-      }
-    }
 
-    async function deleteBooking(id, skipConfirm = false) {
-      if (!id) return;
-      if (!skipConfirm) {
-        const ok = confirm("Delete this booking? This cannot be undone.");
-        if (!ok) return;
+        closeDeclineModal();
+        await fetchBookings(currentPage);
+      } catch (err) {
+        declineError.textContent = err.message || "Failed to decline booking.";
+      } finally {
+        btnDeclineConfirm.disabled = false;
       }
+    });
+
+    async function deleteBooking(id) {
+      if (!id) return;
+      if (!confirm("Are you sure you want to permanently delete this booking?")) return;
       try {
-        await fetchJSON(`${apiBase}/api/bookings/${id}`, {
+        await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}`, {
           method: "DELETE"
         });
-        await loadBookings();
+        await fetchBookings(currentPage);
       } catch (err) {
-        alert("Delete failed: " + (err.message || "Unknown error"));
+        alert("Delete failed: " + err.message);
       }
     }
 
-    // Delegate button clicks in table
-    bookingsTableBody.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-action]");
-      if (!btn) return;
-      const action = btn.dataset.action;
-      const tr = btn.closest("tr");
-      if (!tr) return;
-      const id = tr.dataset.id;
-      if (!id) return;
+    function wireTableActions() {
+      const tbody = document.getElementById("bookingsTableBody");
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        if (!id) return;
 
-      // Prevent the row double-click editing from firing immediately when you click buttons
-      e.stopPropagation();
-
-      if (action === "approve") {
-        approveBooking(id);
-      } else if (action === "decline") {
-        declineBooking(id);
-      } else if (action === "delete") {
-        deleteBooking(id);
-      }
-    });
-
-    // ---------- EDIT MODAL ----------
-    const editModalWrap = document.getElementById("editModalWrap");
-    const btnEditClose = document.getElementById("btnEditClose");
-    const btnEditCancel = document.getElementById("btnEditCancel");
-    const btnEditSave = document.getElementById("btnEditSave");
-    const editShortRef = document.getElementById("editShortRef");
-    const editDate = document.getElementById("editDate");
-    const editTime = document.getElementById("editTime");
-    const editShift = document.getElementById("editShift");
-    const editWard = document.getElementById("editWard");
-    const editWardPhone = document.getElementById("editWardPhone");
-    const editStaff = document.getElementById("editStaff");
-    const editStaffPhone = document.getElementById("editStaffPhone");
-    const editReasonCode = document.getElementById("editReasonCode");
-    const editBudgetNumber = document.getElementById("editBudgetNumber");
-    const editBudgetHolder = document.getElementById("editBudgetHolder");
-    const editError = document.getElementById("editError");
-    const editSubtitle = document.getElementById("editSubtitle");
-    const editStatusPill = document.getElementById("editStatusPill");
-    const editPickupAddress = document.getElementById("editPickupAddress");
-    const editDestinationAddress = document.getElementById("editDestinationAddress");
-
-    let currentEditBookingId = null;
-
-    function normaliseTimeInput(value) {
-      const v = (value || "").trim();
-      if (!v) return "";
-      if (/^\d{4}$/.test(v)) {
-        return v.slice(0,2) + ":" + v.slice(2);
-      }
-      if (/^\d{1,2}$/.test(v)) {
-        return v.padStart(2,"0") + ":00";
-      }
-      if (/^\d{1,2}:\d{2}$/.test(v)) {
-        return v;
-      }
-      return v; // let server validate if really invalid
+        if (action === "approve") {
+          approveBooking(id);
+        } else if (action === "decline") {
+          openDeclineModal(id);
+        } else if (action === "delete") {
+          deleteBooking(id);
+        }
+      });
     }
 
-    function openEditModal(booking) {
-      currentEditBookingId = booking._id;
-      editError.textContent = "";
+    document.addEventListener("DOMContentLoaded", () => {
+      // Initial: default to today
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById("dateFrom").value = today;
+      document.getElementById("dateTo").value = today;
 
-      const refLabel = booking.shortRef || booking.reference || "";
-      editShortRef.value = refLabel;
-      editDate.value = booking.pickupDateISO || "";
-      editTime.value = booking.onOffDutyTime || "";
-      editShift.value = booking.shiftType === "finish" ? "finish" : "start";
-      editWard.value = booking.wardName || "";
-      editWardPhone.value = booking.wardPhone || "";
-      editStaff.value = booking.staffName || "";
-      editStaffPhone.value = booking.staffPhone || "";
-      editReasonCode.value = (booking.reasonCode || "").toString().toUpperCase();
-      editBudgetNumber.value = booking.budgetNumber || "";
-      editBudgetHolder.value = booking.budgetHolderName || "";
+      document.getElementById("btnSearch").addEventListener("click", () => fetchBookings(1));
+      document.getElementById("btnClear").addEventListener("click", () => {
+        clearFilters();
+        fetchBookings(1);
+      });
 
-      // Addresses (read-only)
-      const pickupText =
-        booking.pickup?.formatted ||
-        [booking.pickup?.houseNumber, booking.pickup?.street, booking.pickup?.town, booking.pickup?.postCode]
-          .filter(Boolean)
-          .join(" ");
-      const destText =
-        booking.destination?.formatted ||
-        [booking.destination?.houseNumber, booking.destination?.street, booking.destination?.town, booking.destination?.postCode]
-          .filter(Boolean)
-          .join(" ");
+      document.getElementById("prevPage").addEventListener("click", () => {
+        if (currentPage > 1) fetchBookings(currentPage - 1);
+      });
+      document.getElementById("nextPage").addEventListener("click", () => {
+        if (currentPage < totalPages) fetchBookings(currentPage + 1);
+      });
 
-      editPickupAddress.value = pickupText || "";
-      editDestinationAddress.value = destText || "";
-
-      // Subtitle: quick context
-      const subtitleParts = [
-        booking.pickupDateISO || "",
-        booking.onOffDutyTime || "",
-        booking.wardName || ""
-      ].filter(Boolean);
-      editSubtitle.textContent = subtitleParts.join(" • ");
-
-      // Status pill
-      let status = booking.status || "pending";
-      let statusClass = "status-pending";
-      if (status === "approved") statusClass = "status-approved";
-      if (status === "declined") statusClass = "status-declined";
-      editStatusPill.className = `status-pill ${statusClass}`;
-      editStatusPill.textContent = status;
-      editStatusPill.classList.remove("hidden");
-
-      editModalWrap.classList.remove("hidden");
-    }
-
-    function closeEditModal() {
-      currentEditBookingId = null;
-      editModalWrap.classList.add("hidden");
-      editSubtitle.textContent = "";
-      editStatusPill.classList.add("hidden");
-      editStatusPill.textContent = "";
-    }
-
-    btnEditClose.addEventListener("click", closeEditModal);
-    btnEditCancel.addEventListener("click", closeEditModal);
-    editModalWrap.addEventListener("click", (e) => {
-      if (e.target === editModalWrap) closeEditModal();
+      wireTableActions();
+      setupQuickDateButtons();
+      fetchBookings(1);
     });
-
-    // Double-click row to edit
-    bookingsTableBody.addEventListener("dblclick", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = Number(tr.dataset.index);
-      const booking = allBookings[idx];
-      if (!booking) return;
-      openEditModal(booking);
-    });
-
-    btnEditSave.addEventListener("click", async () => {
-      if (!currentEditBookingId) return;
-      editError.textContent = "";
-
-      const payload = {
-        pickupDateISO: editDate.value || "",
-        onOffDutyTime: normaliseTimeInput(editTime.value),
-        shiftType: editShift.value,
-        wardName: editWard.value,
-        wardPhone: editWardPhone.value,
-        staffName: editStaff.value,
-        staffPhone: editStaffPhone.value,
-        reasonCode: editReasonCode.value,
-        budgetNumber: editBudgetNumber.value,
-        budgetHolderName: editBudgetHolder.value
-      };
-
-      try {
-        await fetchJSON(`${apiBase}/api/bookings/${currentEditBookingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        closeEditModal();
-        await loadBookings();
-      } catch (err) {
-        editError.textContent = err.message || "Failed to save changes.";
-      }
-    });
-
-    // Initial load — NO filters set, so you get ALL bookings
-    loadBookings();
   </script>
 </body>
 </html>
