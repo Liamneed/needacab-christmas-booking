@@ -625,6 +625,10 @@ app.get("/api/reports/shift-groups", async (req, res) => {
               postCode:    type === "finish" ? "$destination.postCode"    : "$pickup.postCode",
               lat:         type === "finish" ? "$destination.lat"         : "$pickup.lat",
               lng:         type === "finish" ? "$destination.lng"         : "$pickup.lng",
+
+              // include staff details so frontend can build notes per stop
+              staffName: "$staffName",
+              staffPhone: "$staffPhone"
             },
           },
         },
@@ -879,25 +883,27 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     const derrifordAddr = makeDerrifordAutocabAddress();
 
     let pickupAddress, destinationAddress, viaStops;
+    let pickupStop = null;
+    let destStop = null;
 
     if (shiftType === "start") {
       // START SHIFT: homes -> Derriford
       // pickup = first address, vias = others, destination = Derriford
-      const pickupStop = stops[0];
+      pickupStop = stops[0];
       viaStops = stops.slice(1);
       pickupAddress = mapSmartStopToAutocabAddress(pickupStop);
       destinationAddress = derrifordAddr;
     } else if (shiftType === "finish") {
       // FINISH SHIFT: Derriford -> homes
       // pickup = Derriford, vias = all but last, destination = last address
-      const destStop = stops[stops.length - 1];
+      destStop = stops[stops.length - 1];
       viaStops = stops.slice(0, -1);
       pickupAddress = derrifordAddr;
       destinationAddress = mapSmartStopToAutocabAddress(destStop);
     } else {
       // Fallback: treat first/last as pickup/destination, others as vias
-      const pickupStop = stops[0];
-      const destStop = stops[stops.length - 1];
+      pickupStop = stops[0];
+      destStop = stops[stops.length - 1];
       viaStops = stops.slice(1, -1);
       pickupAddress = mapSmartStopToAutocabAddress(pickupStop);
       destinationAddress = mapSmartStopToAutocabAddress(destStop);
@@ -908,7 +914,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     const payload = {
       capabilities,
       companyId: Number(AUTOCAB_COMPANY_ID),
-      customerId: DERRIFORD_CUSTOMER_ID,          // 👈 NEW – force onto Derriford customer
+      customerId: DERRIFORD_CUSTOMER_ID,          // force onto Derriford customer
       customerEmail: "",
       driverConstraints: {
         forbiddenDrivers: [],
@@ -931,19 +937,21 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
       ourReference: meta?.bucketLabel || "",
       pickup: {
         address: pickupAddress,
-        note: "",
+        // include name/phone note for pickup if available
+        note: pickupStop?.note || "",
         passengerDetailsIndex: null,
         type: "Pickup"
       },
       vias: viaStops.map(v => ({
         address: mapSmartStopToAutocabAddress(v),
-        note: "",
+        // include per-stop note (Customer + Tel)
+        note: v.note || "",
         passengerDetailsIndex: null,
         type: "Via"
       })),
       destination: {
         address: destinationAddress,
-        note: "",
+        note: destStop?.note || "",
         passengerDetailsIndex: null,
         type: "Destination"
       },
