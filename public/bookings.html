@@ -129,6 +129,46 @@
       border-color: #9ca3af;
     }
 
+    /* FILTER STATS */
+    .filter-row{
+      margin-top:10px;
+    }
+
+    .filter-stats{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+      font-size:12px;
+    }
+    .stat-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#111827;
+      border:1px solid var(--line);
+      cursor:pointer;
+      user-select:none;
+      transition:background 0.12s ease,border-color 0.12s ease,transform 0.08s ease;
+    }
+    .stat-pill span.value{
+      font-weight:600;
+      color:#e5e7eb;
+    }
+    .stat-pill[data-stat="duplicates"]{
+      border-color:rgba(248,113,113,0.7);
+    }
+    .stat-pill[data-stat="missing"]{
+      border-color:rgba(234,179,8,0.8);
+    }
+    .stat-pill:hover{
+      background:#1f2937;
+      border-color:#9ca3af;
+      transform:translateY(-1px);
+    }
+
     /* TABLES */
     table{width:100%;border-collapse:collapse;font-size:13px;}
     th,td{border-bottom:1px solid var(--line);padding:8px 8px;vertical-align:top}
@@ -309,7 +349,7 @@
         <button type="button" data-quick-date="nyd">New Year’s Day</button>
       </div>
 
-      <div class="filter-row" style="margin-top:10px;">
+      <div class="filter-row">
         <label class="checkbox-row">
           <input type="checkbox" id="filterMissing">
           <span>Show only missing address</span>
@@ -318,6 +358,21 @@
           <input type="checkbox" id="filterDuplicates">
           <span>Show only duplicates</span>
         </label>
+      </div>
+
+      <div class="filter-stats">
+        <div class="stat-pill" data-stat="all">
+          <span>All bookings</span>
+          <span class="value" id="statTotal">0</span>
+        </div>
+        <div class="stat-pill" data-stat="duplicates">
+          <span>Possible duplicates</span>
+          <span class="value" id="statDup">0</span>
+        </div>
+        <div class="stat-pill" data-stat="missing">
+          <span>Missing address</span>
+          <span class="value" id="statMissing">0</span>
+        </div>
       </div>
 
       <p class="muted" style="margin-top:8px;">
@@ -438,6 +493,11 @@
     let editBookingId = null;
     let editPickupAddr = null;
     let editDestAddr = null;
+
+    // Stats state
+    let lastMissingCount = 0;
+    let lastDuplicateCount = 0;
+    let lastTotalFromServer = 0;
 
     function toStatusPill(status) {
       const s = (status || "").toLowerCase();
@@ -598,16 +658,31 @@
       });
     }
 
+    function updateStatsDisplay() {
+      const totalEl = document.getElementById("statTotal");
+      const dupEl = document.getElementById("statDup");
+      const missEl = document.getElementById("statMissing");
+      if (totalEl) totalEl.textContent = lastTotalFromServer;
+      if (dupEl) dupEl.textContent = lastDuplicateCount;
+      if (missEl) missEl.textContent = lastMissingCount;
+    }
+
     function renderBookingsTable(items) {
       const tbody = document.getElementById("bookingsTableBody");
       tbody.innerHTML = "";
 
       if (!items.length) {
         tbody.innerHTML = '<tr><td colspan="9" class="muted">No bookings found for this filter.</td></tr>';
+        lastMissingCount = 0;
+        lastDuplicateCount = 0;
+        updateStatsDisplay();
         return;
       }
 
       const dupCounts = computeDuplicateKeys(items);
+
+      lastMissingCount = 0;
+      lastDuplicateCount = 0;
 
       items.forEach(b => {
         const tr = document.createElement("tr");
@@ -634,6 +709,7 @@
 
         if (missingAddress) {
           tr.classList.add("missing-address");
+          lastMissingCount++;
         }
 
         const date = b.pickupDateISO || "";
@@ -646,6 +722,7 @@
 
         if (isDuplicate) {
           tr.classList.add("duplicate-row");
+          lastDuplicateCount++;
         }
 
         const flags = [];
@@ -695,6 +772,7 @@
         tbody.appendChild(tr);
       });
 
+      updateStatsDisplay();
       applyRowFilters();
     }
 
@@ -715,6 +793,8 @@
         totalPages = data.pages || 1;
         currentPage = data.page || 1;
 
+        lastTotalFromServer = data.total || currentItems.length;
+
         renderBookingsTable(currentItems);
         updateSummary(data);
       } catch (err) {
@@ -722,6 +802,10 @@
         const tbody = document.getElementById("bookingsTableBody");
         tbody.innerHTML = `<tr><td colspan="9" class="muted">Error loading bookings: ${err.message}</td></tr>`;
         document.getElementById("summaryText").textContent = "Error loading bookings.";
+        lastTotalFromServer = 0;
+        lastMissingCount = 0;
+        lastDuplicateCount = 0;
+        updateStatsDisplay();
       }
     }
 
@@ -741,6 +825,10 @@
 
       document.getElementById("prevPage").disabled = page <= 1;
       document.getElementById("nextPage").disabled = page >= (data.pages || 1);
+
+      // Keep stats in sync with latest total
+      lastTotalFromServer = total || currentItems.length;
+      updateStatsDisplay();
     }
 
     function clearFilters() {
@@ -945,11 +1033,33 @@
       });
     }
 
+    function wireStatPills() {
+      const container = document.querySelector(".filter-stats");
+      if (!container) return;
+
+      container.addEventListener("click",(e)=>{
+        const pill = e.target.closest(".stat-pill");
+        if (!pill) return;
+        const type = pill.dataset.stat;
+        const missingChk = document.getElementById("filterMissing");
+        const dupChk = document.getElementById("filterDuplicates");
+
+        if (type === "all") {
+          missingChk.checked = false;
+          dupChk.checked = false;
+        } else if (type === "duplicates") {
+          missingChk.checked = false;
+          dupChk.checked = true;
+        } else if (type === "missing") {
+          missingChk.checked = true;
+          dupChk.checked = false;
+        }
+        applyRowFilters();
+      });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
-      // Initial: default to today
-      const today = new Date().toISOString().slice(0, 10);
-      document.getElementById("dateFrom").value = today;
-      document.getElementById("dateTo").value = today;
+      // Default: no dates set -> loads all bookings on first fetch
 
       document.getElementById("btnSearch").addEventListener("click", () => fetchBookings(1));
       document.getElementById("btnClear").addEventListener("click", () => {
@@ -968,6 +1078,7 @@
       document.getElementById("filterDuplicates").addEventListener("change", applyRowFilters);
 
       wireTableActions();
+      wireStatPills();
       setupQuickDateButtons();
       fetchBookings(1);
     });
