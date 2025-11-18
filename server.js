@@ -804,7 +804,7 @@ function mapSmartStopToAutocabAddress(stop) {
   const text = stop.formatted || stop.text || "";
   const hasCoords = typeof stop.lat === "number" && typeof stop.lng === "number";
   return {
-    bookingPriority: 0,
+    bookingPriority: 9,
     coordinate: hasCoords
       ? { latitude: stop.lat, longitude: stop.lng }
       : null,
