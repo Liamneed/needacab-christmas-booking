@@ -251,7 +251,7 @@ let smsTemplates = {
     "Your reference number is {{ref}}. Thanks Need-A-Cab Taxis",
   decline:
     "Unfortunately your Christmas staff booking on {{date}} at {{time}} " +
-    "({{pickup}} to {{destination}}) has been declined. Reason: {{reason}}. — Need-A-Cab Taxis"
+    "({{pickup}} to {{destination}}) has been declined. Reason: {{reason}}.  Need-A-Cab Taxis"
 };
 
 function loadSmsTemplatesFromFile() {
