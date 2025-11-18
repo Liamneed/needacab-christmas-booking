@@ -177,6 +177,47 @@
     .quick-dates span{
       color:var(--muted);
     }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #111827;
+      border-radius: 999px;
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+      z-index: 80;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .toast-ok {
+      border-color: var(--ok);
+    }
+    .toast-err {
+      border-color: var(--err);
+    }
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+    }
+    .toast-err .toast-dot {
+      background: var(--err);
+    }
   </style>
 </head>
 <body>
@@ -372,6 +413,12 @@
     </div>
   </div>
 
+  <!-- TOAST -->
+  <div id="toast" class="toast toast-ok">
+    <span class="toast-dot"></span>
+    <span id="toastText"></span>
+  </div>
+
   <script>
     // API base: localhost in dev, origin in prod
     const apiBase = window.location.origin.includes("localhost")
@@ -386,6 +433,23 @@
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data?.error || (url + " failed"));
       return data;
+    }
+
+    /* ---------- TOAST ---------- */
+    const toast = document.getElementById("toast");
+    const toastText = document.getElementById("toastText");
+    let toastTimeout = null;
+
+    function showToast(message, type = "ok") {
+      if (!toast || !toastText) return;
+      toastText.textContent = message;
+      toast.classList.remove("toast-ok", "toast-err");
+      toast.classList.add(type === "err" ? "toast-err" : "toast-ok");
+      toast.classList.add("show");
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 3500);
     }
 
     /* ---------- TABS ---------- */
@@ -861,9 +925,11 @@
         });
         msgEl.textContent = "Templates saved.";
         msgEl.className = "status-ok";
+        showToast("SMS templates saved.", "ok");
       } catch (err) {
         msgEl.textContent = "Save failed: " + err.message;
         msgEl.className = "status-err";
+        showToast("Failed to save SMS templates.", "err");
       }
     }
 
@@ -997,8 +1063,10 @@
         pack._booked = true;
         closeBookModal();
         renderSmartOutput(lastSmartBuckets);
+        showToast("Taxi booked in Autocab successfully.", "ok");
       } catch (err) {
         bookError.textContent = err.message || "Failed to book taxi.";
+        showToast("Booking failed: " + (err.message || "Unknown error"), "err");
       } finally {
         btnBookConfirm.disabled = false;
       }
