@@ -221,7 +221,7 @@
         <p class="muted" style="margin-top:6px">
           Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then:
           <br>
-          • groups bookings into <strong>1-hour time windows</strong> and nearby pickups (radius in km),<br>
+          • groups bookings into <strong>90-minute time windows</strong> starting from the <strong>earliest booking time that day</strong>,<br>
           • fills <strong>full vehicles only</strong> where possible using seat sizes
           <strong>4 / 5 / 6 / 7 / 8 / 19</strong>,<br>
           • if fewer than 4 passengers remain in a group, they go in a <strong>4-seater (1–4 pax)</strong>,<br>
@@ -376,7 +376,8 @@
       return 2*R_EARTH*Math.asin(Math.sqrt(h));
     }
 
-    const TIME_WINDOW_MINS = 120;
+    // 90-minute windows
+    const TIME_WINDOW_MINS = 90;
 
     function timeStrToMinutes(str){
       const v = (str || "").trim();
@@ -400,9 +401,10 @@
       return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
     }
 
-    function bucketLabelFromIndex(bucketIdx){
+    // Label using earliest booking time as base
+    function bucketLabelFromIndex(bucketIdx, baseMinutes){
       if (bucketIdx == null || bucketIdx < 0) return "No time";
-      const startM = bucketIdx * TIME_WINDOW_MINS;
+      const startM = baseMinutes + bucketIdx * TIME_WINDOW_MINS;
       const endM = startM + TIME_WINDOW_MINS - 1;
       return `${minutesToTimeStr(startM)}–${minutesToTimeStr(endM)}`;
     }
@@ -484,14 +486,30 @@
       };
     }
 
+    // Build time buckets with windows starting from earliest booking time on that day
     function buildTimeBucketsFromGroups(groups){
       const map = new Map();
+      const entries = [];
+      let minMinutes = null;
+
+      // First pass: collect mins and find earliest time
       for(const g of groups){
-        const zone = g.zoneName || "(unknown)";
         const timeStr = g.onOffDutyTime || "";
         const mins = timeStrToMinutes(timeStr);
-        const bucketIdx = mins == null ? -1 : Math.floor(mins / TIME_WINDOW_MINS);
-        const label = bucketLabelFromIndex(bucketIdx);
+        entries.push({ g, mins });
+        if (mins != null && (minMinutes === null || mins < minMinutes)){
+          minMinutes = mins;
+        }
+      }
+
+      if (minMinutes === null) minMinutes = 0; // fallback if no valid times
+
+      // Second pass: assign to buckets relative to earliest time
+      for (const { g, mins } of entries){
+        const zone = g.zoneName || "(unknown)";
+        const timeStr = g.onOffDutyTime || "";
+        const bucketIdx = mins == null ? -1 : Math.floor((mins - minMinutes) / TIME_WINDOW_MINS);
+        const label = mins == null ? "No time" : bucketLabelFromIndex(bucketIdx, minMinutes);
 
         const addrs = g.addresses || [];
         for(const a of addrs){
@@ -506,6 +524,7 @@
           bucket.addresses.push(addr);
         }
       }
+
       return Array.from(map.values()).sort((a,b)=>a.bucketIdx - b.bucketIdx);
     }
 
@@ -870,8 +889,8 @@
       bookModalWrap.classList.add("hidden");
     }
 
-    btnBookClose.addEventListener("click", closeBookModal);
-    btnBookCancel.addEventListener("click", closeBookModal);
+    document.getElementById("btnBookClose").addEventListener("click", closeBookModal);
+    document.getElementById("btnBookCancel").addEventListener("click", closeBookModal);
     bookModalWrap.addEventListener("click",(e)=>{
       if (e.target === bookModalWrap) closeBookModal();
     });
