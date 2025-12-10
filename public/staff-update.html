@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Taxi — Update Booking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b0d10; --card:#12161c; --ink:#e9eef4; --muted:#9bb0c2; --line:#202630;
+      --ok:#1ea672; --warn:#e7a03c; --err:#d23f3f; --brand:#f6c423; --chip:#1b222c;
+      --btn:#151b22; --btnHover:#1b2330; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(circle at top,#18212f 0,#05070a 55%);
+      color:var(--ink);
+      font:15px/1.45 system-ui,Segoe UI,Roboto,Arial;
+      min-height:100vh;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:24px 12px;
+    }
+    .card{
+      width:100%;
+      max-width:520px;
+      background:var(--card);
+      border-radius:20px;
+      border:1px solid var(--line);
+      padding:20px 18px 18px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.55);
+    }
+    h1{
+      margin:0 0 6px;
+      font-size:1.4rem;
+      letter-spacing:0.02em;
+    }
+    .muted{color:var(--muted);font-size:13px;}
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#111827;
+      border:1px solid var(--line);
+      font-size:11px;
+      margin-top:6px;
+    }
+    .pill span.label{color:var(--muted)}
+    .pill span.value{font-weight:600;}
+    .section{
+      margin-top:16px;
+      padding-top:14px;
+      border-top:1px solid var(--line);
+    }
+    .field-row{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      margin-bottom:10px;
+      font-size:13px;
+    }
+    .field-row label{
+      color:var(--muted);
+    }
+    input[type="date"], input[type="text"], input[type="tel"], textarea, select{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:7px 9px; font:inherit;
+      min-height:36px;
+    }
+    textarea{min-height:70px;resize:vertical;}
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      filter:invert(1);cursor:pointer;
+    }
+    .options{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:13px;
+      margin:4px 0 10px;
+    }
+    .options label{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      cursor:pointer;
+    }
+    .options input[type="radio"]{
+      margin-top:3px;
+    }
+    .btn-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-top:10px;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:9px 14px; font:inherit; cursor:pointer;
+      font-size:14px;
+    }
+    .btn.primary{
+      background:var(--brand);color:#111;border-color:#e0b21e;
+      font-weight:600;
+    }
+    .btn.primary:hover{filter:brightness(0.96);}
+    .status{
+      font-size:12px;
+      margin-top:6px;
+    }
+    .status.ok{color:var(--ok);}
+    .status.err{color:var(--err);}
+    .loading{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+    .badge{
+      display:inline-block;
+      padding:3px 7px;
+      border-radius:999px;
+      background:var(--chip);
+      border:1px solid var(--line);
+      font-size:11px;
+      margin-top:4px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Update your staff taxi booking</h1>
+    <p class="muted" id="introText">
+      Use this page to <strong>confirm</strong>, <strong>change your details</strong> or <strong>cancel</strong> your Derriford staff taxi booking.
+    </p>
+
+    <div id="loadState" class="loading">Loading your booking…</div>
+
+    <div id="bookingSummary" style="display:none;">
+      <div class="section">
+        <div class="muted">Booking summary</div>
+        <div id="summaryMain" style="margin-top:4px;"></div>
+        <div id="summaryExtra" class="muted" style="margin-top:4px;"></div>
+        <div id="summaryFlags" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="section">
+        <div class="muted" style="margin-bottom:4px;">What would you like to do?</div>
+        <div class="options">
+          <label>
+            <input type="radio" name="action" value="confirm" checked />
+            <div>
+              <div>Everything is correct — please <strong>confirm my booking</strong>.</div>
+            </div>
+          </label>
+          <label>
+            <input type="radio" name="action" value="edit" />
+            <div>
+              <div><strong>Change my details</strong> (time, phone or home address).</div>
+            </div>
+          </label>
+          <label>
+            <input type="radio" name="action" value="cancel" />
+            <div>
+              <div><strong>Cancel this booking</strong> — I no longer need this taxi.</div>
+            </div>
+          </label>
+        </div>
+
+        <div id="editFields" style="display:none;margin-top:6px;">
+          <div class="field-row">
+            <label for="editDate">New date (if changing)</label>
+            <input type="date" id="editDate" />
+          </div>
+          <div class="field-row">
+            <label for="editTime">New time (if changing)</label>
+            <input type="text" id="editTime" placeholder="e.g. 06:30" />
+          </div>
+          <div class="field-row">
+            <label for="editPhone">Mobile number (if changing)</label>
+            <input type="tel" id="editPhone" placeholder="+447..." />
+          </div>
+          <div class="field-row">
+            <label for="editAddress" id="editAddressLabel">Home address (if changing)</label>
+            <input type="text" id="editAddress" placeholder="e.g. 10 Example Street, Plymouth" />
+          </div>
+          <div class="field-row">
+            <label for="editPostcode">Postcode (if changing)</label>
+            <input type="text" id="editPostcode" placeholder="e.g. PL1 2AB" />
+          </div>
+        </div>
+
+        <div id="cancelFields" style="display:none;margin-top:6px;">
+          <div class="field-row">
+            <label for="cancelReason">Reason for cancellation (optional)</label>
+            <textarea id="cancelReason" placeholder="e.g. Shift changed, got a lift, etc."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="btnBack">Close</button>
+        <button class="btn primary" id="btnSubmit">Submit update</button>
+      </div>
+
+      <div id="statusMessage" class="status"></div>
+    </div>
+  </main>
+
+  <script>
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
+
+    let currentShiftType = ""; // start / finish
+
+    function getBookingIdFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("bookingId") || params.get("id") || "";
+    }
+
+    function toDDMMYY(iso) {
+      if (!iso) return "";
+      const parts = iso.slice(0, 10).split("-");
+      if (parts.length !== 3) return iso;
+      const [y, m, d] = parts;
+      return `${d}-${m}-${y.slice(2)}`;
+    }
+
+    function describeShift(shiftType) {
+      if (shiftType === "start") return "Shift start — to Derriford";
+      if (shiftType === "finish") return "Shift finish — from Derriford";
+      return "";
+    }
+
+    async function fetchJSON(url, opts) {
+      const r = await fetch(url, opts);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.error || (url + " failed"));
+      return data;
+    }
+
+    function showStatus(msg, ok) {
+      const el = document.getElementById("statusMessage");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+    }
+
+    function setLoading(msg) {
+      const load = document.getElementById("loadState");
+      if (load) load.textContent = msg;
+    }
+
+    function toggleUpdateSections() {
+      const val = document.querySelector('input[name="action"]:checked')?.value;
+      const edit = document.getElementById("editFields");
+      const cancel = document.getElementById("cancelFields");
+      if (edit) edit.style.display = val === "edit" ? "block" : "none";
+      if (cancel) cancel.style.display = val === "cancel" ? "block" : "none";
+    }
+
+    async function init() {
+      const bookingId = getBookingIdFromQuery();
+      if (!bookingId) {
+        setLoading("Missing booking ID. Please use the link in your text message.");
+        return;
+      }
+
+      try {
+        // Use the public booking endpoint
+        const data = await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(bookingId)}/public`);
+        setLoading("");
+        document.getElementById("loadState").style.display = "none";
+
+        currentShiftType = data.shiftType || "";
+
+        const summary = document.getElementById("bookingSummary");
+        if (summary) summary.style.display = "block";
+
+        const dateText = toDDMMYY(data.pickupDateISO || "");
+        const timeText = data.onOffDutyTime || "";
+        const ref = data.shortRef || data.reference || "";
+        const staffName = data.staffName || "Staff member";
+        const pickup = (data.pickup && data.pickup.formatted) || "";
+        const dest = (data.destination && data.destination.formatted) || "";
+
+        const shiftDesc = describeShift(data.shiftType);
+
+        const summaryMain = document.getElementById("summaryMain");
+        const summaryExtra = document.getElementById("summaryExtra");
+        const summaryFlags = document.getElementById("summaryFlags");
+
+        if (summaryMain) {
+          summaryMain.innerHTML =
+            `<div><strong>${dateText}</strong> at <strong>${timeText}</strong>${ref ? ` (ref ${ref})` : ""}</div>` +
+            (shiftDesc ? `<div class="muted">${shiftDesc}</div>` : "");
+        }
+
+        if (summaryExtra) {
+          summaryExtra.innerHTML =
+            `<div>${pickup}</div>` +
+            `<div style="margin:2px 0;">&#8595;</div>` +
+            `<div>${dest}</div>` +
+            `<div class="badge" style="margin-top:6px;">For: ${staffName}</div>` +
+            (data.staffPhone ? `<div class="muted" style="margin-top:2px;">Phone: ${data.staffPhone}</div>` : "");
+        }
+
+        // Basic flags display
+        const flagBits = [];
+        if (data.manualFlagLabel || data.manualFlagReason) {
+          const label = (data.manualFlagLabel || "").trim();
+          const reason = (data.manualFlagReason || "").trim();
+          flagBits.push(
+            `<div class="pill"><span class="label">Admin note:</span><span class="value">${reason || label}</span></div>`
+          );
+        }
+        if (summaryFlags && flagBits.length) {
+          summaryFlags.innerHTML = flagBits.join("");
+        }
+
+        // Address label and prefill for the "home" side
+        const addrLabel = document.getElementById("editAddressLabel");
+        const addrInput = document.getElementById("editAddress");
+        const pcInput = document.getElementById("editPostcode");
+
+        let homeSide = null;
+        if (data.shiftType === "start") {
+          homeSide = data.pickup || null;
+          if (addrLabel) addrLabel.textContent = "Pickup address (if changing)";
+        } else if (data.shiftType === "finish") {
+          homeSide = data.destination || null;
+          if (addrLabel) addrLabel.textContent = "Destination address (if changing)";
+        }
+
+        if (homeSide) {
+          if (addrInput && homeSide.formatted) addrInput.value = homeSide.formatted;
+          if (pcInput && homeSide.postCode) pcInput.value = homeSide.postCode;
+        }
+
+        // Wire radio changes
+        document.querySelectorAll('input[name="action"]').forEach(r => {
+          r.addEventListener("change", toggleUpdateSections);
+        });
+        toggleUpdateSections();
+
+        const btnBack = document.getElementById("btnBack");
+        if (btnBack) {
+          btnBack.addEventListener("click", () => {
+            window.close();
+            try { history.back(); } catch(e) {}
+          });
+        }
+
+        const btnSubmit = document.getElementById("btnSubmit");
+        if (btnSubmit) {
+          btnSubmit.addEventListener("click", async () => {
+            const action = document.querySelector('input[name="action"]:checked')?.value || "confirm";
+            showStatus("", true);
+
+            try {
+              if (action === "confirm") {
+                await fetchJSON(
+                  `${apiBase}/api/bookings/${encodeURIComponent(bookingId)}/customer-confirm`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({})
+                  }
+                );
+                showStatus("Thank you — your booking has been confirmed.", true);
+              } else if (action === "edit") {
+                const date = (document.getElementById("editDate")?.value || "").trim();
+                const time = (document.getElementById("editTime")?.value || "").trim();
+                const phone = (document.getElementById("editPhone")?.value || "").trim();
+                const address = (document.getElementById("editAddress")?.value || "").trim();
+                const postcode = (document.getElementById("editPostcode")?.value || "").trim();
+
+                if (!date && !time && !phone && !address && !postcode) {
+                  showStatus("Please change at least one detail (date, time, phone or address).", false);
+                  return;
+                }
+
+                const body = {};
+                if (date) body.pickupDateISO = date;
+                if (time) body.onOffDutyTime = time;
+                if (phone) body.staffPhone = phone;
+
+                if (address || postcode) {
+                  if (currentShiftType === "start") {
+                    if (address) body.pickupText = address;
+                    if (postcode) body.pickupPostCode = postcode;
+                  } else if (currentShiftType === "finish") {
+                    if (address) body.destinationText = address;
+                    if (postcode) body.destinationPostCode = postcode;
+                  }
+                }
+
+                await fetchJSON(
+                  `${apiBase}/api/bookings/${encodeURIComponent(bookingId)}/customer-update`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                  }
+                );
+                showStatus("Thank you — your booking has been updated.", true);
+              } else if (action === "cancel") {
+                const reason = (document.getElementById("cancelReason")?.value || "").trim();
+                await fetchJSON(
+                  `${apiBase}/api/bookings/${encodeURIComponent(bookingId)}/customer-cancel`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reason })
+                  }
+                );
+                showStatus("Your booking has been cancelled. Thank you for letting us know.", true);
+              }
+            } catch (err) {
+              console.error(err);
+              showStatus(err.message || "Something went wrong — please try again.", false);
+            }
+          });
+        }
+
+      } catch (err) {
+        console.error(err);
+        setLoading("Sorry — we couldn’t load your booking. Please contact the ward or switchboard.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>

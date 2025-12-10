@@ -1,0 +1,20 @@
+{
+  "Barbican": [
+    {
+      "id": "barbican_1",
+      "label": "Hoegate Street",
+      "formatted": "Coop Hoegate Street",
+      "lat": 50.36823120889759,
+      "lng": -4.138756477224921
+    }
+  ],
+  "Greenbank": [
+    {
+      "id": "greenbank_1",
+      "label": "Spar",
+      "formatted": "Spar North Hill",
+      "lat": 50.37698665831924,
+      "lng": -4.135998743253014
+    }
+  ]
+}

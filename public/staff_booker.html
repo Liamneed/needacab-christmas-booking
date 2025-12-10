@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Christmas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#fff; --ink:#0f172a; --muted:#657282; --line:#e6e8ee;
+      --accent:#111; --ok:#026643; --err:#b00020; --radius:14px; --shadow:0 8px 28px rgba(16,24,40,.08);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{ --bg:#0b0f13; --card:#0f141b; --ink:#e8edf3; --muted:#9aabbf; --line:#1f2a38; --accent:#ffd000; --shadow:0 8px 28px rgba(0,0,0,.35) }
+    }
+    *{ box-sizing:border-box }
+    body{ margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial }
+    .wrap{ max-width:900px; margin:22px auto; padding:0 14px }
+    h1{ font-size:22px; margin:0 0 6px }
+    .hint{ color:var(--muted); font-size:13px }
+
+    .card{ margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .row{ display:grid; gap:8px }
+    .section{ border:1px solid var(--line); border-radius:12px; padding:16px; background:transparent; margin-top:14px }
+    .section > .title{ font-weight:800; margin-bottom:10px; letter-spacing:.2px }
+
+    label{ font-weight:600; font-size:14px }
+    input, select, textarea{
+      width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--ink);
+      font-size:16px; min-height:46px;
+    }
+    input::placeholder{ color:var(--muted) }
+
+    .pillbar, .chipbar{ display:flex; gap:10px; flex-wrap:wrap; margin:2px 0 8px }
+    .pill{
+      padding:10px 14px; border-radius:999px; border:1px solid var(--line); cursor:pointer; user-select:none;
+      background:#111; color:#fff; font-weight:600;
+    }
+    .pill.ghost{ background:transparent; color:var(--ink) }
+    .pill.active{ background:#111; color:#fff; border-color:#111 }
+    @media (prefers-color-scheme:dark){
+      .pill{ background:#0e1b1f; color:#dfe6ee }
+      .pill.active{ background:#026643; border-color:#066a56; color:#fff }
+    }
+    .chip{
+    padding:8px 12px; border-radius:999px; border:1px solid var(--line); cursor:pointer; user-select:none;
+    background:transparent; color:var(--ink); font-size:14px; line-height:1;
+  }
+    .chip:active{ transform:scale(.98) }
+    @media (prefers-color-scheme:dark){ .chip{ background:#0e1b1f; color:#dfe6ee } }
+
+    .error{ color:var(--err); font-weight:700 }
+    .success{ color:#0a7a2d; font-weight:800 }
+    .hint.small{ font-size:12px }
+
+    .sig{
+      border:1px dashed var(--line); border-radius:12px; background:#fff;
+      width:100%; height:140px; max-width:100%; display:block; touch-action:none;
+    }
+    @media (max-width:520px){
+      .sig{ height:120px }
+    }
+
+    .btn{ appearance:none; border:0; background:#026643; color:#fff; padding:12px 16px; border-radius:12px; font-weight:800; cursor:pointer }
+    .btn.sec{ background:transparent; border:1px solid var(--line); color:var(--ink) }
+    .actions{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px }
+    @media (max-width:720px){ .grid2{ grid-template-columns:1fr } }
+
+    /* Classic PAC dropdown styling */
+    .pac-container{ z-index: 99999 !important; border-radius:12px; box-shadow:var(--shadow); overflow:hidden; font-size:16px }
+    .pac-item{ padding:10px 12px }
+    .pac-item-query{ font-weight:700 }
+
+    .switch{ position:relative; width:56px; height:30px; flex:0 0 56px }
+    .switch input{ position:absolute; opacity:0 }
+    .slider{ position:absolute; inset:0; background:#cbd5e1; border-radius:999px; transition:.2s }
+    .slider:before{ content:""; position:absolute; width:22px; height:22px; left:4px; top:4px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 2px 6px rgba(0,0,0,.2) }
+    .switch input:checked + .slider{ background:#026643 }
+    .switch input:checked + .slider:before{ transform:translateX(26px) }
+
+    .section.return.active{ border-color:#026643; box-shadow:0 0 0 3px rgba(34,197,94,.15) inset }
+
+    /* Pinned suggestion UI */
+    .qsugg{
+      margin:6px 0 2px;
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .qsugg .qsugg-btn{
+      border:1px dashed var(--line);
+      background:transparent;
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .qsugg .qsugg-note{ font-size:12px; color:var(--muted) }
+    @media (prefers-color-scheme:dark){
+      .qsugg .qsugg-btn{ background:#e44b32; border-color:#1f2a38; color:#e8edf3 }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Derriford Staff Christmas Taxi — Booking</h1>
+      <p class="hint">Shift <strong>Start</strong> ➜ drop-off must be Derriford. &nbsp; Shift <strong>Finish</strong> ➜ pickup must be Derriford.</p>
+    </header>
+
+    <form id="bookingForm" class="card" novalidate>
+      <!-- 1) Ward / Staff -->
+      <div class="section">
+        <div class="title">Ward & Staff</div>
+        <div class="grid2">
+          <div class="row">
+            <label>Ward or Department Name *</label>
+            <input id="wardName" placeholder="e.g. Birch, Chestnut, Theatre, ICU" required />
+          </div>
+          <div class="row">
+            <label>Ward Phone Number *</label>
+            <input id="wardPhone" inputmode="tel" placeholder="e.g. 01752 43xxxx (ward line)" required />
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="row">
+            <label>Staff Name *</label>
+            <input id="staffName" autocapitalize="words" placeholder="e.g. Dr Jane Smith" required />
+          </div>
+          <div class="row">
+            <label>Staff Phone Number *</label>
+            <input id="staffPhone" inputmode="tel" placeholder="e.g. 07xxx xxxxxx (for driver contact)" required />
+          </div>
+        </div>
+      </div>
+
+      <!-- 2) Shift & Main Date/Time -->
+      <div class="section">
+        <div class="title">Shift & Time</div>
+        <div class="row">
+          <label>Shift *</label>
+          <div id="shiftBar" class="pillbar" role="tablist" aria-label="Select shift">
+            <span class="pill active" data-type="start" role="tab" aria-selected="true">Shift Start (to Derriford)</span>
+            <span class="pill ghost" data-type="finish" role="tab" aria-selected="false">Shift Finish (from Derriford)</span>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="row">
+            <label>On/Off Duty Time (HH:MM) *</label>
+            <div class="chipbar" id="mainTimeChips" aria-label="Quick time picks">
+              <span class="chip" data-time="08:00">08:00</span>
+              <span class="chip" data-time="20:00">20:00</span>
+            </div>
+            <input id="onOffDutyTime" type="time" required />
+          </div>
+          <div class="row">
+            <label>Pickup Date *</label>
+            <div class="chipbar" id="mainDateChips" aria-label="Quick date picks">
+              <span class="chip" data-date="2025-12-24">24 Dec 2025</span>
+              <span class="chip" data-date="2025-12-25">25 Dec 2025</span>
+              <span class="chip" data-date="2025-12-26">26 Dec 2025</span>
+              <span class="chip" data-date="2025-12-31">31 Dec 2025</span>
+              <span class="chip" data-date="2026-01-01">01 Jan 2026</span>
+            </div>
+            <input id="pickupDate" type="date" required />
+          </div>
+        </div>
+      </div>
+
+      <!-- 3) Addresses -->
+      <div class="section">
+        <div class="title">Journey</div>
+        <div class="row">
+          <label>From Pick Up Address *</label>
+          <input id="pickup" type="text" placeholder="Start typing address… (select from Google suggestions)" autocomplete="off" required />
+          <!-- Pinned first suggestion for pickup -->
+          <div class="qsugg" id="qsugg-pickup" hidden>
+            <button type="button" class="qsugg-btn" data-role="derri-pickup">Use Derriford Hospital (PL6 8DH)</button>
+            <span class="qsugg-note">Pinned suggestion</span>
+          </div>
+          <div class="hint small" id="pickupStatus"></div>
+        </div>
+        <div class="row">
+          <label>Drop Off Address *</label>
+          <input id="destination" type="text" placeholder="Start typing address… (select from Google suggestions)" autocomplete="off" required />
+          <!-- Pinned first suggestion for destination -->
+          <div class="qsugg" id="qsugg-dest" hidden>
+            <button type="button" class="qsugg-btn" data-role="derri-dest">Use Derriford Hospital (PL6 8DH)</button>
+            <span class="qsugg-note">Pinned suggestion</span>
+          </div>
+          <div class="hint small" id="destStatus"></div>
+        </div>
+      </div>
+
+      <!-- 4) Return -->
+      <div class="section return" id="sectionReturn">
+        <div class="title">Return (optional)</div>
+        <div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><strong>Add a return booking</strong></div>
+          <label class="switch" aria-label="Require return booking">
+            <input type="checkbox" id="requireReturn">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="returnFields" hidden>
+          <div class="grid2">
+            <div class="row">
+              <label>Return Date</label>
+              <div class="chipbar" id="retDateChips">
+                <span class="chip" data-date="2025-12-24">24 Dec 2025</span>
+                <span class="chip" data-date="2025-12-25">25 Dec 2025</span>
+                <span class="chip" data-date="2025-12-26">26 Dec 2025</span>
+                <span class="chip" data-date="2025-12-31">31 Dec 2025</span>
+                <span class="chip" data-date="2026-01-01">01 Jan 2026</span>
+              </div>
+              <input id="returnDate" type="date" />
+              <div class="hint small">Return will swap pickup &amp; drop-off and flip the shift.</div>
+            </div>
+
+            <div class="row">
+              <label>Return On/Off Duty Time <span class="hint small">(optional)</span></label>
+              <div class="chipbar" id="retTimeChips">
+                <span class="chip" data-time="08:00">08:00</span>
+                <span class="chip" data-time="20:00">20:00</span>
+              </div>
+              <input id="returnOnOffDutyTime" type="time" placeholder="Or choose a custom time" />
+              <div class="hint small">If blank, we’ll reuse the main time.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5) Charging / approvals -->
+      <div class="section">
+        <div class="title">Charging & Approval</div>
+        <div class="grid2">
+          <div class="row">
+            <label>Reason Code (2 chars) *</label>
+            <input id="reasonCode" maxlength="2" autocapitalize="characters" placeholder="e.g. P1 — patient transfer" required />
+            <div class="hint small">Two letters/numbers (e.g., P1, OT, A3).</div>
+          </div>
+          <div class="row">
+            <label>Budget Number (6 digits) *</label>
+            <input id="budgetNumber" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 123456" required />
+            <div class="hint small">Exactly 6 digits, no spaces.</div>
+          </div>
+        </div>
+        <div class="row">
+          <label>Full Name – Budget Holder *</label>
+          <input id="budgetHolderName" autocapitalize="words" placeholder="e.g. Dr Jane Smith (who approved the charge)" required />
+          <div class="hint small">Person authorising this journey’s cost centre.</div>
+        </div>
+        <div class="row">
+          <label>Booker  Signature</label>
+          <canvas id="sig" width="700" height="160" class="sig"></canvas>
+          <div class="actions">
+            <button type="button" class="btn sec" id="clearSig">Clear Signature</button>
+          </div>
+          <div class="hint small">Signature. Please sign with finger above.</div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="actions">
+        <button type="submit" class="btn" id="submitBtn">Submit Booking</button>
+        <div id="msg"></div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // ---------- Config ----------
+    const apiBase = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4000" : "";
+    const DERRI = { lat:50.4195, lng:-4.1090, name:"Derriford Hospital" };
+
+    // ---------- Helpers ----------
+    function toDDMMYY(iso){
+      if(!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso||"";
+      const [y,m,d]=iso.split("-");
+      return `${d}-${m}-${y.slice(2)}`;
+    }
+
+    function buildUkDisplayAddress(place){
+      const comps = place.addressComponents || place.address_components || [];
+      const get = (type) => {
+        const c = comps.find(c => (c.types || []).includes(type));
+        return (c && (c.longText || c.long_name)) || "";
+      };
+      const num   = get("street_number");
+      const route = get("route");
+      const city  = get("postal_town") || get("locality") || get("sublocality") || get("neighborhood");
+      const pcRaw = get("postal_code");
+      const postcode = pcRaw ? String(pcRaw).toUpperCase() : "";
+      const houseStreet = [num, route].filter(Boolean).join(" ").trim() || route || "";
+      let core = [houseStreet, city, postcode].filter(Boolean).join(", ").replace(/\s+,/g,",").trim();
+      const name = place.displayName?.text || place.name;
+      if (name && !core.toLowerCase().includes(String(name).toLowerCase())){
+        core = `${name}, ${core}`.replace(/\s+,/g,",").trim();
+      }
+      if (!core && (place.formattedAddress || place.formatted_address)) core = place.formattedAddress || place.formatted_address;
+      return core;
+    }
+
+    // ---------- State ----------
+    const S = { shiftType:'start', pickup:null, destination:null };
+
+    // Shift toggle
+    const pills = document.querySelectorAll('#shiftBar .pill');
+    pills.forEach(p => p.addEventListener('click', () => {
+      pills.forEach(x => x.classList.remove('active','ghost'));
+      pills.forEach(x => x.classList.add('ghost'));
+      p.classList.add('active'); p.classList.remove('ghost');
+      S.shiftType = p.dataset.type;
+    }));
+
+    // Quick chips
+    document.getElementById('mainTimeChips').addEventListener('click', (e)=>{
+      const c = e.target.closest('.chip[data-time]'); if(!c) return;
+      document.getElementById('onOffDutyTime').value = c.getAttribute('data-time');
+    });
+    document.getElementById('mainDateChips').addEventListener('click', (e)=>{
+      const c = e.target.closest('.chip[data-date]'); if(!c) return;
+      document.getElementById('pickupDate').value = c.getAttribute('data-date');
+    });
+
+    // Return toggle
+    const requireReturn = document.getElementById('requireReturn');
+    const returnFields  = document.getElementById('returnFields');
+    const sectionReturn = document.getElementById('sectionReturn');
+    requireReturn.addEventListener('change', ()=> {
+      const enabled = requireReturn.checked;
+      returnFields.hidden = !enabled;
+      sectionReturn.classList.toggle('active', enabled);
+      if(enabled){
+        document.getElementById('returnDate').value = document.getElementById('pickupDate').value;
+        document.getElementById('returnOnOffDutyTime').value = '';
+      }
+    });
+    document.getElementById('retDateChips').addEventListener('click', (e)=>{
+      const chip = e.target.closest('.chip[data-date]'); if(!chip) return;
+      document.getElementById('returnDate').value = chip.getAttribute('data-date');
+    });
+    document.getElementById('retTimeChips').addEventListener('click', (e)=>{
+      const chip = e.target.closest('.chip[data-time]'); if(!chip) return;
+      document.getElementById('returnOnOffDutyTime').value = chip.getAttribute('data-time');
+    });
+
+    // Signature pad
+    const canvas = document.getElementById("sig");
+    const ctx = canvas.getContext("2d");
+    let drawing=false, last=null;
+    function pos(e){
+      const r=canvas.getBoundingClientRect();
+      const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+      const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+      return {x,y};
+    }
+    function drawLine(a,b){
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+    const startDraw=e=>{ drawing=true; last=pos(e); e.preventDefault(); };
+    const moveDraw =e=>{ if(!drawing) return; const p=pos(e); drawLine(last,p); last=p; e.preventDefault(); };
+    const endDraw  =e=>{ drawing=false; e.preventDefault(); };
+    canvas.addEventListener('mousedown',startDraw);
+    canvas.addEventListener('mousemove',moveDraw);
+    canvas.addEventListener('mouseup',endDraw);
+    canvas.addEventListener('mouseleave',endDraw);
+    canvas.addEventListener('touchstart',startDraw,{passive:false});
+    canvas.addEventListener('touchmove',moveDraw,{passive:false});
+    canvas.addEventListener('touchend',endDraw);
+    document.getElementById('clearSig').addEventListener('click', ()=> ctx.clearRect(0,0,canvas.width,canvas.height));
+
+    // ===== Classic Places Autocomplete (reliable) =====
+    function attachClassicAutocomplete(inputId, statusId, onConfirm){
+      const inputEl  = document.getElementById(inputId);
+      const statusEl = document.getElementById(statusId);
+
+      const plymouth = new google.maps.LatLng(50.3755, -4.1427);
+      const biasCircle = new google.maps.Circle({ center: plymouth, radius: 30000 });
+
+      const ac = new google.maps.places.Autocomplete(inputEl, {
+        types: ['geocode'],
+        componentRestrictions: { country: 'gb' },
+        fields: ['place_id','geometry','name','formatted_address','address_components'],
+        bounds: biasCircle.getBounds(),
+        strictBounds: false
+      });
+
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (!place || !place.place_id || !place.geometry || !place.geometry.location) {
+          statusEl.textContent = 'Please pick an option from the list.';
+          onConfirm(null);
+          return;
+        }
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+
+        const formatted = (function(){
+          const comps = place.address_components || [];
+          const get = (type) => {
+            const c = comps.find(c => (c.types || []).includes(type));
+            return (c && c.long_name) || '';
+          };
+          const num   = get('street_number');
+          const route = get('route');
+          const city  = get('postal_town') || get('locality') || get('sublocality') || get('neighborhood');
+          const pcRaw = get('postal_code');
+          const postcode = pcRaw ? String(pcRaw).toUpperCase() : '';
+          const houseStreet = [num, route].filter(Boolean).join(' ').trim() || route || '';
+          let core = [houseStreet, city, postcode].filter(Boolean).join(', ').replace(/\s+,/g, ',').trim();
+          const name = place.name;
+          if (name && !core.toLowerCase().includes(String(name).toLowerCase())){
+            core = `${name}, ${core}`.replace(/\s+,/g, ',').trim();
+          }
+          return core || place.formatted_address || inputEl.value;
+        })();
+
+        inputEl.value = formatted;
+        statusEl.textContent = '✓ Address confirmed';
+        onConfirm({ placeId: place.place_id, lat, lng, formatted });
+      });
+
+      inputEl.addEventListener('input', () => { statusEl.textContent = ''; onConfirm(null); });
+    }
+
+    // ===== Pinned "Derriford Hospital" first-choice =====
+    const DerrifordPinned = {
+      predictionPlaceId: null, // filled by preload
+      label: 'Derriford Hospital (PL6 8DH)',
+      query: 'Derriford Hospital, Plymouth'
+    };
+
+    function preloadDerrifordPlaceId(){
+      try{
+        const svc = new google.maps.places.AutocompleteService();
+        const plymouth = new google.maps.LatLng(50.3755, -4.1427);
+        svc.getPlacePredictions({
+          input: DerrifordPinned.query,
+          componentRestrictions: { country: 'gb' },
+          location: plymouth,
+          radius: 30000
+        }, (preds, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && preds && preds.length){
+            DerrifordPinned.predictionPlaceId = preds[0].place_id;
+          } else {
+            // fallback: keep null; we will still set coords + a sentinel id
+            DerrifordPinned.predictionPlaceId = null;
+          }
+        });
+      }catch(e){ /* ignore */ }
+    }
+
+    function clickPinned(targetInputId, statusId, onConfirm){
+      const statusEl = document.getElementById(statusId);
+      const inputEl  = document.getElementById(targetInputId);
+
+      const applyDetails = (place) => {
+        const formatted = buildUkDisplayAddress(place) || `${DERRI.name}, Plymouth PL6 8DH`;
+        inputEl.value = formatted;
+        statusEl.textContent = '✓ Address confirmed';
+        const loc = place.geometry?.location || place.location;
+        const lat = typeof loc?.lat === 'function' ? loc.lat() : loc?.lat;
+        const lng = typeof loc?.lng === 'function' ? loc.lng() : loc?.lng;
+        onConfirm({ placeId: place.place_id || place.id || 'DERRIFORD_PLACE', lat: Number(lat||DERRI.lat), lng: Number(lng||DERRI.lng), formatted });
+      };
+
+      // If we have a real place_id, fetch full details
+      if (DerrifordPinned.predictionPlaceId){
+        const ps = new google.maps.places.PlacesService(document.createElement('div'));
+        ps.getDetails({
+          placeId: DerrifordPinned.predictionPlaceId,
+          fields: ['place_id','geometry','name','formatted_address','address_components']
+        }, (place, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && place){
+            applyDetails(place);
+          } else {
+            // fallback to coordinates + synthetic id
+            applyDetails({
+              place_id:'DERRIFORD_PLACE',
+              name:DERRI.name,
+              formatted_address:`${DERRI.name}, Plymouth PL6 8DH`,
+              geometry:{ location:{ lat:()=>DERRI.lat, lng:()=>DERRI.lng } },
+              address_components:[{ long_name:'PL6 8DH', types:['postal_code']}]
+            });
+          }
+        });
+      } else {
+        // No place_id (service failed) — fallback immediately
+        applyDetails({
+          place_id:'DERRIFORD_PLACE',
+          name:DERRI.name,
+          formatted_address:`${DERRI.name}, Plymouth PL6 8DH`,
+          geometry:{ location:{ lat:()=>DERRI.lat, lng:()=>DERRI.lng } },
+          address_components:[{ long_name:'PL6 8DH', types:['postal_code']}]
+        });
+      }
+    }
+
+    function setupPinnedUI(){
+      // Show pinned suggestion whenever the field is focused or empty
+      const pickupEl = document.getElementById('pickup');
+      const destEl   = document.getElementById('destination');
+      const qsPickup = document.getElementById('qsugg-pickup');
+      const qsDest   = document.getElementById('qsugg-dest');
+
+      const toggleQS = (el, qs) => {
+        qs.hidden = !(document.activeElement === el || !el.value.trim());
+      };
+
+      ['focus','blur','input'].forEach(ev=>{
+        pickupEl.addEventListener(ev, ()=> toggleQS(pickupEl, qsPickup));
+        destEl.addEventListener(ev,   ()=> toggleQS(destEl,   qsDest));
+      });
+      toggleQS(pickupEl, qsPickup);
+      toggleQS(destEl,   qsDest);
+
+      // Click handlers
+      qsPickup.querySelector('[data-role="derri-pickup"]').addEventListener('click', ()=> {
+        clickPinned('pickup','pickupStatus', v => S.pickup = v);
+      });
+      qsDest.querySelector('[data-role="derri-dest"]').addEventListener('click', ()=> {
+        clickPinned('destination','destStatus', v => S.destination = v);
+      });
+    }
+
+    function initPlaces(){
+      if (!google?.maps?.places?.Autocomplete) {
+        console.error('Google Places library missing. Check script tag & key restrictions.');
+        return;
+      }
+      attachClassicAutocomplete('pickup','pickupStatus', v => S.pickup = v);
+      attachClassicAutocomplete('destination','destStatus', v => S.destination = v);
+      preloadDerrifordPlaceId();
+      setupPinnedUI();
+    }
+    window.initPlaces = initPlaces;
+
+    // Derriford check (within ~900m)
+    function isDerriford(lat, lng){
+      const rad=d=>d*Math.PI/180, R=6371000;
+      const dLat=rad(DERRI.lat-lat), dLng=rad(DERRI.lng-lng);
+      const a=Math.sin(dLat/2)**2 + Math.cos(rad(lat))*Math.cos(rad(DERRI.lat))*Math.sin(dLng/2)**2;
+      const meters = 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      return meters <= 900;
+    }
+
+    // Defaults (rounded +10m)
+    function defaultDateTime(){
+      const now=new Date();
+      const dd = now.toISOString().slice(0,10);
+      const mins=now.getMinutes();
+      const rounded=Math.ceil((mins+10)/5)*5;
+      const hr=now.getHours()+Math.floor(rounded/60);
+      const m=rounded%60;
+      return { date: dd, time: String(hr).padStart(2,'0')+':'+String(m).padStart(2,'0') };
+    }
+    (function initDefaults(){
+      const d=defaultDateTime();
+      document.getElementById('pickupDate').value = d.date;
+      document.getElementById('onOffDutyTime').value = d.time;
+    })();
+
+    // Submit
+    document.getElementById('bookingForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const msg = document.getElementById('msg'); msg.textContent='';
+      const btn = document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Submitting…';
+
+      const wardName = document.getElementById('wardName').value.trim();
+      const wardPhone = document.getElementById('wardPhone').value.trim();
+      const staffName = document.getElementById('staffName').value.trim();
+      const staffPhone = document.getElementById('staffPhone').value.trim();
+      const onOffDutyTime = document.getElementById('onOffDutyTime').value;
+      const pickupDateISO = document.getElementById('pickupDate').value;
+
+      const reasonCode = document.getElementById('reasonCode').value.trim().toUpperCase();
+      const budgetNumber = document.getElementById('budgetNumber').value.trim();
+      const budgetHolderName = document.getElementById('budgetHolderName').value.trim();
+
+      const needReturn = document.getElementById('requireReturn').checked;
+      const returnDateISO = document.getElementById('returnDate').value;
+      const returnOnOffDutyTime = document.getElementById('returnOnOffDutyTime').value;
+
+      if(!wardName || !wardPhone || !staffName || !staffPhone || !onOffDutyTime || !pickupDateISO ||
+         !reasonCode || !budgetNumber || !budgetHolderName){
+        msg.innerHTML = '<span class="error">Please complete all required fields.</span>';
+        btn.disabled=false; btn.textContent='Submit Booking'; return;
+      }
+      if(!S.pickup?.placeId || !S.destination?.placeId){
+        msg.innerHTML = '<span class="error">Please select both Pickup and Drop Off from Google suggestions (or click the pinned option).</span>';
+        btn.disabled=false; btn.textContent='Submit Booking'; return;
+      }
+      if(!/^[A-Z0-9]{2}$/.test(reasonCode)){ msg.innerHTML='<span class="error">Reason Code must be 2 characters (e.g., P1).</span>'; btn.disabled=false; btn.textContent='Submit Booking'; return; }
+      if(!/^\d{6}$/.test(budgetNumber)){ msg.innerHTML='<span class="error">Budget Number must be exactly 6 digits.</span>'; btn.disabled=false; btn.textContent='Submit Booking'; return; }
+
+      if(S.shiftType==='start' && !isDerriford(S.destination.lat, S.destination.lng)){
+        msg.innerHTML='<span class="error">Shift Start: drop-off must be Derriford Hospital.</span>'; btn.disabled=false; btn.textContent='Submit Booking'; return;
+      }
+      if(S.shiftType==='finish' && !isDerriford(S.pickup.lat, S.pickup.lng)){
+        msg.innerHTML='<span class="error">Shift Finish: pickup must be Derriford Hospital.</span>'; btn.disabled=false; btn.textContent='Submit Booking'; return;
+      }
+
+      if(needReturn && !returnDateISO){
+        msg.innerHTML='<span class="error">Please select a Return Date or untick the return option.</span>'; btn.disabled=false; btn.textContent='Submit Booking'; return;
+      }
+
+      const signatureDataURL = document.getElementById('sig').toDataURL('image/png');
+      const signatureDrawn = (function(){
+        const blank=document.createElement('canvas'); blank.width=canvas.width; blank.height=canvas.height;
+        return canvas.toDataURL() !== blank.toDataURL();
+      })();
+
+      const payload = {
+        wardName, wardPhone, staffName, staffPhone,
+        shiftType: S.shiftType,
+        pickupDateISO, onOffDutyTime,
+        pickup: {...S.pickup},
+        destination: {...S.destination},
+        requireReturn: needReturn,
+        returnDateISO: needReturn ? returnDateISO : undefined,
+        returnOnOffDutyTime: needReturn ? (returnOnOffDutyTime||'') : undefined,
+        reasonCode, budgetNumber, budgetHolderName,
+        ...(signatureDrawn ? { budgetHolderSignatureDataURL: signatureDataURL } : {})
+      };
+
+      try{
+        const r = await fetch(`${apiBase}/api/bookings`,{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if(!r.ok || data?.error) throw new Error(data?.error || 'Booking failed');
+
+        const refs = [data.booking?.reference, data.returnBooking?.reference].filter(Boolean).join(' & ');
+        msg.innerHTML = '<span class="success">Booking saved' + (data.returnBooking ? ' (with return)' : '') + '. Reference: <strong>' + refs + '</strong></span>';
+
+        // Reset form
+        e.target.reset(); S.pickup=null; S.destination=null;
+        document.getElementById('pickupStatus').textContent=''; document.getElementById('destStatus').textContent='';
+        document.getElementById('qsugg-pickup').hidden = false;
+        document.getElementById('qsugg-dest').hidden   = false;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        returnFields.hidden = true; sectionReturn.classList.remove('active');
+        pills.forEach(x=>x.classList.remove('active','ghost')); pills.forEach(x=>x.classList.add('ghost'));
+        pills[0].classList.add('active'); pills[0].classList.remove('ghost'); S.shiftType='start';
+        const d=defaultDateTime(); document.getElementById('pickupDate').value = d.date; document.getElementById('onOffDutyTime').value = d.time;
+      }catch(err){
+        msg.innerHTML = '<span class="error">' + err.message + '</span>';
+      }finally{
+        btn.disabled=false; btn.textContent='Submit Booking';
+      }
+    });
+  </script>
+
+  <!-- Load Maps API (async, recommended) -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places&v=weekly&region=GB&language=en&loading=async&callback=initPlaces"
+    async
+    defer
+  ></script>
+</body>
+</html>

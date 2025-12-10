@@ -1,0 +1,50 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# Build & cache
+dist/
+build/
+.cache/
+.DS_Store
+*.log
+
+# OS & Editor junk
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+
+# Coverage / testing
+coverage/
+.nyc_output/
+
+# Render / deployment artifacts
+render.yaml
+vercel.json
+
+# Local database dumps
+*.sqlite
+*.db
+dump.rdb
+*.tgz
+
+# Temp files
+tmp/
+temp/
+*.bak
+*.old
+*.orig
+
+needacab-christmas-booking/

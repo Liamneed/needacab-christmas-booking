@@ -1,0 +1,119 @@
+{
+  "Barbican": [
+    {
+      "id": "barbican_1",
+      "label": "Coop Hoegate Street",
+      "formatted": "Coop Hoegate Street 8 Hoegate St, Plymouth PL1 2JB",
+      "lat": 50.36821616877178,
+      "lng": -4.138724196090167
+    }
+  ],
+  "City East": [
+    {
+      "id": "city_east_1",
+      "label": "Turtle Bay",
+      "formatted": "Turtle Bay 5 St Andrews Cross Roundabout, Plymouth PL1 1AB",
+      "lat": null,
+      "lng": -4.138457115343881
+    }
+  ],
+  "Devonport": [
+    {
+      "id": "devonport_1",
+      "label": "Coop Duke Street",
+      "formatted": "Coop Duke Street, Devonport, Plymouth PL1 4HN",
+      "lat": 50.36981320845228,
+      "lng": -4.173590764468543
+    }
+  ],
+  "Greenbank": [
+    {
+      "id": "greenbank_1",
+      "label": "Spar North Hill",
+      "formatted": "Spar North Hill 46 North Hill, Plymouth PL4 8EU",
+      "lat": 50.37698423925843,
+      "lng": -4.135987363604842
+    }
+  ],
+  "Hoe": [
+    {
+      "id": "hoe_1",
+      "label": "Coop Hoegate Street",
+      "formatted": "Coop Hoegate Street 8 Hoegate St, Plymouth PL1 2JB",
+      "lat": 50.36821616877178,
+      "lng": -4.138724196090167
+    }
+  ],
+  "Lipson": [
+    {
+      "id": "lipson_1",
+      "label": "Bus Stop Tothill Avenue",
+      "formatted": "Bus Stop Tothill Avenue Plymouth PL4 8PJ",
+      "lat": 50.37336668891046,
+      "lng": -4.128759146848264
+    }
+  ],
+  "Millbay": [
+    {
+      "id": "millbay_1",
+      "label": "KFC Octagon",
+      "formatted": "KFC Octagon,77 Union St, Stonehouse, Plymouth PL1 1TE",
+      "lat": 50.369633291499746,
+      "lng": -4.15140788682811
+    }
+  ],
+  "Millbridge": [
+    {
+      "id": "millbridge_1",
+      "label": "Coop Wilton Street",
+      "formatted": "Coop Wilton Street, Millbridge, Plymouth PL1 5LU",
+      "lat": 50.37637551179119,
+      "lng": -4.1570364739748085
+    }
+  ],
+  "Mount Gould": [
+    {
+      "id": "mount_gould_1",
+      "label": "Coop Mount Gould",
+      "formatted": "Coop Mount Gould, 131 Beaumont Rd, Plymouth PL4 9EG",
+      "lat": 50.37565616370314,
+      "lng": -4.118894544984415
+    }
+  ],
+  "Mutley": [
+    {
+      "id": "mutley_1",
+      "label": "Post Office Mutley Plain",
+      "formatted": "Post Office Mutley Plain,  Mutley, Plymouth PL4 6LL",
+      "lat": 50.382050727752116,
+      "lng": -4.134036153975114
+    }
+  ],
+  "North Cross": [
+    {
+      "id": "north_cross_1",
+      "label": "Plymouth Station",
+      "formatted": "Plymouth Railway Station, North Road, Plymouth PL4 6AB",
+      "lat": null,
+      "lng": -4.143707635725814
+    }
+  ],
+  "St Judes": [
+    {
+      "id": "st_judes_1",
+      "label": "Bus Stop Tothill Avenue",
+      "formatted": "Bus Stop Tothill Avenue Plymouth PL4 8PJ",
+      "lat": 50.37336668891046,
+      "lng": -4.128759146848264
+    }
+  ],
+  "Stonehouse": [
+    {
+      "id": "stonehouse_1",
+      "label": "Toys R Us Bus Stop",
+      "formatted": "Toys R Us Bus Stop Stonehouse, Plymouth PL1 1AJ",
+      "lat": 50.37128592340575,
+      "lng": -4.148691534183015
+    }
+  ]
+}

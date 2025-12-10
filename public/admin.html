@@ -1,0 +1,2366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Taxi — Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b0d10; --card:#12161c; --ink:#e9eef4; --muted:#9bb0c2; --line:#202630;
+      --ok:#1ea672; --warn:#e7a03c; --err:#d23f3f; --brand:#f6c423; --chip:#1b222c;
+      --btn:#151b22; --btnHover:#1b2330; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
+    a{text-decoration:none;color:inherit}
+
+    /* NAVBAR */
+    .navbar{
+      position:sticky;top:0;z-index:20;
+      display:flex;justify-content:space-between;align-items:center;
+      background:#0d1218;border-bottom:1px solid var(--line);padding:12px 20px;
+    }
+    .nav-left{display:flex;gap:16px;align-items:center}
+    .nav-left a{padding:8px 12px;border-radius:10px;font-weight:600}
+    .nav-left a:hover{background:#1a222d}
+    .nav-left a.active{background:var(--brand);color:#111}
+
+    /* LAYOUT */
+    .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
+    .card{
+      background:var(--card);border:1px solid var(--line);
+      border-radius:var(--radius);padding:18px;
+    }
+    h1{font-size:20px;margin:0 0 12px}
+    h2{font-size:18px;margin:0 0 12px}
+    .muted{color:var(--muted);font-size:12px}
+
+    /* CONTROLS + BUTTONS */
+    .controls,.toolbar,.row-actions{
+      display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
+    }
+    .btn{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:10px 12px; font:inherit; cursor:pointer;
+    }
+    .btn:hover{background:var(--btnHover)}
+    .btn.primary{background:var(--brand);color:#111;border-color:#e0b21e}
+    .btn.primary:hover{filter:brightness(0.95)}
+    .btn.alt{background:#113c2c;border-color:#1a5d45}
+    .btn.alt:hover{background:#164c38}
+    .btn.ghost{background:transparent}
+    .btn.small{
+      padding:6px 10px;
+      font-size:12px;
+      border-radius:999px;
+    }
+
+    label{display:flex;align-items:center;gap:8px;font-size:13px;}
+
+    input[type="date"], input[type="number"], select{
+      background:var(--btn); color:var(--ink); border:1px solid var(--line);
+      border-radius:10px; padding:8px 10px; font:inherit;
+      min-height:40px;
+      width:180px;
+    }
+    #radiusKm, #tolMins, #timeWindowMins, #maxBusStops { width: 90px; }
+    input:hover, select:hover{border-color:#2a3342}
+
+    /* Make the calendar icon visible on dark background */
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    /* TABLES */
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:10px 10px;vertical-align:top}
+    th{font-weight:600;text-align:left;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:1}
+    tr:hover td{background:#0f141b}
+
+    /* PILLS / TAGS */
+    .pill{
+      display:inline-block;padding:6px 12px;border-radius:999px;font-weight:600;
+      background:var(--chip);border:1px solid var(--line);color:#cfd8e3;cursor:pointer;
+    }
+    .pill.active{background:var(--brand);color:#111;border-color:#e0b21e}
+    .tag{display:inline-block;padding:3px 8px;background:var(--brand);color:#111;border-radius:999px;font-size:12px;margin-left:6px}
+    .subtag{display:inline-block;padding:2px 6px;background:#263241;color:#cfd8e3;border-radius:999px;font-size:11px;margin-left:6px}
+    .zonechip{display:inline-block;padding:2px 6px;background:var(--chip);color:#cfd8e3;border:1px solid var(--line);border-radius:999px;font-size:11px;margin-left:6px}
+
+    /* BUS PICKUP BADGE */
+    .pickup-badge{
+      display:inline-block;
+      margin-left:6px;
+      padding:2px 8px;
+      font-size:11px;
+      border-radius:999px;
+      background:#14532d;
+      color:#bbf7d0;
+      border:1px solid #16a34a;
+      white-space:nowrap;
+    }
+
+    /* TAXI PACKS */
+    .packs{display:flex;flex-direction:column;gap:10px}
+    .taxi{
+      border:1px dashed #334154;border-radius:10px;padding:12px;background:#0e141b;
+    }
+    .taxi h4{margin:0 0 6px 0;font-size:13px;color:#d7e0ea}
+    .addr{display:block;color:#d7e0ea;font-size:12px;line-height:1.3}
+
+    .hr{height:1px;background:var(--line);margin:10px 0}
+
+    /* TABS */
+    .tabs{
+      display:flex;gap:8px;margin-bottom:4px;margin-top:-4px;
+      flex-wrap:wrap;
+    }
+    .tab{
+      padding:8px 14px;border-radius:999px;border:1px solid var(--line);
+      background:var(--btn);color:var(--ink);cursor:pointer;font-size:14px;
+    }
+    .tab.active{
+      background:var(--brand);color:#111;border-color:#e0b21e;
+    }
+
+    /* SMS TEMPLATE FORM */
+    .form-row{
+      display:grid;gap:6px;margin-bottom:12px;
+    }
+    .form-row label{
+      font-weight:600;
+      align-items:flex-start;
+    }
+    textarea{
+      background:var(--btn);color:var(--ink);border:1px solid var(--line);
+      border-radius:10px;padding:8px 10px;font:inherit;min-height:90px;
+      resize:vertical;
+    }
+    code{
+      background:#111827;padding:2px 5px;border-radius:4px;font-size:12px;
+    }
+    .status-ok{color:var(--ok);font-size:12px;}
+    .status-err{color:var(--err);font-size:12px;}
+
+    /* MODAL (for Smart Pack booking confirm) */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,0.6);
+      display:flex;align-items:center;justify-content:center;
+      z-index:50;
+    }
+    .modal{
+      background:var(--card);border-radius:16px;border:1px solid var(--line);
+      width:100%;max-width:520px;padding:18px 18px 14px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.55);
+    }
+    .modal-header{
+      display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+    }
+    .modal-title{font-size:16px;font-weight:600;}
+    .modal-body{
+      display:grid;gap:10px;margin-bottom:10px;font-size:13px;
+    }
+    .modal-row{
+      display:flex;flex-direction:column;gap:4px;
+    }
+    .modal-row label{font-size:12px;color:var(--muted);}
+    .modal-row input,.modal-row textarea,.modal-row select{
+      width:100%;
+      min-height:34px;
+      padding:6px 9px;
+      background:var(--btn);color:var(--ink);border-radius:10px;border:1px solid var(--line);
+      font:inherit;
+    }
+    .modal-row textarea{min-height:80px;resize:vertical;}
+    .modal-footer{
+      display:flex;justify-content:space-between;align-items:center;margin-top:6px;
+    }
+    .hidden{display:none;}
+    .error-text{color:var(--err);font-size:12px;}
+
+    /* QUICK DATES */
+    .quick-dates{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+      font-size:12px;
+    }
+    .quick-dates span{
+      color:var(--muted);
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #111827;
+      border-radius: 999px;
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+      z-index: 80;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .toast-ok {
+      border-color: var(--ok);
+    }
+    .toast-err {
+      border-color: var(--err);
+    }
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+    }
+    .toast-err .toast-dot {
+      background: var(--err);
+    }
+
+    /* Pickup editor inputs */
+    .pp-label,
+    .pp-formatted,
+    .pp-lat,
+    .pp-lng {
+      width: 100%;
+      min-height: 32px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--btn);
+      color: var(--ink);
+      font: inherit;
+    }
+    .pp-label:hover,
+    .pp-formatted:hover,
+    .pp-lat:hover,
+    .pp-lng:hover {
+      border-color: #2a3342;
+    }
+
+    /* MANUAL ROUTE EDITOR */
+    .addr-list{
+      margin-top:6px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .addr-row{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+    }
+    .addr-main{
+      flex:1;
+      color:#d7e0ea;
+      line-height:1.3;
+    }
+    .addr-time-input{
+      width:70px;
+      min-height:28px;
+      padding:4px 6px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:var(--btn);
+      color:var(--ink);
+      font-size:11px;
+    }
+    .addr-time-input::placeholder{
+      color:var(--muted);
+    }
+    .addr-move-btn{
+      min-width:26px;
+      padding:3px 0;
+      font-size:11px;
+      line-height:1;
+      border-radius:999px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/">Home</a>
+      <a href="/admin" class="active">Admin</a>
+      <a href="/staff_booker.html">Staff Booker</a>
+      <a href="/chat">Chat Booker</a>
+      <a href="/bookings">Bookings</a>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header class="card">
+      <h1>Derriford Staff Taxi — Admin</h1>
+      <div class="controls">
+        <span class="muted">
+          Allocation engine: <strong>Smart Pack (buses first)</strong>
+        </span>
+        <span class="muted">
+          API: <code id="apiBaseLabel"></code>
+        </span>
+      </div>
+    </header>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="reports">Smart Pack</button>
+      <button class="tab" data-tab="templates">SMS Templates</button>
+      <button class="tab" data-tab="pickups">Pickup Points</button>
+    </div>
+
+    <!-- SMART PACK TAB -->
+    <div data-tab-content="reports">
+      <section class="card">
+        <h2>Smart Pack — Allocate Buses &amp; Taxis</h2>
+        <div class="toolbar">
+          <label>Date
+            <input type="date" id="grpDate">
+          </label>
+
+          <div class="quick-dates">
+            <span>Quick:</span>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="0">Today</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="1">Tomorrow</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-offset="7">+7 days</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="xmas-eve">Christmas Eve</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="xmas-day">Christmas Day</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="boxing-day">Boxing Day</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="nye">New Year's Eve</button>
+            <button class="btn small ghost" data-qdate-target="grpDate" data-qdate-special="nyd">New Year's Day</button>
+          </div>
+
+          <div id="typeToggle" style="display:flex;gap:8px;align-items:center">
+            <span class="pill active" data-type="start">Shift Start (to Derriford)</span>
+            <span class="pill" data-type="finish">Shift Finish (from Derriford)</span>
+          </div>
+
+          <label>Radius (miles)
+            <input type="number" id="radiusKm" value="1" step="0.5" min="0.5">
+          </label>
+
+          <label>Time window (mins)
+            <input type="number" id="timeWindowMins" value="180" step="15" min="30">
+          </label>
+
+          <label>Max stops per bus
+            <input type="number" id="maxBusStops" value="19" step="1" min="3">
+          </label>
+
+          <label>Coach mode
+            <select id="coachMode">
+              <option value="auto" selected>Fill buses first</option>
+              <option value="off">Ignore buses</option>
+            </select>
+          </label>
+
+          <label>Route order
+            <select id="routeOrder">
+              <option value="optimise" selected>Optimise route</option>
+              <option value="asis">Keep cluster order</option>
+            </select>
+          </label>
+
+          <label style="font-size:12px;gap:6px;">
+            <input type="checkbox" id="groupPickupPoints">
+            Group pickup points per vehicle
+          </label>
+
+          <button id="loadGroups" class="btn alt">Load</button>
+          <button id="smartPack" class="btn primary">Smart Pack All</button>
+          <button id="exportSmartCsv" class="btn ghost" disabled>Export Smart Pack CSV</button>
+        </div>
+
+        <div id="smartOutput" class="packs" style="margin-top:14px;"></div>
+        <p class="muted" style="margin-top:6px">
+          Smart Pack looks at all bookings for the selected <strong>date + shift</strong>, then:
+          <br>
+          • fills your <strong>bus fleet first</strong> (2×19, 2×16) using mainly
+            <strong>City East, Barbican, Greenbank, Lipson, North Cross, Hoe, City West, St Judes, Mount Gould, Mutley</strong>,<br>
+          • keeps buses within <strong>nearby zones</strong> so routes aren’t spread all over the city,<br>
+          • splits very large groups so <strong>no bus exceeds its seat capacity</strong> and no taxi/MPV shows more than
+            <strong>8 seats</strong>,<br>
+          • uses your <strong>8/7/6/5/4 seaters</strong> for the remaining zones and more remote bookings,<br>
+          • lets you <strong>reorder pickups</strong> and add your own times before booking directly into Autocab.
+        </p>
+      </section>
+    </div>
+
+    <!-- SMS TEMPLATES TAB -->
+    <section class="card" data-tab-content="templates" style="display:none;">
+      <h2>SMS Templates — Approve / Decline</h2>
+      <p class="muted" style="margin-bottom:10px;">
+        These templates are used when you approve or decline a booking from the dashboard.
+        Edit once here and the system will reuse the wording every time.
+      </p>
+
+      <div class="form-row">
+        <label for="tplApprove">Approved SMS Template</label>
+        <textarea id="tplApprove" spellcheck="false"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label for="tplDecline">Declined SMS Template</label>
+        <textarea id="tplDecline" spellcheck="false"></textarea>
+      </div>
+
+      <div class="form-row">
+        <span class="muted">
+          <strong>Available placeholders:</strong><br/>
+          <code>{{date}}</code> = pickup date (dd-mm-yy) &nbsp;
+          <code>{{time}}</code> = on/off duty time<br/>
+          <code>{{pickup}}</code> = pickup address &nbsp;
+          <code>{{destination}}</code> = drop-off address<br/>
+          <code>{{staff}}</code> = staff name &nbsp;
+          <code>{{ref}}</code> = booking reference<br/>
+          <code>{{reason}}</code> = decline reason (for declined SMS)
+        </span>
+      </div>
+
+      <div class="controls">
+        <button id="tplSave" class="btn primary">Save Templates</button>
+        <span id="tplMsg" class="muted"></span>
+      </div>
+    </section>
+
+    <!-- PICKUP POINTS TAB -->
+    <section class="card" data-tab-content="pickups" style="display:none;">
+      <h2>Zone Pickup Points (for Buses)</h2>
+      <p class="muted" style="margin-bottom:10px;">
+        These pickup points are used when a <strong>Bus 1–4</strong> is allocated by Smart Pack.
+        For each zone you can define one or more pickup points (bus stops / landmarks).
+        When booking a bus, we will use one pickup per zone instead of every home address.
+      </p>
+
+      <div class="controls" style="margin-bottom:10px;">
+        <button id="btnAddZone" class="btn small">Add Zone</button>
+        <button id="btnSavePickups" class="btn primary small">Save Pickup Points</button>
+      </div>
+
+      <div id="pickupEditor"></div>
+    </section>
+  </div>
+
+  <!-- BOOK TAXI MODAL -->
+  <div id="bookModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Confirm Taxi / Bus Booking</div>
+        <button class="btn ghost" id="btnBookClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label>Stops (first pickup, vias, final destination)</label>
+          <textarea id="bookStops" readonly></textarea>
+        </div>
+        <div class="modal-row">
+          <label for="bookDate">Pickup Date</label>
+          <input id="bookDate" type="date">
+        </div>
+        <div class="modal-row">
+          <label for="bookTime">Pickup Time (e.g. 07:30)</label>
+          <input id="bookTime" type="text" placeholder="HH:MM or HHMM">
+        </div>
+        <div class="modal-row">
+          <label for="bookPassengers">Passengers (total)</label>
+          <input id="bookPassengers" type="number" min="1" step="1">
+        </div>
+        <div class="modal-row">
+          <label for="bookVehicle">Suggested Vehicle Size</label>
+          <input id="bookVehicle" type="number" min="4" step="1" readonly>
+        </div>
+        <div class="modal-row">
+          <span id="bookError" class="error-text"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnBookCancel">Cancel</button>
+        <button class="btn primary" id="btnBookConfirm">Confirm &amp; Book</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast toast-ok">
+    <span class="toast-dot"></span>
+    <span id="toastText"></span>
+  </div>
+
+  <script>
+    // API base: localhost in dev, origin in prod
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
+
+    const apiBaseLabel = document.getElementById("apiBaseLabel");
+    if (apiBaseLabel) apiBaseLabel.textContent = apiBase;
+
+    async function fetchJSON(url, opts) {
+      const r = await fetch(url, opts);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.error || (url + " failed"));
+      return data;
+    }
+
+    /* ---------- TOAST ---------- */
+    const toast = document.getElementById("toast");
+    const toastText = document.getElementById("toastText");
+    let toastTimeout = null;
+
+    function showToast(message, type = "ok") {
+      if (!toast || !toastText) return;
+      toastText.textContent = message;
+      toast.classList.remove("toast-ok", "toast-err");
+      toast.classList.add(type === "err" ? "toast-err" : "toast-ok");
+      toast.classList.add("show");
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 3500);
+    }
+
+    /* ---------- TABS ---------- */
+    const tabButtons = document.querySelectorAll(".tab");
+    const tabContents = document.querySelectorAll("[data-tab-content]");
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.tab;
+        tabButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        tabContents.forEach(sec => {
+          sec.style.display = sec.getAttribute("data-tab-content") === target ? "" : "none";
+        });
+      });
+    });
+
+    /* ---------- SMART PACK (auto best vehicle) ---------- */
+    const R_EARTH = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    function haversineMeters(a,b){
+      if(!a||!b||a.lat==null||b.lat==null)return 1e12;
+      const dLat=toRad(b.lat-a.lat),dLng=toRad(b.lng-a.lng);
+      const la1=toRad(a.lat),la2=toRad(b.lat);
+      const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+      return 2*R_EARTH*Math.asin(Math.sqrt(h));
+    }
+
+    // Approx Derriford Hospital location (used to order pickups/drop-offs)
+    const DERRIFORD_COORD = {
+      lat: 50.416,
+      lng: -4.114
+    };
+
+    function getRouteOrderMode() {
+      const sel = document.getElementById("routeOrder");
+      return sel ? sel.value : "optimise";
+    }
+
+    // Greedy route from Derriford + 2-opt improvement
+    function optimiseRouteFromDerriford(items) {
+      if (!items || items.length <= 1) return null;
+
+      const n = items.length;
+      const unused = new Set(Array.from({length:n}, (_,i)=>i));
+      const order = [];
+      const coordFor = (p) => ({
+        lat: p.lat != null ? p.lat : DERRIFORD_COORD.lat,
+        lng: p.lng != null ? p.lng : DERRIFORD_COORD.lng
+      });
+      let current = { lat: DERRIFORD_COORD.lat, lng: DERRIFORD_COORD.lng };
+
+      // Nearest neighbour initial route
+      while (unused.size) {
+        let bestIdx = null;
+        let bestDist = Infinity;
+        for (const idx of unused) {
+          const p = items[idx];
+          const coord = coordFor(p);
+          const d = haversineMeters(current, coord);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = idx;
+          }
+        }
+        order.push(bestIdx);
+        const bestPoint = items[bestIdx];
+        current = coordFor(bestPoint);
+        unused.delete(bestIdx);
+      }
+
+      // 2-opt improvement pass
+      function routeDistance(ord) {
+        let dist = 0;
+        let prev = { lat: DERRIFORD_COORD.lat, lng: DERRIFORD_COORD.lng };
+        for (const idx of ord) {
+          const p = items[idx];
+          const coord = coordFor(p);
+          dist += haversineMeters(prev, coord);
+          prev = coord;
+        }
+        return dist;
+      }
+
+      let bestOrder = order.slice();
+      let bestDist = routeDistance(bestOrder);
+      const maxIter = 40;
+      let improved = true;
+      let iter = 0;
+
+      while (improved && iter < maxIter) {
+        improved = false;
+        iter++;
+        for (let i = 0; i < n - 2; i++) {
+          for (let k = i + 1; k < n - 1; k++) {
+            const newOrder = bestOrder.slice();
+            const segment = newOrder.slice(i, k + 1).reverse();
+            newOrder.splice(i, k - i + 1, ...segment);
+            const newDist = routeDistance(newOrder);
+            if (newDist + 1 < bestDist) {
+              bestDist = newDist;
+              bestOrder = newOrder;
+              improved = true;
+            }
+          }
+        }
+      }
+
+      return bestOrder;
+    }
+
+    // Sort a group's stops into a SHORT route around Derriford.
+    function sortGroupByRoute(group) {
+      const mode = getRouteOrderMode();
+      if (!group || group.length <= 1 || mode === "asis") return;
+
+      const orderIdx = optimiseRouteFromDerriford(group);
+      if (!orderIdx) return;
+
+      let ordered = orderIdx.map(i => group[i]);
+
+      // For START (to Derriford), we want to END at Derriford, so reverse.
+      if (groupType === "start") {
+        ordered = ordered.reverse();
+      }
+
+      group.splice(0, group.length, ...ordered);
+    }
+
+    // Time windows + coach tuning (overridable from UI)
+    let TIME_WINDOW_MINS = 180;
+    let MAX_COACH_STOPS = 19;
+    let groupPickupPoints = false; // display mode flag
+
+    function timeStrToMinutes(str){
+      const v = (str || "").trim();
+      if (!v) return null;
+      let m = v.match(/^(\d{1,2}):(\d{2})$/);
+      if (m){
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
+      }
+      m = v.match(/^(\d{1,2})(\d{2})$/);
+      if (m){
+        const h = Number(m[1]), min = Number(m[2]);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
+      }
+      return null;
+    }
+
+    function minutesToTimeStr(total){
+      const h = Math.floor(total/60);
+      const m = total % 60;
+      return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+    }
+
+    // Label using earliest booking time as base
+    function bucketLabelFromIndex(bucketIdx, baseMinutes){
+      if (bucketIdx == null || bucketIdx < 0) return "No time";
+      const startM = baseMinutes + bucketIdx * TIME_WINDOW_MINS;
+      const endM = startM + TIME_WINDOW_MINS - 1;
+      return `${minutesToTimeStr(startM)}–${minutesToTimeStr(endM)}`;
+    }
+
+    function setToday(inputEl){
+      if(!inputEl.value){
+        const d=new Date();
+        inputEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      }
+    }
+    const grpDate=document.getElementById("grpDate");
+    setToday(grpDate);
+
+    const typePills=document.querySelectorAll("#typeToggle .pill");
+    let groupType="start";
+    function clearSmartState(){
+      lastSmartBuckets=null;
+      lastSmartParams=null;
+      document.getElementById("smartOutput").innerHTML="";
+      document.getElementById("exportSmartCsv").disabled = true;
+    }
+    typePills.forEach(p=>p.addEventListener("click",()=>{
+      typePills.forEach(x=>x.classList.remove("active"));
+      p.classList.add("active");
+      groupType=p.dataset.type;
+      clearSmartState();
+    }));
+
+    let currentGroups=[];
+    let lastSmartBuckets=null;
+    let lastSmartParams=null;
+
+    async function loadGroups(){
+      const date=document.getElementById("grpDate").value||"";
+      const url=new URL(`${apiBase}/api/reports/shift-groups`);
+      url.searchParams.set("type",groupType);
+      if(date)url.searchParams.set("date",date);
+      const json=await fetchJSON(url.toString());
+      currentGroups=json.groups||[];
+      clearSmartState();
+    }
+
+    // Fleet config: fixed named buses to fill first
+    const COACHES = [
+      { size: 19, name: "Bus 1", reg: "LX11DPK" },
+      { size: 19, name: "Bus 2", reg: "PN12CTK" },
+      { size: 16, name: "Bus 3", reg: "LK16VCW" },
+      { size: 16, name: "Bus 4", reg: "KT17YNC" },
+    ];
+
+    // Buses should mainly cover these inner-city zones
+    const BUS_PRIORITY_ZONES = [
+      "City East",
+      "Barbican",
+      "Greenbank",
+      "Lipson",
+      "North Cross",
+      "Hoe",
+      "City West",
+      "St Judes",
+      "Mount Gould",
+      "Mutley"
+    ];
+    const BUS_PRIORITY_ZONES_SET = new Set(BUS_PRIORITY_ZONES);
+
+    function getCoachMode() {
+      const sel = document.getElementById("coachMode");
+      return sel ? sel.value : "auto";
+    }
+
+    // Zone pickup configuration loaded from backend
+    let zonePickups = {}; // { zoneName: [ {id,label,formatted,lat,lng}, … ] }
+
+    async function loadZonePickups() {
+      try {
+        const data = await fetchJSON(`${apiBase}/api/settings/zone-pickups`);
+        zonePickups = data || {};
+        renderPickupEditor();
+      } catch (err) {
+        console.error("Failed to load zone pickups", err);
+        showToast("Couldn’t load zone pickup points.", "err");
+      }
+    }
+
+    async function saveZonePickups() {
+      try {
+        await fetchJSON(`${apiBase}/api/settings/zone-pickups`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(zonePickups)
+        });
+        showToast("Zone pickup points saved.", "ok");
+      } catch (err) {
+        console.error("Failed to save zone pickups", err);
+        showToast("Failed to save zone pickup points.", "err");
+      }
+    }
+
+    function normalizeAddr(rec, zone, time){
+      if (typeof rec === "object") {
+        const baseText =
+          rec.formatted ||
+          [rec.houseNumber, rec.street, rec.town, rec.postCode]
+            .filter(Boolean)
+            .join(" ");
+
+        const staffName = rec.staffName || "";
+        const staffPhone = rec.staffPhone || "";
+        const pickupPointLabel = rec.pickupPointLabel || rec.pickupPoint || "";
+
+        const noteParts = [];
+        if (pickupPointLabel) noteParts.push(`Pickup point: ${pickupPointLabel}`);
+        if (staffName) noteParts.push(`Customer: ${staffName}`);
+        if (staffPhone) noteParts.push(`Tel: ${staffPhone}`);
+        const note = noteParts.join(" | ");
+
+        return {
+          formatted: baseText,
+          lat: rec.lat,
+          lng: rec.lng,
+          zone: zone || rec.pickupPointZone || "(unknown)",
+          time: "",
+          staffName,
+          staffPhone,
+          pickupPointLabel,
+          note,
+          userTime: ""
+        };
+      }
+      return {
+        formatted: String(rec || ""),
+        lat: null,
+        lng: null,
+        zone: zone || "(unknown)",
+        time: "",
+        staffName: "",
+        staffPhone: "",
+        pickupPointLabel: "",
+        note: "",
+        userTime: ""
+      };
+    }
+
+    // Build time buckets with windows starting from earliest booking time on that day
+    function buildTimeBucketsFromGroups(groups){
+      const map = new Map();
+      const entries = [];
+      let minMinutes = null;
+
+      // First pass: collect mins and find earliest time
+      for(const g of groups){
+        const timeStr = g.onOffDutyTime || "";
+        const mins = timeStrToMinutes(timeStr);
+        entries.push({ g, mins });
+        if (mins != null && (minMinutes === null || mins < minMinutes)){
+          minMinutes = mins;
+        }
+      }
+
+      if (minMinutes === null) minMinutes = 0; // fallback if no valid times
+
+      // Second pass: assign to buckets relative to earliest time
+      for (const { g, mins } of entries){
+        const zone = g.zoneName || "(unknown)";
+        const timeStr = g.onOffDutyTime || "";
+        const bucketIdx = mins == null ? -1 : Math.floor((mins - minMinutes) / TIME_WINDOW_MINS);
+        const label = mins == null ? "No time" : bucketLabelFromIndex(bucketIdx, minMinutes);
+
+        const addrs = g.addresses || [];
+        for(const a of addrs){
+          const addr = normalizeAddr(a, zone, timeStr);
+          addr._minutes = mins;
+          addr._bucketIdx = bucketIdx;
+          let bucket = map.get(bucketIdx);
+          if(!bucket){
+            bucket = { bucketIdx, label, baseMinutes: minMinutes, addresses: [] };
+            map.set(bucketIdx, bucket);
+          }
+          bucket.addresses.push(addr);
+        }
+      }
+
+      return Array.from(map.values()).sort((a,b)=>a.bucketIdx - b.bucketIdx);
+    }
+
+    // --- Geo clustering & per-cluster fleet allocation ---
+
+    function greedyCluster(addresses, radiusMeters) {
+      if (!addresses || !addresses.length) return [];
+      const remaining = addresses.slice();
+      const clusters = [];
+
+      const coordFor = (a) => ({
+        lat: a.lat != null ? a.lat : DERRIFORD_COORD.lat,
+        lng: a.lng != null ? a.lng : DERRIFORD_COORD.lng
+      });
+
+      while (remaining.length) {
+        const cluster = [];
+
+        // Seed each cluster with the passenger farthest from Derriford
+        let seedIdx = 0;
+        let bestDist = -1;
+        remaining.forEach((a, idx) => {
+          const d = haversineMeters(DERRIFORD_COORD, coordFor(a));
+          if (d > bestDist) {
+            bestDist = d;
+            seedIdx = idx;
+          }
+        });
+        cluster.push(remaining.splice(seedIdx, 1)[0]);
+
+        // Pull in any other passengers within radiusMeters of ANYONE in the cluster
+        let added;
+        do {
+          added = false;
+          for (let i = remaining.length - 1; i >= 0; i--) {
+            const cand = remaining[i];
+            let inRange = false;
+            for (const member of cluster) {
+              const d = haversineMeters(coordFor(member), coordFor(cand));
+              if (d <= radiusMeters) {
+                inRange = true;
+                break;
+              }
+            }
+            if (inRange) {
+              cluster.push(cand);
+              remaining.splice(i, 1);
+              added = true;
+            }
+          }
+        } while (added);
+
+        clusters.push(cluster);
+      }
+
+      return clusters;
+    }
+
+    // Group passengers by pickup point where possible
+    function buildPickupGroupsFromAddresses(addresses) {
+      const groupsMap = new Map();
+
+      addresses.forEach(a => {
+        let label = a.pickupPointLabel || "";
+
+        if (!label) {
+          const pts = zonePickups[a.zone] || [];
+          if (pts.length) {
+            label = pts[0].label || pts[0].formatted || "";
+          }
+        }
+
+        const key = label ? `PP:${label}` : `ADDR:${a.formatted}`;
+
+        if (!groupsMap.has(key)) {
+          groupsMap.set(key, {
+            key,
+            pickupLabel: label,
+            zone: a.zone,
+            members: []
+          });
+        }
+        groupsMap.get(key).members.push(a);
+      });
+
+      const groups = Array.from(groupsMap.values());
+      groups.forEach(g => {
+        let latSum = 0, lngSum = 0, count = 0;
+        g.members.forEach(a => {
+          if (a.lat != null && a.lng != null) {
+            latSum += a.lat;
+            lngSum += a.lng;
+            count++;
+          }
+        });
+        if (count > 0) {
+          g.center = { lat: latSum / count, lng: lngSum / count };
+        } else {
+          g.center = { lat: DERRIFORD_COORD.lat, lng: DERRIFORD_COORD.lng };
+        }
+        g.size = g.members.length;
+      });
+
+      return groups;
+    }
+
+    // *** UPDATED: fill buses first with as many people from the SAME ZONE as possible ***
+    function allocateCoachesAcrossZones(addresses, availableCoaches, radiusMeters) {
+      const packs = [];
+      if (!addresses || !addresses.length || !availableCoaches || !availableCoaches.length) {
+        return { packs, remaining: addresses || [] };
+      }
+
+      let unassigned = addresses.slice();
+      const COACH_MIN_PAX = 9;
+
+      // Helper: zone -> list of unassigned passengers in priority zones
+      function buildZoneLists() {
+        const zoneMap = new Map();
+        unassigned.forEach(a => {
+          const zone = a.zone || "(unknown)";
+          if (!BUS_PRIORITY_ZONES_SET.has(zone)) return;
+          if (!zoneMap.has(zone)) zoneMap.set(zone, []);
+          zoneMap.get(zone).push(a);
+        });
+        return zoneMap;
+      }
+
+      // STEP 1: create as many SINGLE-ZONE buses as possible (to reduce pickup points)
+      while (availableCoaches.length) {
+        const zoneMap = buildZoneLists();
+        const zones = Array.from(zoneMap.entries());
+        if (!zones.length) break;
+
+        // Pick the zone with the biggest passenger count
+        zones.sort((a, b) => b[1].length - a[1].length);
+        const [zoneName, zoneAddrs] = zones[0];
+        const zonePax = zoneAddrs.length;
+
+        // Only justify a dedicated bus if there are enough pax
+        if (zonePax < COACH_MIN_PAX) break;
+
+        const maxCoachSize = Math.max(...availableCoaches.map(c => c.size));
+        const required = Math.min(zonePax, maxCoachSize);
+
+        // Choose the smallest coach that can handle "required"
+        let coach = null;
+        const sortedCoaches = availableCoaches.slice().sort((a, b) => a.size - b.size);
+        for (const c of sortedCoaches) {
+          if (c.size >= required) {
+            coach = c;
+            break;
+          }
+        }
+        if (!coach) {
+          coach = sortedCoaches[sortedCoaches.length - 1];
+        }
+
+        const takeCount = Math.min(coach.size, zonePax);
+        const busMembers = zoneAddrs.slice(0, takeCount);
+
+        // Remove these passengers from unassigned
+        const toRemove = new Set(busMembers);
+        unassigned = unassigned.filter(a => !toRemove.has(a));
+
+        // Route + metadata
+        sortGroupByRoute(busMembers);
+        busMembers._vehicleCapacity = coach.size;
+        busMembers._vehicleName = `${coach.name} (${coach.reg})`;
+        busMembers._booked = false;
+        packs.push(busMembers);
+
+        // Remove coach from pool
+        const idxCoach = availableCoaches.indexOf(coach);
+        if (idxCoach !== -1) availableCoaches.splice(idxCoach, 1);
+      }
+
+      // Helper for STEP 2 (multi-zone buses for leftovers)
+      function buildZoneStatsFromUnassigned() {
+        const zoneMap = new Map();
+        unassigned.forEach(a => {
+          const zone = a.zone || "(unknown)";
+          if (!BUS_PRIORITY_ZONES_SET.has(zone)) return;
+          if (!zoneMap.has(zone)) zoneMap.set(zone, []);
+          zoneMap.get(zone).push(a);
+        });
+
+        const stats = [];
+        zoneMap.forEach((list, zone) => {
+          let latSum = 0, lngSum = 0, count = 0;
+          list.forEach(a => {
+            if (a.lat != null && a.lng != null) {
+              latSum += a.lat;
+              lngSum += a.lng;
+              count++;
+            }
+          });
+          const center = count
+            ? { lat: latSum / count, lng: lngSum / count }
+            : { lat: DERRIFORD_COORD.lat, lng: DERRIFORD_COORD.lng };
+          const distance = haversineMeters(DERRIFORD_COORD, center);
+          stats.push({ zone, list, center, distance, pax: list.length });
+        });
+        return stats;
+      }
+
+      // STEP 2: multi-zone buses (for remaining priority-zone leftovers)
+      while (availableCoaches.length) {
+        const stats = buildZoneStatsFromUnassigned();
+        if (!stats.length) break;
+
+        let totalPax = 0;
+        stats.forEach(s => { totalPax += s.pax; });
+        if (totalPax < COACH_MIN_PAX) break;
+
+        const seedCandidates = stats.filter(s => s.pax >= COACH_MIN_PAX);
+        if (!seedCandidates.length) break;
+
+        seedCandidates.sort((a, b) => b.pax - a.pax || b.distance - a.distance);
+        const seed = seedCandidates[0];
+
+        const maxCoachSize = Math.max(...availableCoaches.map(c => c.size));
+        const required = Math.min(seed.pax, totalPax, maxCoachSize);
+
+        let coach = null;
+        const sortedCoaches = availableCoaches.slice().sort((a, b) => a.size - b.size);
+        for (const c of sortedCoaches) {
+          if (c.size >= required) {
+            coach = c;
+            break;
+          }
+        }
+        if (!coach) {
+          coach = sortedCoaches[sortedCoaches.length - 1];
+        }
+
+        const busMembers = [];
+        let capacityRemaining = coach.size;
+
+        function pullZoneIntoBus(zone) {
+          if (capacityRemaining <= 0) return;
+          const nextUnassigned = [];
+          unassigned.forEach(a => {
+            const z = a.zone || "(unknown)";
+            if (capacityRemaining > 0 && z === zone && BUS_PRIORITY_ZONES_SET.has(zone)) {
+              busMembers.push(a);
+              capacityRemaining--;
+            } else {
+              nextUnassigned.push(a);
+            }
+          });
+          unassigned = nextUnassigned;
+        }
+
+        pullZoneIntoBus(seed.zone);
+        let stopsCount = 1;
+
+        while (capacityRemaining > 0 && stopsCount < MAX_COACH_STOPS) {
+          const remainingStats = buildZoneStatsFromUnassigned();
+          if (!remainingStats.length) break;
+
+          let busLatSum = 0, busLngSum = 0, bCount = 0;
+          busMembers.forEach(a => {
+            if (a.lat != null && a.lng != null) {
+              busLatSum += a.lat;
+              busLngSum += a.lng;
+              bCount++;
+            }
+          });
+          const busCenter = bCount
+            ? { lat: busLatSum / bCount, lng: busLngSum / bCount }
+            : seed.center;
+
+          let bestZone = null;
+          let bestDist = Infinity;
+          remainingStats.forEach(s => {
+            if (s.pax <= 0 || s.pax > capacityRemaining) return;
+            const d = haversineMeters(busCenter, s.center);
+            if (d <= radiusMeters && d < bestDist) {
+              bestDist = d;
+              bestZone = s;
+            }
+          });
+
+          if (!bestZone) break;
+          pullZoneIntoBus(bestZone.zone);
+          stopsCount++;
+        }
+
+        if (busMembers.length < COACH_MIN_PAX) {
+          // Not efficient enough; put them back and stop
+          unassigned = unassigned.concat(busMembers);
+          break;
+        }
+
+        sortGroupByRoute(busMembers);
+        busMembers._vehicleCapacity = coach.size;
+        busMembers._vehicleName = `${coach.name} (${coach.reg})`;
+        busMembers._booked = false;
+        packs.push(busMembers);
+
+        const idxCoach = availableCoaches.indexOf(coach);
+        if (idxCoach !== -1) availableCoaches.splice(idxCoach, 1);
+      }
+
+      return { packs, remaining: unassigned };
+    }
+
+    // Allocate one local cluster to buses first (if any left), then 8/7/6/5/4 seaters.
+    function allocateClusterToFleet(addresses, availableCoaches) {
+      const result = [];
+      if (!addresses || !addresses.length) return result;
+
+      const groups = buildPickupGroupsFromAddresses(addresses);
+      let unassigned = groups.filter(g => g.size > 0);
+
+      const COACH_MIN_PAX = 9;
+      const coaches = availableCoaches;
+      const totalPax = (list) => list.reduce((sum, g) => sum + g.size, 0);
+
+      // 1) BUSES for this cluster (if any coaches passed in)
+      while (coaches.length && totalPax(unassigned) >= COACH_MIN_PAX) {
+        const paxRemaining = totalPax(unassigned);
+
+        let coach = null;
+        const candidatesGE = coaches.filter(c => c.size >= paxRemaining);
+        if (candidatesGE.length) {
+          coach = candidatesGE.slice().sort((a,b)=>a.size - b.size)[0];
+        } else {
+          coach = coaches.slice().sort((a,b)=>b.size - a.size)[0];
+        }
+        if (!coach) break;
+
+        let remainingCap = coach.size;
+        const busPack = [];
+        let stopCount = 0;
+
+        let seedIdx = -1;
+        let bestDist = -1;
+        unassigned.forEach((g, idx) => {
+          if (g.size > remainingCap) return;
+          const d = haversineMeters(DERRIFORD_COORD, g.center);
+          if (d > bestDist) {
+            bestDist = d;
+            seedIdx = idx;
+          }
+        });
+        if (seedIdx === -1) break;
+
+        const seed = unassigned.splice(seedIdx, 1)[0];
+        busPack.push(...seed.members);
+        remainingCap -= seed.size;
+        stopCount += 1;
+        let lastCenter = seed.center;
+
+        while (remainingCap > 0 && stopCount < MAX_COACH_STOPS && unassigned.length > 0) {
+          let bestIdx2 = -1;
+          let bestDist2 = Infinity;
+          unassigned.forEach((g, idx) => {
+            if (g.size > remainingCap) return;
+            const d = haversineMeters(lastCenter, g.center);
+            if (d < bestDist2) {
+              bestDist2 = d;
+              bestIdx2 = idx;
+            }
+          });
+          if (bestIdx2 === -1) break;
+          const g = unassigned.splice(bestIdx2, 1)[0];
+          busPack.push(...g.members);
+          remainingCap -= g.size;
+          stopCount += 1;
+          lastCenter = g.center;
+        }
+
+        sortGroupByRoute(busPack);
+        busPack._vehicleCapacity = coach.size;
+        busPack._vehicleName = `${coach.name} (${coach.reg})`;
+        busPack._booked = false;
+        result.push(busPack);
+
+        const coachIdx = coaches.indexOf(coach);
+        if (coachIdx !== -1) coaches.splice(coachIdx, 1);
+      }
+
+      // 2) REMAINDER → 8/7/6/5/4-SEATERS, splitting huge pickup groups where needed
+      while (unassigned.length > 0) {
+        const paxRemaining = totalPax(unassigned);
+
+        let capLimit;
+        if (paxRemaining >= 8) capLimit = 8;
+        else if (paxRemaining >= 7) capLimit = 7;
+        else if (paxRemaining >= 6) capLimit = 6;
+        else if (paxRemaining >= 5) capLimit = 5;
+        else capLimit = 4;
+
+        let seedIdx = -1;
+        let bestDist = -1;
+        unassigned.forEach((g, idx) => {
+          if (g.size > capLimit) return;
+          const d = haversineMeters(DERRIFORD_COORD, g.center);
+          if (d > bestDist) {
+            bestDist = d;
+            seedIdx = idx;
+          }
+        });
+
+        if (seedIdx === -1) {
+          // All remaining groups are larger than capLimit (e.g. one big Mutley group).
+          // Split the largest pickup group into multiple MPVs of max 8 seats.
+          const bigIdx = unassigned.reduce((best, g, idx) => {
+            if (best === -1 || g.size > unassigned[best].size) return idx;
+            return best;
+          }, -1);
+          if (bigIdx === -1) break;
+
+          const big = unassigned.splice(bigIdx, 1)[0];
+          const members = big.members.slice();
+
+          while (members.length) {
+            const chunk = members.splice(0, 8);
+            const vehiclePack = chunk.slice();
+            sortGroupByRoute(vehiclePack);
+
+            const pax = vehiclePack.length;
+            let vehicleSize;
+            if (pax <= 4) vehicleSize = 4;
+            else if (pax <= 5) vehicleSize = 5;
+            else if (pax <= 6) vehicleSize = 6;
+            else if (pax <= 7) vehicleSize = 7;
+            else vehicleSize = 8;
+
+            vehiclePack._vehicleCapacity = vehicleSize;
+            vehiclePack._vehicleName =
+              vehicleSize === 8 ? "8-seater" :
+              vehicleSize === 7 ? "7-seater" :
+              vehicleSize === 6 ? "6-seater" :
+              vehicleSize === 5 ? "5-seater" :
+              "4-seater";
+            vehiclePack._booked = false;
+            result.push(vehiclePack);
+          }
+          continue;
+        }
+
+        const seed = unassigned.splice(seedIdx, 1)[0];
+        const vehiclePack = [];
+        vehiclePack.push(...seed.members);
+        let currentPax = seed.size;
+        let lastCenter = seed.center;
+
+        while (unassigned.length > 0) {
+          let bestIdx2 = -1;
+          let bestDist2 = Infinity;
+          unassigned.forEach((g, idx) => {
+            if (currentPax + g.size > capLimit) return;
+            const d = haversineMeters(lastCenter, g.center);
+            if (d < bestDist2) {
+              bestDist2 = d;
+              bestIdx2 = idx;
+            }
+          });
+          if (bestIdx2 === -1) break;
+          const g = unassigned.splice(bestIdx2, 1)[0];
+          vehiclePack.push(...g.members);
+          currentPax += g.size;
+          lastCenter = g.center;
+        }
+
+        sortGroupByRoute(vehiclePack);
+
+        const pax = vehiclePack.length;
+        let vehicleSize;
+        if (pax <= 4) vehicleSize = 4;
+        else if (pax <= 5) vehicleSize = 5;
+        else if (pax <= 6) vehicleSize = 6;
+        else if (pax <= 7) vehicleSize = 7;
+        else if (pax <= 8) vehicleSize = 8;
+        else vehicleSize = pax;
+
+        vehiclePack._vehicleCapacity = vehicleSize;
+        vehiclePack._vehicleName =
+          vehicleSize === 8 ? "8-seater" :
+          vehicleSize === 7 ? "7-seater" :
+          vehicleSize === 6 ? "6-seater" :
+          vehicleSize === 5 ? "5-seater" :
+          vehicleSize === 4 ? "4-seater" :
+          `${vehicleSize}-seater`;
+        vehiclePack._booked = false;
+        result.push(vehiclePack);
+      }
+
+      return result;
+    }
+
+    const VEHICLE_SIZES = [8,7,6,5,4];
+
+    function pickVehicleCapacity(pax){
+      if(pax <= 4) return 4;
+      const sorted = [...VEHICLE_SIZES].sort((a,b)=>a-b);
+      for(const size of sorted){
+        if(size >= pax) return size;
+      }
+      return pax;
+    }
+
+    function buildCoachZoneStops(pack) {
+      const zoneStopMap = new Map();
+
+      pack.forEach(a => {
+        const zone = a.zone || "(unknown)";
+
+        if (zoneStopMap.has(zone)) return;
+
+        const pts = zonePickups[zone] || [];
+        if (pts.length) {
+          const pt = pts[0];
+          zoneStopMap.set(zone, {
+            zone,
+            label: pt.label || zone,
+            formatted: pt.formatted || pt.label || zone,
+            lat: pt.lat ?? a.lat,
+            lng: pt.lng ?? a.lng
+          });
+        } else {
+          zoneStopMap.set(zone, {
+            zone,
+            label: a.formatted,
+            formatted: a.formatted,
+            lat: a.lat,
+            lng: a.lng
+          });
+        }
+      });
+
+      const stops = Array.from(zoneStopMap.values());
+      sortGroupByRoute(stops);
+      return stops;
+    }
+
+    function renderSmartOutput(buckets){
+      const out=document.getElementById("smartOutput");
+      out.innerHTML="";
+      let taxiCounter=1;
+
+      buckets.forEach((bucket, bIndex)=>{
+        const totalPax = bucket.taxis.reduce((n,t)=>n+t.length,0);
+        const col=document.createElement("div");
+        col.innerHTML=`<h4>${bucket.label} <span class="tag">${totalPax} pax total</span></h4>`;
+
+        bucket.taxis.forEach((pack, tIndex)=>{
+          const pax = pack.length;
+          const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
+          const vehicleLabel = pack._vehicleName
+            ? pack._vehicleName
+            : `${vehicleSize}-seater`;
+
+          const isCoach = /^Bus\s+\d/.test(vehicleLabel);
+
+          const zones = Array.from(new Set(pack.map(a=>a.zone))).join(", ");
+
+          let pickupSummaryHtml = "";
+          if (isCoach) {
+            const coachStops = buildCoachZoneStops(pack);
+            if (coachStops.length) {
+              const chips = coachStops.map(s =>
+                `<span class="subtag">${s.zone} → ${String(s.label).replace(/</g,"&lt;")}</span>`
+              ).join(" ");
+              pickupSummaryHtml = `<div class="muted" style="margin-top:4px;">
+                Bus pickup points: ${chips}
+              </div>`;
+            }
+          }
+
+          const listText = pack.map((a, idx) => {
+            const timeDisp = a.userTime ? ` (${a.userTime})` : "";
+            const notePart = a.note ? " — " + a.note : "";
+            return `${idx+1}. ${a.formatted}${timeDisp}${notePart}`;
+          }).join("\n");
+
+          const addrHtml = buildAddrRowsHtml(pack, isCoach, bIndex, tIndex);
+
+          const wrap=document.createElement("div");
+          wrap.className="taxi";
+          wrap.innerHTML=`
+            <h4>
+              Taxi ${taxiCounter++} — ${pax} pax — ${vehicleLabel}
+              <span class="zonechip">${zones}</span>
+              ${pack._booked ? '<span class="subtag">Booked</span>' : ''}
+            </h4>
+            ${pickupSummaryHtml}
+            ${addrHtml}
+            <div class="row-actions" style="margin-top:6px;">
+              <button class="btn alt small copy" data-text="${listText.replace(/"/g,'&quot;')}">Copy</button>
+              <button
+                class="btn primary small"
+                data-book-bucket="${bIndex}"
+                data-book-taxi="${tIndex}"
+                ${pack._booked ? 'disabled' : ''}
+              >${pack._booked ? 'Booked' : 'Book Taxi'}</button>
+            </div>
+          `;
+          col.appendChild(wrap);
+        });
+        out.appendChild(col);
+      });
+
+      out.querySelectorAll(".copy").forEach(b=>{
+        b.addEventListener("click",()=>{
+          const t=b.getAttribute("data-text");
+          navigator.clipboard.writeText(t).catch(()=>{});
+          b.textContent="Copied"; setTimeout(()=>b.textContent="Copy",1200);
+        });
+      });
+    }
+
+    function buildAddrRowsHtml(pack, isCoach, bIndex, tIndex) {
+      const rows = [];
+
+      if (groupPickupPoints) {
+        const groups = new Map();
+
+        pack.forEach((a, idx) => {
+          let pickupLabel = a.pickupPointLabel;
+          if (!pickupLabel) {
+            const pts = zonePickups[a.zone] || [];
+            if (pts.length) {
+              pickupLabel = pts[0].label || pts[0].formatted || "";
+            }
+          }
+          if (pickupLabel) {
+            a.pickupPointLabel = a.pickupPointLabel || pickupLabel;
+            const key = pickupLabel;
+            if (!groups.has(key)) {
+              groups.set(key, {
+                label: pickupLabel,
+                idxs: [],
+                sample: a,
+                names: [],
+                zone: a.zone
+              });
+            }
+            const g = groups.get(key);
+            g.idxs.push(idx);
+            if (a.staffName) g.names.push(a.staffName);
+          } else {
+            rows.push({
+              idx,
+              pickupLabel: "",
+              formatted: a.formatted,
+              note: a.note || "",
+              userTime: a.userTime || ""
+            });
+          }
+        });
+
+        const grouped = Array.from(groups.values())
+          .sort((a,b)=>Math.min(...a.idxs) - Math.min(...b.idxs));
+
+        grouped.forEach(g => {
+          const sample = g.sample;
+          const baseText = g.label;
+          const paxText = ` — ${g.idxs.length} pax`;
+          const namesText = g.names.length ? ` — ${g.names.join(", ")}` : "";
+          const noteText = sample.note ? ` — ${sample.note}` : "";
+          rows.push({
+            idx: Math.min(...g.idxs),
+            pickupLabel: g.label,
+            formatted: baseText + paxText + namesText + noteText,
+            note: "",
+            userTime: sample.userTime || ""
+          });
+        });
+
+      } else {
+        pack.forEach((a, idx)=>{
+          let pickupLabel = a.pickupPointLabel;
+          if (!pickupLabel) {
+            const pts = zonePickups[a.zone] || [];
+            if (pts.length) {
+              pickupLabel = pts[0].label || pts[0].formatted || "";
+            }
+          }
+          if (pickupLabel) {
+            a.pickupPointLabel = a.pickupPointLabel || pickupLabel;
+          }
+          const baseText = `${idx+1}. ${a.formatted}`;
+          const noteText = a.note ? " — " + a.note : "";
+          rows.push({
+            idx,
+            pickupLabel,
+            formatted: baseText + noteText,
+            note: "",
+            userTime: a.userTime || ""
+          });
+        });
+      }
+
+      rows.sort((a,b)=>a.idx - b.idx);
+
+      return `
+        <div class="addr-list" data-bucket="${bIndex}" data-taxi="${tIndex}">
+          ${
+            rows.map((r, displayIndex) => {
+              const displayText = groupPickupPoints
+                ? `${displayIndex+1}. ${r.formatted}`
+                : r.formatted;
+              const safeText = displayText.replace(/</g,"&lt;");
+              const badge = (isCoach && r.pickupLabel)
+                ? `<span class="pickup-badge">${String(r.pickupLabel).replace(/</g,"&lt;")}</span>`
+                : "";
+              const timeVal = r.userTime || "";
+              const moveButtons = groupPickupPoints
+                ? ""
+                : `
+                  <button class="btn small ghost addr-move-btn addr-up">↑</button>
+                  <button class="btn small ghost addr-move-btn addr-down">↓</button>
+                `;
+              return `
+                <div class="addr-row" data-idx="${r.idx}" ${r.pickupLabel ? `data-pickup-label="${r.pickupLabel.replace(/"/g,'&quot;')}"` : ""}>
+                  ${moveButtons}
+                  <span class="addr-main">
+                    ${safeText}${badge}
+                  </span>
+                  <input
+                    class="addr-time-input"
+                    type="text"
+                    maxlength="5"
+                    placeholder="HH:MM"
+                    value="${timeVal.replace(/"/g,'&quot;')}"
+                  />
+                </div>
+              `;
+            }).join("")
+          }
+        </div>
+      `;
+    }
+
+    async function smartPackAll(){
+      if(!currentGroups.length) await loadGroups();
+
+      const radiusMiles = Number(document.getElementById("radiusKm").value || 1);
+      const radiusMeters = Math.max(200, radiusMiles * 1609.34);
+
+      const twInput = Number(document.getElementById("timeWindowMins")?.value || 180);
+      TIME_WINDOW_MINS = Math.max(15, twInput);
+
+      const maxStopsInput = Number(document.getElementById("maxBusStops")?.value || 19);
+      MAX_COACH_STOPS = maxStopsInput > 0 ? maxStopsInput : 19;
+
+      const timeBuckets = buildTimeBucketsFromGroups(currentGroups);
+      if (!timeBuckets.length){
+        document.getElementById("smartOutput").innerHTML =
+          "<p class='muted'>No bookings found for this date and shift.</p>";
+        document.getElementById("exportSmartCsv").disabled = true;
+        return;
+      }
+
+      const dateLabel = document.getElementById("grpDate").value || "All";
+      const shiftLabel = groupType.toUpperCase();
+
+      const buckets = [];
+
+      timeBuckets.forEach(tb => {
+        if (!tb.addresses || !tb.addresses.length) return;
+
+        const coachMode = getCoachMode();
+        const taxis = [];
+        let unassigned = tb.addresses.slice();
+
+        // 1) BUSES ACROSS PRIORITY ZONES (now zone-first)
+        if (coachMode !== "off" && unassigned.length) {
+          const availableCoaches = [...COACHES];
+          const coachRes = allocateCoachesAcrossZones(unassigned, availableCoaches, radiusMeters);
+          coachRes.packs.forEach(p => taxis.push(p));
+          unassigned = coachRes.remaining;
+        }
+
+        // 2) REMAINING BOOKINGS → CLUSTERS → MPVs + cars
+        if (unassigned.length) {
+          const rawClusters = greedyCluster(unassigned, radiusMeters) || [];
+
+          const clusters = rawClusters.map(cluster => {
+            let latSum = 0, lngSum = 0, count = 0;
+            cluster.forEach(a => {
+              if (a.lat != null && a.lng != null) {
+                latSum += a.lat;
+                lngSum += a.lng;
+                count++;
+              }
+            });
+            const center = count
+              ? { lat: latSum / count, lng: lngSum / count }
+              : { lat: DERRIFORD_COORD.lat, lng: DERRIFORD_COORD.lng };
+            const distance = haversineMeters(DERRIFORD_COORD, center);
+            return { cluster, center, distance, pax: cluster.length };
+          }).sort((a, b) => b.distance - a.distance || b.pax - a.pax);
+
+          clusters.forEach(entry => {
+            const clusterGroups = allocateClusterToFleet(entry.cluster, []);
+            clusterGroups.forEach(g => taxis.push(g));
+          });
+        }
+
+        if (!taxis.length) return;
+
+        buckets.push({
+          label: `${dateLabel} — ${shiftLabel} — ${tb.label}`,
+          taxis
+        });
+      });
+
+      lastSmartBuckets = buckets;
+      lastSmartParams = {
+        date: document.getElementById("grpDate").value || "",
+        type: groupType,
+        radiusMiles,
+        timeWindowMins: TIME_WINDOW_MINS,
+        maxBusStops: MAX_COACH_STOPS
+      };
+      document.getElementById("exportSmartCsv").disabled = !buckets.length;
+      renderSmartOutput(buckets);
+    }
+
+    document.getElementById("loadGroups").addEventListener("click",loadGroups);
+    document.getElementById("smartPack").addEventListener("click",smartPackAll);
+
+    const groupPickupPointsCheckbox = document.getElementById("groupPickupPoints");
+    if (groupPickupPointsCheckbox) {
+      groupPickupPointsCheckbox.addEventListener("change", () => {
+        groupPickupPoints = !!groupPickupPointsCheckbox.checked;
+        if (lastSmartBuckets) {
+          renderSmartOutput(lastSmartBuckets);
+        }
+      });
+    }
+
+    function toCsvCell(s){
+      const v = String(s==null?"":s);
+      if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+      return v;
+    }
+    function downloadCSV(filename, rows){
+      const header = Object.keys(rows[0] || {});
+      const lines = [
+        header.map(toCsvCell).join(","),
+        ...rows.map(r => header.map(k => toCsvCell(r[k])).join(","))
+      ].join("\n");
+      const blob = new Blob([lines], { type:"text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+    function buildSmartCsvRows(buckets, params){
+      const rows = [];
+      let taxiNoGlobal = 1;
+      const metaDate = params?.date || "";
+      const metaShift = (params?.type === "finish" ? "finish" : "start");
+      buckets.forEach(bucket => {
+        bucket.taxis.forEach(pack => {
+          const zones = Array.from(new Set(pack.map(a=>a.zone))).filter(Boolean).join(", ");
+          const addresses = pack
+            .map((a, idx)=>{
+              const timeDisp = a.userTime ? ` (${a.userTime})` : "";
+              const notePart = a.note ? " — " + a.note : "";
+              return `${idx+1}. ${a.formatted}${timeDisp}${notePart}`;
+            })
+            .join(" | ");
+          const pax = pack.length;
+          const vehicleSize = pack._vehicleCapacity || pickVehicleCapacity(pax);
+          const vehicleLabel = pack._vehicleName
+            ? pack._vehicleName
+            : `${vehicleSize}-seater`;
+          rows.push({
+            Date: metaDate,
+            Shift: metaShift,
+            Bucket: bucket.label,
+            Taxi: `Taxi ${taxiNoGlobal++}`,
+            Passengers: String(pax),
+            SuggestedVehicle: vehicleLabel,
+            Zones: zones,
+            Addresses: addresses
+          });
+        });
+      });
+      return rows;
+    }
+    function smartCsvFilename(params){
+      const d = params?.date || "all";
+      const t = params?.type || "start";
+      const r = (params?.radiusMiles ?? params?.radiusKm ?? 0) + "mi";
+      const tw = params?.timeWindowMins ?? 180;
+      return `smartpack_${d}_${t}_auto_${r}_${tw}m.csv`;
+    }
+    document.getElementById("exportSmartCsv").addEventListener("click", ()=>{
+      if (!lastSmartBuckets || !lastSmartBuckets.length) return;
+      const rows = buildSmartCsvRows(lastSmartBuckets, lastSmartParams);
+      if (!rows.length) return;
+      downloadCSV(smartCsvFilename(lastSmartParams), rows);
+    });
+
+    /* ---------- SMS TEMPLATES API ---------- */
+    async function loadSmsTemplates() {
+      const msgEl = document.getElementById("tplMsg");
+      msgEl.textContent = "Loading…";
+      msgEl.className = "muted";
+      try {
+        const data = await fetchJSON(`${apiBase}/api/settings/sms-templates`);
+        document.getElementById("tplApprove").value = data.approve || "";
+        document.getElementById("tplDecline").value = data.decline || "";
+        msgEl.textContent = "Loaded current templates.";
+        msgEl.className = "status-ok";
+      } catch (err) {
+        msgEl.textContent = "Could not load templates: " + err.message;
+        msgEl.className = "status-err";
+      }
+    }
+
+    async function saveSmsTemplates() {
+      const msgEl = document.getElementById("tplMsg");
+      msgEl.textContent = "Saving…";
+      msgEl.className = "muted";
+      try {
+        const approve = document.getElementById("tplApprove").value;
+        const decline = document.getElementById("tplDecline").value;
+        await fetchJSON(`${apiBase}/api/settings/sms-templates`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approve, decline })
+        });
+        msgEl.textContent = "Templates saved.";
+        msgEl.className = "status-ok";
+        showToast("SMS templates saved.", "ok");
+      } catch (err) {
+        msgEl.textContent = "Save failed: " + err.message;
+        msgEl.className = "status-err";
+        showToast("Failed to save SMS templates.", "err");
+      }
+    }
+
+    document.getElementById("tplSave").addEventListener("click", saveSmsTemplates);
+
+    /* ---------- PICKUP POINTS UI ---------- */
+    const pickupEditor = document.getElementById("pickupEditor");
+    const btnAddZone   = document.getElementById("btnAddZone");
+    const btnSavePickups = document.getElementById("btnSavePickups");
+
+    function renderPickupEditor() {
+      if (!pickupEditor) return;
+
+      const zones = Object.keys(zonePickups || {}).sort();
+      if (!zones.length) {
+        pickupEditor.innerHTML = `<p class="muted">No zones defined yet. Click “Add Zone” to create one.</p>`;
+        return;
+      }
+
+      const html = zones.map(zone => {
+        const points = zonePickups[zone] || [];
+        const rows = points.map((pt, idx) => `
+          <tr data-zone="${zone}" data-index="${idx}">
+            <td><input class="pp-label"    value="${pt.label || ""}"></td>
+            <td><input class="pp-formatted" value="${pt.formatted || ""}"></td>
+            <td><input class="pp-lat"      value="${pt.lat ?? ""}"></td>
+            <td><input class="pp-lng"      value="${pt.lng ?? ""}"></td>
+            <td>
+              <button class="btn small ghost pp-del">✕</button>
+            </td>
+          </tr>
+        `).join("");
+
+        return `
+          <div class="card" style="margin-bottom:10px;">
+            <div class="controls" style="justify-content:space-between;margin-bottom:8px;">
+              <div>
+                <strong>${zone}</strong>
+              </div>
+              <div>
+                <button class="btn small ghost pp-add-point" data-zone="${zone}">Add pickup</button>
+                <button class="btn small ghost pp-del-zone" data-zone="${zone}">Delete zone</button>
+              </div>
+            </div>
+            <table style="width:100%;font-size:13px;">
+              <thead>
+                <tr>
+                  <th>Label (shown in list)</th>
+                  <th>Formatted address (sent to Autocab)</th>
+                  <th>Lat</th>
+                  <th>Lng</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows || ""}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join("");
+
+      pickupEditor.innerHTML = html;
+    }
+
+    if (btnAddZone) {
+      btnAddZone.addEventListener("click", () => {
+        const name = prompt("New zone name (must match the zone name from reports):");
+        if (!name) return;
+        if (!zonePickups[name]) {
+          zonePickups[name] = [];
+          renderPickupEditor();
+        } else {
+          alert("That zone already exists.");
+        }
+      });
+    }
+
+    if (btnSavePickups) {
+      btnSavePickups.addEventListener("click", () => {
+        const cards = pickupEditor.querySelectorAll(".card");
+        const newData = {};
+
+        cards.forEach(card => {
+          const zoneTitle = card.querySelector("strong");
+          if (!zoneTitle) return;
+          const zone = zoneTitle.textContent.trim();
+          const rows = card.querySelectorAll("tbody tr");
+          const pts = [];
+          rows.forEach(row => {
+            const labelEl = row.querySelector(".pp-label");
+            const fmtEl   = row.querySelector(".pp-formatted");
+            const latEl   = row.querySelector(".pp-lat");
+            const lngEl   = row.querySelector(".pp-lng");
+
+            const label = (labelEl?.value || "").trim();
+            const formatted = (fmtEl?.value || "").trim();
+            const lat = latEl?.value ? Number(latEl.value) : null;
+            const lng = lngEl?.value ? Number(lngEl.value) : null;
+            if (!label && !formatted) return;
+
+            pts.push({
+              id: `${zone.toLowerCase().replace(/\s+/g,"_")}_${pts.length+1}`,
+              label,
+              formatted,
+              lat,
+              lng
+            });
+          });
+          newData[zone] = pts;
+        });
+
+        zonePickups = newData;
+        saveZonePickups();
+        renderPickupEditor();
+      });
+    }
+
+    if (pickupEditor) {
+      pickupEditor.addEventListener("click", (e) => {
+        const addBtn = e.target.closest(".pp-add-point");
+        const delZoneBtn = e.target.closest(".pp-del-zone");
+        const delPointBtn = e.target.closest(".pp-del");
+
+        if (addBtn) {
+          const zone = addBtn.dataset.zone;
+          if (!zonePickups[zone]) zonePickups[zone] = [];
+          zonePickups[zone].push({
+            id: `${zone.toLowerCase().replace(/\s+/g,"_")}_${zonePickups[zone].length+1}`,
+            label: "",
+            formatted: "",
+            lat: null,
+            lng: null
+          });
+          renderPickupEditor();
+          return;
+        }
+
+        if (delZoneBtn) {
+          const zone = delZoneBtn.dataset.zone;
+          if (confirm(`Delete zone "${zone}" and all its pickup points?`)) {
+            delete zonePickups[zone];
+            renderPickupEditor();
+          }
+          return;
+        }
+
+        if (delPointBtn) {
+          const row = delPointBtn.closest("tr");
+          const zone = row?.dataset.zone;
+          const idx = Number(row?.dataset.index || "-1");
+          if (!zone || idx < 0) return;
+          (zonePickups[zone] || []).splice(idx, 1);
+          renderPickupEditor();
+          return;
+        }
+      });
+    }
+
+    /* ---------- BOOK TAXI MODAL LOGIC --------- */
+    const smartOutput = document.getElementById("smartOutput");
+    const bookModalWrap = document.getElementById("bookModalWrap");
+    const btnBookClose = document.getElementById("btnBookClose");
+    const btnBookCancel = document.getElementById("btnBookCancel");
+    const btnBookConfirm = document.getElementById("btnBookConfirm");
+    const bookStops = document.getElementById("bookStops");
+    const bookDate = document.getElementById("bookDate");
+    const bookTime = document.getElementById("bookTime");
+    const bookPassengers = document.getElementById("bookPassengers");
+    const bookVehicle = document.getElementById("bookVehicle");
+    const bookError = document.getElementById("bookError");
+
+    let currentBookRef = null;
+
+    function normaliseTimeInput(value) {
+      const v = (value || "").trim();
+      if (!v) return "";
+      if (/^\d{4}$/.test(v)) {
+        return v.slice(0,2) + ":" + v.slice(2);
+      }
+      if (/^\d{1,2}$/.test(v)) {
+        return v.padStart(2,"0") + ":00";
+      }
+      if (/^\d{1,2}:\d{2}$/.test(v)) {
+        return v;
+      }
+      return v;
+    }
+
+    function openBookModal(bucketIndex, taxiIndex){
+      if (!lastSmartBuckets || !lastSmartBuckets[bucketIndex]) return;
+      const bucket = lastSmartBuckets[bucketIndex];
+      const pack = bucket.taxis[taxiIndex];
+      if (!pack || !pack.length) return;
+
+      currentBookRef = { bucketIndex, taxiIndex };
+      bookError.textContent = "";
+
+      const vehicleName = pack._vehicleName || "";
+      const isCoach = /^Bus\s+\d/.test(vehicleName);
+
+      if (isCoach) {
+        const zonePassengers = new Map();
+        pack.forEach(a => {
+          const zone = a.zone || "(unknown)";
+          if (!zonePassengers.has(zone)) zonePassengers.set(zone, []);
+          zonePassengers.get(zone).push(a);
+        });
+
+        const coachStops = buildCoachZoneStops(pack);
+
+        const lines = coachStops.map((stop, idx) => {
+          const paxCount = (zonePassengers.get(stop.zone) || []).length;
+          return `${idx+1}. ${stop.formatted} — Zone: ${stop.zone} — ${paxCount} pax`;
+        });
+
+        bookStops.value = lines.join("\n");
+      } else {
+        const lines = pack.map((a, idx) => {
+          const timeDisp = a.userTime ? ` (${a.userTime})` : "";
+          const notePart = a.note ? " — " + a.note : "";
+          return `${idx+1}. ${a.formatted}${timeDisp}${notePart}`;
+        });
+        bookStops.value = lines.join("\n");
+      }
+
+      bookPassengers.value = pack.length;
+      bookVehicle.value = pack._vehicleCapacity || pickVehicleCapacity(pack.length);
+
+      bookDate.value = grpDate.value || "";
+      bookTime.value = "";
+
+      bookModalWrap.classList.remove("hidden");
+    }
+
+    function closeBookModal(){
+      currentBookRef = null;
+      bookModalWrap.classList.add("hidden");
+    }
+
+    btnBookClose.addEventListener("click", closeBookModal);
+    btnBookCancel.addEventListener("click", closeBookModal);
+    bookModalWrap.addEventListener("click",(e)=>{
+      if (e.target === bookModalWrap) closeBookModal();
+    });
+
+    function moveAddress(bucketIndex, taxiIndex, fromIdx, toIdx) {
+      if (!lastSmartBuckets) return;
+      const pack = lastSmartBuckets?.[bucketIndex]?.taxis?.[taxiIndex];
+      if (!pack) return;
+      if (toIdx < 0 || toIdx >= pack.length) return;
+      const [item] = pack.splice(fromIdx, 1);
+      pack.splice(toIdx, 0, item);
+      renderSmartOutput(lastSmartBuckets);
+    }
+
+    smartOutput.addEventListener("click",(e)=>{
+      const upBtn = e.target.closest(".addr-up");
+      if (upBtn) {
+        const row = upBtn.closest(".addr-row");
+        const list = upBtn.closest(".addr-list");
+        if (!row || !list) return;
+        const bIndex = Number(list.dataset.bucket);
+        const tIndex = Number(list.dataset.taxi);
+        const idx = Number(row.dataset.idx);
+        moveAddress(bIndex, tIndex, idx, idx - 1);
+        return;
+      }
+
+      const downBtn = e.target.closest(".addr-down");
+      if (downBtn) {
+        const row = downBtn.closest(".addr-row");
+        const list = downBtn.closest(".addr-list");
+        if (!row || !list) return;
+        const bIndex = Number(list.dataset.bucket);
+        const tIndex = Number(list.dataset.taxi);
+        const idx = Number(row.dataset.idx);
+        moveAddress(bIndex, tIndex, idx, idx + 1);
+        return;
+      }
+
+      const btn = e.target.closest("button[data-book-bucket]");
+      if (!btn) return;
+      const bIndex = Number(btn.dataset.bookBucket);
+      const tIndex = Number(btn.dataset.bookTaxi);
+      openBookModal(bIndex, tIndex);
+    });
+
+    smartOutput.addEventListener("input", (e) => {
+      const input = e.target.closest(".addr-time-input");
+      if (!input) return;
+      const row = input.closest(".addr-row");
+      const list = input.closest(".addr-list");
+      if (!row || !list || !lastSmartBuckets) return;
+      const bIndex = Number(list.dataset.bucket);
+      const tIndex = Number(list.dataset.taxi);
+      const idx = Number(row.dataset.idx);
+      const pack = lastSmartBuckets?.[bIndex]?.taxis?.[tIndex];
+      if (!pack || !pack[idx]) return;
+      pack[idx].userTime = input.value.trim();
+    });
+
+    smartOutput.addEventListener("blur", (e) => {
+      const input = e.target.closest(".addr-time-input");
+      if (!input) return;
+      const row = input.closest(".addr-row");
+      const list = input.closest(".addr-list");
+      if (!row || !list || !lastSmartBuckets) return;
+
+      const bIndex = Number(list.dataset.bucket);
+      const tIndex = Number(list.dataset.taxi);
+      const idx = Number(row.dataset.idx);
+      const pack = lastSmartBuckets?.[bIndex]?.taxis?.[tIndex];
+      if (!pack || !pack[idx]) return;
+
+      const raw = input.value;
+      const norm = normaliseTimeInput(raw);
+      let finalVal = norm;
+
+      if (!/^\d{2}:\d{2}$/.test(norm)) {
+        finalVal = raw.trim();
+      }
+
+      input.value = finalVal;
+      pack[idx].userTime = finalVal;
+
+      const labelKey =
+        row.dataset.pickupLabel ||
+        (pack[idx] && pack[idx].pickupPointLabel) ||
+        "";
+
+      if (labelKey && /^\d{2}:\d{2}$/.test(finalVal)) {
+        const rows = Array.from(list.querySelectorAll(".addr-row"));
+        pack.forEach((addr, i) => {
+          if (!addr) return;
+          if (addr.pickupPointLabel === labelKey) {
+            addr.userTime = finalVal;
+            const r = rows.find(rEl => Number(rEl.dataset.idx) === i);
+            if (r) {
+              const inp = r.querySelector(".addr-time-input");
+              if (inp) inp.value = finalVal;
+            }
+          }
+        });
+      }
+    }, true);
+
+    if (bookTime) {
+      bookTime.addEventListener("blur", () => {
+        const norm = normaliseTimeInput(bookTime.value);
+        if (/^\d{2}:\d{2}$/.test(norm)) {
+          bookTime.value = norm;
+        }
+      });
+    }
+
+    btnBookConfirm.addEventListener("click", async ()=>{
+      if (!currentBookRef || !lastSmartBuckets) return;
+      bookError.textContent = "";
+
+      const date = bookDate.value;
+      let time = normaliseTimeInput(bookTime.value);
+      const passengers = Number(bookPassengers.value || "0");
+
+      if (!date){
+        bookError.textContent = "Please enter a pickup date.";
+        return;
+      }
+      if (!time || !/^\d{2}:\d{2}$/.test(time)){
+        bookError.textContent = "Please enter a valid time (HH:MM).";
+        return;
+      }
+      if (!passengers || passengers < 1){
+        bookError.textContent = "Passenger count must be at least 1.";
+        return;
+      }
+
+      const { bucketIndex, taxiIndex } = currentBookRef;
+      const bucket = lastSmartBuckets[bucketIndex];
+      const pack = bucket.taxis[taxiIndex];
+
+      const vehicleName = pack._vehicleName || "";
+      const isCoach = /^Bus\s+\d/.test(vehicleName);
+
+      let stops;
+
+      if (isCoach) {
+        const zonePassengers = new Map();
+        pack.forEach(a => {
+          const zone = a.zone || "(unknown)";
+          if (!zonePassengers.has(zone)) zonePassengers.set(zone, []);
+          zonePassengers.get(zone).push(a);
+        });
+
+        const zoneStopMap = new Map();
+
+        pack.forEach(a => {
+          const zone = a.zone || "(unknown)";
+          if (zoneStopMap.has(zone)) return;
+
+          const pts = zonePickups[zone] || [];
+          const passengersForZone = (zonePassengers.get(zone) || [])
+            .map(p => p.staffName)
+            .filter(Boolean);
+          const noteText = passengersForZone.join(", ");
+
+          if (pts.length) {
+            const pt = pts[0];
+            zoneStopMap.set(zone, {
+              formatted: pt.formatted || pt.label || a.formatted,
+              lat: pt.lat ?? a.lat,
+              lng: pt.lng ?? a.lng,
+              note: noteText
+            });
+          } else {
+            zoneStopMap.set(zone, {
+              formatted: a.formatted,
+              lat: a.lat,
+              lng: a.lng,
+              note: noteText
+            });
+          }
+        });
+
+        stops = Array.from(zoneStopMap.values());
+        sortGroupByRoute(stops);
+
+      } else {
+        stops = pack.map(a => ({
+          formatted: a.formatted,
+          lat: a.lat,
+          lng: a.lng,
+          note: a.note || "",
+          time: a.userTime || ""
+        }));
+        sortGroupByRoute(stops);
+      }
+
+      const payload = {
+        date,
+        time,
+        passengers,
+        vehicleCapacity: pack._vehicleCapacity || pickVehicleCapacity(pack.length),
+        stops,
+        meta: {
+          bucketLabel: bucket.label,
+          shiftType: groupType,
+          vehicleName: vehicleName
+        }
+      };
+
+      try {
+        btnBookConfirm.disabled = true;
+        await fetchJSON(`${apiBase}/api/autocab/book-smartpack`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        pack._booked = true;
+        closeBookModal();
+        renderSmartOutput(lastSmartBuckets);
+        showToast("Taxi / bus booked in Autocab successfully.", "ok");
+      } catch (err) {
+        bookError.textContent = err.message || "Failed to book taxi.";
+        showToast("Booking failed: " + (err.message || "Unknown error"), "err");
+      } finally {
+        btnBookConfirm.disabled = false;
+      }
+    });
+
+    /* ---------- QUICK DATES LOGIC ---------- */
+    function setDateOffset(inputId, offsetDays) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      const iso = d.toISOString().slice(0,10);
+      input.value = iso;
+    }
+
+    function setDateIso(inputId, iso){
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.value = iso;
+    }
+
+    function getSpecialDateIso(key){
+      const now = new Date();
+      let year = now.getFullYear();
+      function mk(month, day){
+        return new Date(year, month - 1, day);
+      }
+      let d;
+      switch(key){
+        case "xmas-eve":
+          d = mk(12, 24);
+          break;
+        case "xmas-day":
+          d = mk(12, 25);
+          break;
+        case "boxing-day":
+          d = mk(12, 26);
+          break;
+        case "nye":
+          d = mk(12, 31);
+          break;
+        case "nyd":
+          d = mk(1, 1);
+          break;
+        default:
+          d = now;
+      }
+      if (now > d){
+        year = year + 1;
+        const month = d.getMonth() + 1;
+        const day = d.getDate();
+        d = new Date(year, month - 1, day);
+      }
+      return d.toISOString().slice(0,10);
+    }
+
+    function handleQuickDate(target, offset, special){
+      if (special){
+        const iso = getSpecialDateIso(special);
+        setDateIso(target, iso);
+      } else {
+        setDateOffset(target, offset);
+      }
+
+      if (target === "grpDate") {
+        loadGroups();
+      }
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-qdate-target]");
+      if (!btn) return;
+      const target = btn.getAttribute("data-qdate-target");
+      const offset = Number(btn.getAttribute("data-qdate-offset") || "0");
+      const special = btn.getAttribute("data-qdate-special") || "";
+      handleQuickDate(target, offset, special);
+    });
+
+    // Initial loads
+    loadGroups();
+    loadSmsTemplates();
+    loadZonePickups();
+  </script>
+</body>
+</html>

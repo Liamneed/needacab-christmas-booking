@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff Taxi — Booking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; background:#f7f7f7; }
+    .nav { max-width:860px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .nav a { background:#111; color:#fff; padding:8px 12px; border-radius:8px; text-decoration:none; }
+    .nav a.alt { background:#0077cc; }
+    header, footer, form { max-width:860px; margin:0 auto; }
+    form { display:grid; gap:12px; background:#fff; padding:16px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.06);}
+    label { font-weight:600; }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .row { display:grid; gap:6px; }
+    input, select, textarea { padding:10px; border:1px solid #ccc; border-radius:8px; }
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #aaa; border-radius:999px; cursor:pointer; }
+    .pill.active { background:#111; color:#fff; border-color:#111; }
+    .hint { color:#555; font-size:12px; }
+    .error { color:#b00020; font-weight:600; }
+    .success { color:#0a7a2d; font-weight:600; }
+    button { padding:10px 14px; border-radius:10px; border:0; background:#111; color:#fff; font-weight:700; cursor:pointer; }
+    canvas { border:1px dashed #aaa; border-radius:8px; background:#fff; touch-action:none; }
+    .sig-actions { display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="alt" href="/">Booking Form</a>
+    <a href="/admin">Admin Reports</a>
+    <a href="/bookings">All Bookings</a>
+  </nav>
+
+  <header>
+    <h1>Derriford Staff Christmas Taxi — Booking</h1>
+    <p class="hint">
+      Shift Start → drop-off must be Derriford. &nbsp; Shift Finish → pickup must be Derriford.<br>
+      Bookings can be made for any date. Use <strong>On/Off Duty Time</strong> for timing guidance.
+    </p>
+  </header>
+
+  <form id="bookingForm">
+    <!-- Ward / Staff -->
+    <div class="two">
+      <div class="row">
+        <label>Ward or Department Name *</label>
+        <input id="wardName" required />
+      </div>
+      <div class="row">
+        <label>Ward Phone Number *</label>
+        <input id="wardPhone" required />
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="row">
+        <label>Staff Name *</label>
+        <input id="staffName" required />
+      </div>
+      <div class="row">
+        <label>Staff Phone Number *</label>
+        <input id="staffPhone" required />
+      </div>
+    </div>
+
+    <!-- Shift -->
+    <div class="row">
+      <label>Shift *</label>
+      <div id="shiftToggle">
+        <span class="pill active" data-type="start">Shift Start (to work)</span>
+        <span class="pill" data-type="finish">Shift Finish (from work)</span>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="row">
+        <label>On/Off Duty Time (HH:MM) *</label>
+        <input id="onOffDutyTime" type="time" required />
+      </div>
+      <div class="row">
+        <label>Pickup Date *</label>
+        <input id="pickupDate" type="date" required />
+      </div>
+    </div>
+
+    <!-- Addresses -->
+    <div class="row">
+      <label>From Pick Up Address * (Shift Finish must be Derriford)</label>
+      <input id="pickup" type="text" placeholder="Start typing address..." autocomplete="off" required />
+      <div class="hint" id="pickupStatus"></div>
+    </div>
+
+    <div class="row">
+      <label>Drop Off Address * (Shift Start must be Derriford)</label>
+      <input id="destination" type="text" placeholder="Start typing address..." autocomplete="off" required />
+      <div class="hint" id="destStatus"></div>
+    </div>
+
+    <!-- Return booking -->
+    <div class="row">
+      <label><input type="checkbox" id="requireReturn" /> Do you require a return booking?</label>
+      <div id="returnFields" style="display:none;">
+        <div class="two">
+          <div class="row">
+            <label>Return Date</label>
+            <input id="returnDate" type="date" />
+            <div class="hint">Return will automatically swap pickup &amp; drop-off and flip the shift.</div>
+          </div>
+          <div class="row">
+            <label>Return On/Off Duty Time (HH:MM) <span class="hint">(optional)</span></label>
+            <input id="returnOnOffDutyTime" type="time" />
+            <div class="hint">If left blank, we’ll reuse the main On/Off Duty Time.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charging / approvals -->
+    <div class="two">
+      <div class="row">
+        <label>Reason Code (2 chars, e.g., P1) *</label>
+        <input
+          id="reasonCode"
+          maxlength="2"
+          inputmode="text"
+          autocapitalize="characters"
+          placeholder="e.g. P1 — patient transfer"
+          required
+        />
+        <div class="hint">Use two letters/numbers (e.g., P1, OT, A3).</div>
+      </div>
+      <div class="row">
+        <label>Budget Number (6 digits) *</label>
+        <input
+          id="budgetNumber"
+          maxlength="6"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          placeholder="e.g. 123456"
+          required
+        />
+        <div class="hint">Enter exactly 6 digits with no spaces.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Full Name – Budget Holder *</label>
+      <input
+        id="budgetHolderName"
+        autocapitalize="words"
+        placeholder="e.g. Dr Jane Smith (who approved the booking)"
+        required
+      />
+      <div class="hint">Person authorising this journey’s cost centre.</div>
+    </div>
+
+    <div class="row">
+      <label>Budget Holder Signature (optional)</label>
+      <canvas id="sig" width="700" height="160"></canvas>
+      <div class="sig-actions">
+        <button type="button" id="clearSig" style="background:#777;">Clear Signature</button>
+      </div>
+      <div class="hint">Signature is optional; enter the name above even if no signature.</div>
+    </div>
+
+    <button type="submit">Submit Booking</button>
+    <div id="msg"></div>
+  </form>
+
+  <footer>
+    <p class="hint">Need-A-Cab Plymouth — No surge pricing. Real local drivers.</p>
+  </footer>
+
+  <script>
+    // Dynamic API base: localhost in dev, Render origin in production
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:4000"
+      : window.location.origin;
+
+    const state = {
+      shiftType: "start",
+      pickup: null,
+      destination: null,
+      signatureDrawn: false,
+    };
+
+    // --- Shift pills ---
+    const pills = document.querySelectorAll("#shiftToggle .pill");
+    pills.forEach(p => p.addEventListener("click", () => {
+      pills.forEach(x => x.classList.remove("active"));
+      p.classList.add("active");
+      state.shiftType = p.dataset.type;
+    }));
+
+    // --- Signature pad (simple) ---
+    const canvas = document.getElementById("sig");
+    const ctx = canvas.getContext("2d");
+    let drawing = false, last = null;
+
+    function drawLine(from, to) {
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+    }
+    function pos(e) {
+      const r = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+      return { x, y };
+    }
+    const startDraw = e => { drawing = true; last = pos(e); state.signatureDrawn = true; e.preventDefault(); };
+    const moveDraw = e => { if (!drawing) return; const p = pos(e); drawLine(last, p); last = p; e.preventDefault(); };
+    const endDraw  = e => { drawing = false; e.preventDefault(); };
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mousemove", moveDraw);
+    canvas.addEventListener("mouseup", endDraw);
+    canvas.addEventListener("mouseleave", endDraw);
+    canvas.addEventListener("touchstart", startDraw, { passive:false });
+    canvas.addEventListener("touchmove", moveDraw, { passive:false });
+    canvas.addEventListener("touchend", endDraw, { passive:false });
+    document.getElementById("clearSig").addEventListener("click", () => {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      state.signatureDrawn = false;
+    });
+
+    // --- Return toggle ---
+    const requireReturn = document.getElementById("requireReturn");
+    const returnFields = document.getElementById("returnFields");
+    requireReturn.addEventListener("change", () => {
+      returnFields.style.display = requireReturn.checked ? "block" : "none";
+    });
+
+    // --- Autocomplete helpers ---
+    function attachAutocomplete(inputId, statusId, onConfirm) {
+      const input = document.getElementById(inputId);
+      const status = document.getElementById(statusId);
+      const ac = new google.maps.places.Autocomplete(input, {
+        fields: ["place_id", "geometry", "formatted_address", "name"],
+        componentRestrictions: { country: ["gb"] },
+        types: ["geocode"],
+      });
+
+      const plymouthCenter = new google.maps.LatLng(50.3755, -4.1427);
+      const biasBounds = new google.maps.Circle({
+        center: plymouthCenter,
+        radius: 20000, // ~20km around Plymouth
+      }).getBounds();
+
+      ac.setBounds(biasBounds);
+      ac.setOptions({ strictBounds: false });
+
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        if (!place || !place.place_id || !place.geometry?.location) {
+          status.textContent = "Please select a valid address from suggestions.";
+          onConfirm(null);
+          return;
+        }
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        const formatted = place.formatted_address || place.name || input.value;
+        status.textContent = "✓ Address confirmed";
+        onConfirm({ placeId: place.place_id, lat, lng, formatted });
+      });
+      input.addEventListener("input", () => { status.textContent = ""; onConfirm(null); });
+    }
+
+    // Derriford check (client-side mirror of server)
+    function isDerriford(lat, lng) {
+      const DH_LAT = 50.4195, DH_LNG = -4.1090;
+      const rad = (d)=>d*Math.PI/180, R=6371000;
+      const dLat=rad(DH_LAT-lat), dLng=rad(DH_LNG-lng);
+      const a=Math.sin(dLat/2)**2 + Math.cos(rad(lat))*Math.cos(rad(DH_LAT))*Math.sin(dLng/2)**2;
+      const meters = 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      return meters <= 900;
+    }
+
+    // Attach autocompletes
+    window.initPlaces = () => {
+      attachAutocomplete("pickup","pickupStatus",(v)=>state.pickup=v);
+      attachAutocomplete("destination","destStatus",(v)=>state.destination=v);
+    };
+
+    // Submit
+    document.getElementById("bookingForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg");
+      msg.textContent = "";
+
+      // Basic fields
+      const wardName = document.getElementById("wardName").value.trim();
+      const wardPhone = document.getElementById("wardPhone").value.trim();
+      const staffName = document.getElementById("staffName").value.trim();
+      const staffPhone = document.getElementById("staffPhone").value.trim();
+      const onOffDutyTime = document.getElementById("onOffDutyTime").value;
+      const pickupDate = document.getElementById("pickupDate").value; // YYYY-MM-DD
+      const reasonCode = document.getElementById("reasonCode").value.trim().toUpperCase();
+      const budgetNumber = document.getElementById("budgetNumber").value.trim();
+      const budgetHolderName = document.getElementById("budgetHolderName").value.trim();
+
+      // Validate presence
+      if (!wardName || !wardPhone || !staffName || !staffPhone || !onOffDutyTime || !pickupDate || !reasonCode || !budgetNumber || !budgetHolderName) {
+        msg.innerHTML = '<span class="error">Please complete all required fields.</span>'; return;
+      }
+      if (!state.pickup?.placeId || !state.destination?.placeId) {
+        msg.innerHTML = '<span class="error">Please select both Pickup and Drop Off from Google suggestions.</span>'; return;
+      }
+
+      // Reason code, budget number
+      if (!/^[A-Z0-9]{2}$/.test(reasonCode)) {
+        msg.innerHTML = '<span class="error">Reason Code must be 2 characters, e.g., P1.</span>'; return;
+      }
+      if (!/^\d{6}$/.test(budgetNumber)) {
+        msg.innerHTML = '<span class="error">Budget number must be 6 digits.</span>'; return;
+      }
+
+      // Derriford rules
+      if (state.shiftType === "start" && !isDerriford(state.destination.lat, state.destination.lng)) {
+        msg.innerHTML = '<span class="error">Shift Start: drop-off must be Derriford Hospital.</span>'; return;
+      }
+      if (state.shiftType === "finish" && !isDerriford(state.pickup.lat, state.pickup.lng)) {
+        msg.innerHTML = '<span class="error">Shift Finish: pickup must be Derriford Hospital.</span>'; return;
+      }
+
+      // Signature (optional)
+      const signatureDataURL = document.getElementById("sig").toDataURL("image/png");
+      const signatureDrawn = (function () {
+        const blank = document.createElement("canvas");
+        blank.width = canvas.width; blank.height = canvas.height;
+        return canvas.toDataURL() !== blank.toDataURL();
+      })();
+
+      // Return booking
+      const needReturn = requireReturn.checked;
+      const returnDate = document.getElementById("returnDate").value; // YYYY-MM-DD
+      const returnOnOffDutyTime = document.getElementById("returnOnOffDutyTime").value; // optional
+
+      if (needReturn && !returnDate) {
+        msg.innerHTML = '<span class="error">Please select a return date or untick Return booking.</span>'; return;
+      }
+
+      try {
+        const payload = {
+          wardName, wardPhone, staffName, staffPhone,
+          shiftType: state.shiftType,
+          onOffDutyTime,
+          pickupDateISO: pickupDate,
+          pickup: { ...state.pickup },
+          destination: { ...state.destination },
+          requireReturn: needReturn,
+          returnDateISO: needReturn ? returnDate : undefined,
+          returnOnOffDutyTime: needReturn ? (returnOnOffDutyTime || "") : undefined,
+          reasonCode,
+          budgetNumber,
+          budgetHolderName,
+          ...(signatureDrawn ? { budgetHolderSignatureDataURL: signatureDataURL } : {})
+        };
+
+        const r = await fetch(`${apiBase}/api/bookings`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (!r.ok || data?.error) throw new Error(data?.error || "Save failed");
+
+        const refs = [data.booking?.reference, data.returnBooking?.reference].filter(Boolean).join(" & ");
+        msg.innerHTML = `<span class="success">Booking saved${data.returnBooking ? " (with return)" : ""}. Reference: <strong>${refs}</strong></span>`;
+
+        e.target.reset();
+        // clear state
+        state.pickup = null; state.destination = null; state.signatureDrawn = false; state.shiftType = "start";
+        document.querySelectorAll("#shiftToggle .pill").forEach((p,i)=>p.classList.toggle("active", i===0));
+        document.getElementById("pickupStatus").textContent = "";
+        document.getElementById("destStatus").textContent = "";
+        const ctx2 = canvas.getContext("2d"); ctx2.clearRect(0,0,canvas.width,canvas.height);
+        document.getElementById("returnFields").style.display = "none";
+      } catch (err) {
+        msg.innerHTML = `<span class="error">${err.message}</span>`;
+      }
+    });
+  </script>
+
+  <!-- Replace with your key -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places&callback=initPlaces"></script>
+</body>
+</html>

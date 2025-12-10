@@ -1,0 +1,540 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Derriford Staff – Bulk Christmas Bookings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      margin: 0.35rem 0;
+      color: #cbd5f5;
+    }
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .card-header {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 6px 0;
+      color: #e5e7eb;
+    }
+    button {
+      border-radius: 999px;
+      border: 0;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: #22c55e;
+      color: #022c22;
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #e5e7eb;
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+    .status.error {
+      color: #fecaca;
+    }
+    .status.ok {
+      color: #bbf7d0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+      text-align: left;
+    }
+    th {
+      background: #020617;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .tag-ok {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #16a34a33;
+      color: #bbf7d0;
+    }
+    .tag-fail {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #b91c1c33;
+      color: #fecaca;
+    }
+    .tag-skip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #4b556333;
+      color: #e5e7eb;
+    }
+    .muted {
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
+    .scroll-table {
+      max-height: 320px;
+      overflow: auto;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Derriford Staff – Bulk Christmas Bookings</h1>
+    <p>Upload a completed spreadsheet and we’ll create <strong>exactly the same bookings</strong> as the online form.</p>
+
+    <div class="card">
+      <div class="card-header">1. Download the spreadsheet template</div>
+      <p>Give this file to the ward/department to complete. The first two rows are filled in red as examples and will <strong>not</strong> create bookings.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+        <button type="button" class="btn-secondary" id="btnDownloadTemplate">
+          ⬇ Download CSV template
+        </button>
+        <button type="button" class="btn-secondary" id="btnDownloadXlsx">
+          ⬇ Download Excel (.xlsx) template
+        </button>
+      </div>
+      <p class="muted">
+        Columns required:<br>
+        WardName, WardPhone, StaffName, StaffPhone, ShiftType (start/finish),
+        PickupDate (e.g. 25/12/2025), OnOffDutyTime (e.g. 07:00),
+        PickupAddress, PickupPostCode, DestAddress, DestPostCode,
+        ReasonCode (2 chars), BudgetNumber (6 digits), BudgetHolderName.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">2. Upload completed spreadsheet (.csv or .xlsx)</div>
+      <label for="csvFile">Choose CSV or Excel file from the ward/department:</label>
+      <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" />
+      <div style="margin-top: 8px;">
+        <button type="button" class="btn-primary" id="btnUpload" disabled>
+          🚖 Create bookings from spreadsheet
+        </button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </div>
+
+    <div class="card" id="resultsCard" style="display:none;">
+      <div class="card-header">Import results</div>
+      <p class="muted" id="resultsSummary"></p>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Ward</th>
+              <th>Staff</th>
+              <th>Shift</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Ref</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Papa Parse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS for Excel (XLSX/XLS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    const fileInput      = document.getElementById("csvFile");
+    const btnUpload      = document.getElementById("btnUpload");
+    const statusMsg      = document.getElementById("statusMsg");
+    const resultsCard    = document.getElementById("resultsCard");
+    const resultsBody    = document.getElementById("resultsBody");
+    const resultsSummary = document.getElementById("resultsSummary");
+    const btnTemplate    = document.getElementById("btnDownloadTemplate");
+    const btnXlsx        = document.getElementById("btnDownloadXlsx");
+
+    let parsedRows = [];
+
+    function setStatus(text, type = "") {
+      statusMsg.textContent = text || "";
+      statusMsg.className = "status" + (type ? " " + type : "");
+    }
+
+    // Safely convert any cell value (string/number/Date/etc.) to a displayable string
+    function safeCell(value) {
+      if (value == null) return "";
+      if (value instanceof Date) {
+        const d = value;
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`; // match your example format
+      }
+      return String(value).trim();
+    }
+
+    function normaliseHeaderName(name) {
+      return String(name || "")
+        .trim()
+        .replace(/\r?\n/g, "")
+        .replace(/\s+/g, "")
+        .replace(/Address$/i, "Text");   // handle PickupAddress -> PickupText, etc.
+    }
+
+    function normaliseRowObject(rawRow) {
+      const row = {};
+      for (const [k, v] of Object.entries(rawRow || {})) {
+        const key = normaliseHeaderName(k);
+        row[key] = v;
+      }
+      return row;
+    }
+
+    function filterDataRows(rawRows) {
+      // Normalise headers like "PickupAddress" -> "PickupText"
+      const rows = rawRows.map(normaliseRowObject);
+
+      // Filter out completely empty rows
+      let dataRows = rows.filter(r => {
+        return Object.values(r).some(v => String(v || "").trim() !== "");
+      });
+
+      // Skip example/template rows (WardName starts with "example")
+      dataRows = dataRows.filter(r => {
+        const w = String(r.WardName || "").trim().toLowerCase();
+        return w && !w.startsWith("example");
+      });
+
+      return dataRows;
+    }
+
+    fileInput.addEventListener("change", () => {
+      parsedRows = [];
+      resultsCard.style.display = "none";
+      resultsBody.innerHTML = "";
+      resultsSummary.textContent = "";
+      setStatus("");
+
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        btnUpload.disabled = true;
+        return;
+      }
+
+      const name = file.name.toLowerCase();
+      const isCSV  = name.endsWith(".csv");
+      const isXLSX = name.endsWith(".xlsx") || name.endsWith(".xls");
+
+      if (!isCSV && !isXLSX) {
+        setStatus("Unsupported file type. Please upload a .csv or .xlsx file.", "error");
+        btnUpload.disabled = true;
+        return;
+      }
+
+      setStatus("Reading spreadsheet…", "ok");
+      btnUpload.disabled = true;
+
+      if (isCSV) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: "greedy",
+          complete: (results) => {
+            const rows = Array.isArray(results.data) ? results.data : [];
+            const dataRows = filterDataRows(rows);
+
+            if (!dataRows.length) {
+              setStatus("No data rows found in the file. Check that there is at least one real booking row beneath the Example rows.", "error");
+              btnUpload.disabled = true;
+              return;
+            }
+
+            parsedRows = dataRows;
+            setStatus(`Loaded ${parsedRows.length} booking row(s) from CSV. Ready to import.`, "ok");
+            btnUpload.disabled = false;
+          },
+          error: (err) => {
+            console.error("CSV parse error", err);
+            setStatus("Could not read CSV file. Please check the file format.", "error");
+            btnUpload.disabled = true;
+          }
+        });
+      } else if (isXLSX) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+
+            // defval: "" to avoid undefined, raw: false so most values come back as formatted strings
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
+            const dataRows = filterDataRows(rows);
+
+            if (!dataRows.length) {
+              setStatus("No data rows found in the Excel file. Check that there is at least one real booking row beneath the Example rows.", "error");
+              btnUpload.disabled = true;
+              return;
+            }
+
+            parsedRows = dataRows;
+            setStatus(`Loaded ${parsedRows.length} booking row(s) from Excel. Ready to import.`, "ok");
+            btnUpload.disabled = false;
+          } catch (err) {
+            console.error("XLSX parse error", err);
+            setStatus("Could not read Excel file. Please check the file format.", "error");
+            btnUpload.disabled = true;
+          }
+        };
+        reader.onerror = (err) => {
+          console.error("FileReader error", err);
+          setStatus("Could not read file. Please try again.", "error");
+          btnUpload.disabled = true;
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
+
+    btnUpload.addEventListener("click", async () => {
+      if (!parsedRows.length) {
+        setStatus("No data rows loaded. Please choose a file first.", "error");
+        return;
+      }
+
+      btnUpload.disabled = true;
+      setStatus("Sending bookings to server…", "ok");
+      resultsCard.style.display = "none";
+      resultsBody.innerHTML = "";
+      resultsSummary.textContent = "";
+
+      try {
+        const res = await fetch("/api/bulk-bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: parsedRows })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok) {
+          console.error("Bulk upload error:", data);
+          setStatus(data.error || "Bulk upload failed. Please check the console.", "error");
+          btnUpload.disabled = false;
+          return;
+        }
+
+        const results = Array.isArray(data.results) ? data.results : [];
+
+        let okCount = 0;
+        let failCount = 0;
+        let skipCount = 0;
+
+        resultsBody.innerHTML = "";
+
+        results.forEach((r, idx) => {
+          const originalRow = parsedRows[r.index] || {};
+          const ward  = safeCell(originalRow.WardName);
+          const staff = safeCell(originalRow.StaffName);
+          const shift = safeCell(originalRow.ShiftType);
+          const date  = safeCell(originalRow.PickupDate);
+
+          let label = "";
+          if (r.skipped) {
+            label = '<span class="tag-skip">Skipped</span>';
+            skipCount++;
+          } else if (r.ok) {
+            label = '<span class="tag-ok">OK</span>';
+            okCount++;
+          } else {
+            label = '<span class="tag-fail">Failed</span>';
+            failCount++;
+          }
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${ward || "-"}</td>
+            <td>${staff || "-"}</td>
+            <td>${shift || "-"}</td>
+            <td>${date || "-"}</td>
+            <td>${label}</td>
+            <td>${r.reference || ""}</td>
+            <td>${r.error ? String(r.error) : ""}</td>
+          `;
+          resultsBody.appendChild(tr);
+        });
+
+        resultsSummary.textContent =
+          `Bookings created: ${okCount} · Failed: ${failCount}` +
+          (skipCount ? ` · Skipped: ${skipCount}` : "");
+
+        resultsCard.style.display = "block";
+        setStatus("Bulk upload completed.", "ok");
+      } catch (err) {
+        console.error("Bulk upload exception:", err);
+        setStatus("Error talking to the server. Is it running?", "error");
+      } finally {
+        btnUpload.disabled = false;
+      }
+    });
+
+    // Template CSV download (plain CSV for wards that prefer it)
+    btnTemplate.addEventListener("click", () => {
+      const lines = [];
+
+      // Header
+      lines.push([
+        "WardName",
+        "WardPhone",
+        "StaffName",
+        "StaffPhone",
+        "ShiftType",
+        "PickupDate",
+        "OnOffDutyTime",
+        "PickupAddress",
+        "PickupPostCode",
+        "DestAddress",
+        "DestPostCode",
+        "ReasonCode",
+        "BudgetNumber",
+        "BudgetHolderName"
+      ].join(","));
+
+      // Example 1: START shift (home -> Derriford)
+      lines.push([
+        "Example",
+        "01752 000000",
+        "Jane Example",
+        "07123 456789",
+        "start",
+        "25/12/2025",
+        "07:00",
+        "10 Example Street",
+        "PL1 1AA",
+        "\"Derriford Hospital, Derriford Road\"",
+        "PL6 8DH",
+        "P1",
+        "123456",
+        "Dr Example"
+      ].join(","));
+
+      // Example 2: FINISH shift (Derriford -> home)
+      lines.push([
+        "Example",
+        "01752 000000",
+        "Jane Example",
+        "07123 456789",
+        "finish",
+        "25/12/2025",
+        "20:00",
+        "\"Derriford Hospital, Derriford Road\"",
+        "PL6 8DH",
+        "10 Example Street",
+        "PL1 1AA",
+        "P2",
+        "123456",
+        "Dr Example"
+      ].join(","));
+
+      // Blank line ready for first real booking
+      lines.push([
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ].join(","));
+
+      const csvContent = lines.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "derriford-staff-bulk-template.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Template XLSX download (formatted Excel template)
+    btnXlsx.addEventListener("click", () => {
+      const url = "/templates/derriford-staff-bulk-template.xlsx";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "derriford-staff-bulk-template.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  </script>
+</body>
+</html>
