@@ -414,10 +414,10 @@ function cellToBool(v) {
   return ["y", "yes", "true", "1"].includes(s);
 }
 
-// Simple Google geocoding helper for bulk imports
+// Simple Google geocoding helper for bulk imports & self-service
 async function geocodeAddress(text, postCode) {
   if (!GOOGLE_MAPS_KEY) {
-    throw new Error("GOOGLE_MAPS_KEY not configured for bulk geocoding");
+    throw new Error("Address lookup is not configured. Please contact the ward or switchboard.");
   }
 
   const query = [text, postCode].filter(Boolean).join(", ");
@@ -427,11 +427,11 @@ async function geocodeAddress(text, postCode) {
 
   const r = await fetch(url);
   if (!r.ok) {
-    throw new Error(`Geocode HTTP ${r.status}`);
+    throw new Error(`Address lookup failed (HTTP ${r.status}). Please try again.`);
   }
   const data = await r.json();
   if (!data.results || !data.results.length || data.status !== "OK") {
-    throw new Error(`Geocode failed for address: ${query}`);
+    throw new Error(`We couldn't find that address. Please check and try again.`);
   }
 
   const result = data.results[0];
@@ -1544,7 +1544,11 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       onOffDutyTime,
       staffPhone,
       pickup,
-      destination
+      destination,
+      pickupText,
+      pickupPostCode,
+      destinationText,
+      destinationPostCode
       // deliberately ignore requireReturn / return settings
     } = req.body || {};
 
@@ -1578,39 +1582,146 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       changed = true;
     }
 
-    // Address updates (for missing address flags)
-    if (pickup) {
-      const normPickup = normaliseAddressShape(pickup, "pickup");
-      if (!normPickup) {
-        return res.status(400).json({
-          error:
-            "Invalid pickup address. Please select from suggestions."
-        });
+    // Address updates (for missing address flags + self-service form)
+    // 1) Pickup side (used by SHIFT START self-service)
+    if (pickup || pickupText || pickupPostCode) {
+      if (pickup) {
+        // structured payload from some clients
+        const normPickup = normaliseAddressShape(pickup, "pickup");
+        if (!normPickup) {
+          return res.status(400).json({
+            error:
+              "Invalid pickup address. Please select from suggestions."
+          });
+        }
+
+        const currentPickup =
+          typeof booking.pickup?.toObject === "function"
+            ? booking.pickup.toObject()
+            : booking.pickup || {};
+        booking.pickup = { ...currentPickup, ...normPickup };
+
+        // ensure zone is up to date
+        if (
+          typeof booking.pickup.lat === "number" &&
+          typeof booking.pickup.lng === "number"
+        ) {
+          booking.pickup.zone = await lookupZone(
+            booking.pickup.lat,
+            booking.pickup.lng
+          );
+        }
+      } else {
+        // Self-service: text + postcode only (Google address verification on form)
+        const baseStreet =
+          pickupText ||
+          booking.pickup?.text ||
+          booking.pickup?.formatted ||
+          "";
+        const basePostCode =
+          pickupPostCode || booking.pickup?.postCode || "";
+
+        const query = [baseStreet, basePostCode].filter(Boolean).join(", ");
+        if (!query) {
+          return res.status(400).json({
+            error:
+              "Invalid pickup address. Please enter a full address and postcode."
+          });
+        }
+
+        const geo = await geocodeAddress(query, basePostCode);
+
+        const currentPickup =
+          typeof booking.pickup?.toObject === "function"
+            ? booking.pickup.toObject()
+            : booking.pickup || {};
+
+        booking.pickup = {
+          ...currentPickup,
+          formatted: geo.formatted,
+          text: geo.formatted,
+          postCode:
+            geo.postCode ||
+            pickupPostCode ||
+            currentPickup.postCode ||
+            "",
+          lat: geo.lat,
+          lng: geo.lng
+        };
+
+        booking.pickup.zone = await lookupZone(geo.lat, geo.lng);
       }
 
-      const currentPickup =
-        typeof booking.pickup?.toObject === "function"
-          ? booking.pickup.toObject()
-          : booking.pickup || {};
-      booking.pickup = { ...currentPickup, ...normPickup };
       changedFields.push("pickupAddress");
       changed = true;
     }
 
-    if (destination) {
-      const normDest = normaliseAddressShape(destination, "destination");
-      if (!normDest) {
-        return res.status(400).json({
-          error:
-            "Invalid destination address. Please select from suggestions."
-        });
+    // 2) Destination side (used by SHIFT FINISH self-service)
+    if (destination || destinationText || destinationPostCode) {
+      if (destination) {
+        const normDest = normaliseAddressShape(destination, "destination");
+        if (!normDest) {
+          return res.status(400).json({
+            error:
+              "Invalid destination address. Please select from suggestions."
+          });
+        }
+
+        const currentDest =
+          typeof booking.destination?.toObject === "function"
+            ? booking.destination.toObject()
+            : booking.destination || {};
+        booking.destination = { ...currentDest, ...normDest };
+
+        if (
+          typeof booking.destination.lat === "number" &&
+          typeof booking.destination.lng === "number"
+        ) {
+          booking.destination.zone = await lookupZone(
+            booking.destination.lat,
+            booking.destination.lng
+          );
+        }
+      } else {
+        const baseStreet =
+          destinationText ||
+          booking.destination?.text ||
+          booking.destination?.formatted ||
+          "";
+        const basePostCode =
+          destinationPostCode || booking.destination?.postCode || "";
+
+        const query = [baseStreet, basePostCode].filter(Boolean).join(", ");
+        if (!query) {
+          return res.status(400).json({
+            error:
+              "Invalid destination address. Please enter a full address and postcode."
+          });
+        }
+
+        const geo = await geocodeAddress(query, basePostCode);
+
+        const currentDest =
+          typeof booking.destination?.toObject === "function"
+            ? booking.destination.toObject()
+            : booking.destination || {};
+
+        booking.destination = {
+          ...currentDest,
+          formatted: geo.formatted,
+          text: geo.formatted,
+          postCode:
+            geo.postCode ||
+            destinationPostCode ||
+            currentDest.postCode ||
+            "",
+          lat: geo.lat,
+          lng: geo.lng
+        };
+
+        booking.destination.zone = await lookupZone(geo.lat, geo.lng);
       }
 
-      const currentDest =
-        typeof booking.destination?.toObject === "function"
-          ? booking.destination.toObject()
-          : booking.destination || {};
-      booking.destination = { ...currentDest, ...normDest };
       changedFields.push("destinationAddress");
       changed = true;
     }

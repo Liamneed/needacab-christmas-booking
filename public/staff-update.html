@@ -185,7 +185,7 @@
           </div>
           <div class="field-row">
             <label for="editAddress" id="editAddressLabel">Home address (if changing)</label>
-            <input type="text" id="editAddress" placeholder="e.g. 10 Example Street, Plymouth" />
+            <input type="text" id="editAddress" placeholder="Start typing your home address…" autocomplete="off" />
           </div>
           <div class="field-row">
             <label for="editPostcode">Postcode (if changing)</label>
@@ -216,6 +216,8 @@
       : window.location.origin;
 
     let currentShiftType = ""; // start / finish
+    let selectedPlaceData = null; // from Google Places
+    let originalAddressText = ""; // to detect if address actually changed
 
     function getBookingIdFromQuery() {
       const params = new URLSearchParams(window.location.search);
@@ -263,6 +265,58 @@
       if (cancel) cancel.style.display = val === "cancel" ? "block" : "none";
     }
 
+    // ---- Google Places Autocomplete on the self-service address field ----
+    function extractPostcode(components) {
+      if (!Array.isArray(components)) return "";
+      for (const c of components) {
+        if (!c || !Array.isArray(c.types)) continue;
+        if (c.types.indexOf("postal_code") !== -1) {
+          return c.long_name || c.short_name || "";
+        }
+      }
+      return "";
+    }
+
+    function initAddressAutocomplete() {
+      try {
+        const input = document.getElementById("editAddress");
+        if (!input) return;
+        if (!window.google || !google.maps || !google.maps.places) {
+          console.warn("Google Maps Places not available for self-service form");
+          return;
+        }
+
+        const ac = new google.maps.places.Autocomplete(input, {
+          fields: ["formatted_address", "geometry", "address_components"],
+          componentRestrictions: { country: "gb" }
+        });
+
+        ac.addListener("place_changed", () => {
+          const place = ac.getPlace();
+          if (!place || !place.geometry || !place.geometry.location) {
+            return;
+          }
+
+          const pc = extractPostcode(place.address_components || []);
+          selectedPlaceData = {
+            formatted: place.formatted_address || input.value,
+            text: place.formatted_address || input.value,
+            postCode: pc,
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng()
+          };
+
+          const pcInput = document.getElementById("editPostcode");
+          if (pcInput && pc && !pcInput.value) {
+            pcInput.value = pc;
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to init address autocomplete:", err);
+      }
+    }
+
+    // ---- Main page init ----
     async function init() {
       const bookingId = getBookingIdFromQuery();
       if (!bookingId) {
@@ -337,7 +391,10 @@
         }
 
         if (homeSide) {
-          if (addrInput && homeSide.formatted) addrInput.value = homeSide.formatted;
+          if (addrInput && homeSide.formatted) {
+            addrInput.value = homeSide.formatted;
+            originalAddressText = homeSide.formatted;
+          }
           if (pcInput && homeSide.postCode) pcInput.value = homeSide.postCode;
         }
 
@@ -372,6 +429,7 @@
                   }
                 );
                 showStatus("Thank you — your booking has been confirmed.", true);
+
               } else if (action === "edit") {
                 const date = (document.getElementById("editDate")?.value || "").trim();
                 const time = (document.getElementById("editTime")?.value || "").trim();
@@ -379,7 +437,12 @@
                 const address = (document.getElementById("editAddress")?.value || "").trim();
                 const postcode = (document.getElementById("editPostcode")?.value || "").trim();
 
-                if (!date && !time && !phone && !address && !postcode) {
+                const hasDate = !!date;
+                const hasTime = !!time;
+                const hasPhone = !!phone;
+                const addressChanged = address && address !== originalAddressText;
+
+                if (!hasDate && !hasTime && !hasPhone && !addressChanged) {
                   showStatus("Please change at least one detail (date, time, phone or address).", false);
                   return;
                 }
@@ -389,13 +452,21 @@
                 if (time) body.onOffDutyTime = time;
                 if (phone) body.staffPhone = phone;
 
-                if (address || postcode) {
+                // Address change: require that they choose from Google suggestions
+                if (addressChanged) {
+                  if (!selectedPlaceData) {
+                    showStatus("Please select your updated address from the suggestions list.", false);
+                    return;
+                  }
+                  const addrPayload = { ...selectedPlaceData };
+                  if (!addrPayload.postCode && postcode) {
+                    addrPayload.postCode = postcode;
+                  }
+
                   if (currentShiftType === "start") {
-                    if (address) body.pickupText = address;
-                    if (postcode) body.pickupPostCode = postcode;
+                    body.pickup = addrPayload;
                   } else if (currentShiftType === "finish") {
-                    if (address) body.destinationText = address;
-                    if (postcode) body.destinationPostCode = postcode;
+                    body.destination = addrPayload;
                   }
                 }
 
@@ -408,6 +479,7 @@
                   }
                 );
                 showStatus("Thank you — your booking has been updated.", true);
+
               } else if (action === "cancel") {
                 const reason = (document.getElementById("cancelReason")?.value || "").trim();
                 await fetchJSON(
@@ -435,5 +507,12 @@
 
     document.addEventListener("DOMContentLoaded", init);
   </script>
+
+  <!-- Google Maps JS – replace YOUR_REAL_BROWSER_KEY_HERE with your browser key -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places&callback=initAddressAutocomplete&loading=async"
+    async
+    defer
+  ></script>
 </body>
 </html>

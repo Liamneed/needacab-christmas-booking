@@ -555,11 +555,13 @@
         </div>
         <div class="modal-row">
           <label for="editBookingPickup">Pickup address</label>
-          <input type="text" id="editBookingPickup" disabled>
+          <!-- UNLOCKED + will use Google autocomplete -->
+          <input type="text" id="editBookingPickup" placeholder="Start typing pickup…">
         </div>
         <div class="modal-row">
           <label for="editBookingDest">Destination address</label>
-          <input type="text" id="editBookingDest" disabled>
+          <!-- UNLOCKED + will use Google autocomplete -->
+          <input type="text" id="editBookingDest" placeholder="Start typing destination…">
         </div>
         <div class="modal-row">
           <span id="editBookingError" class="error-text"></span>
@@ -631,6 +633,12 @@
       </div>
     </div>
   </div>
+
+  <!-- GOOGLE MAPS PLACES (replace YOUR_GOOGLE_MAPS_API_KEY with actual key or env-injected value) -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places"
+    async defer
+  ></script>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -1378,6 +1386,86 @@
   const btnEditBookingCancel = document.getElementById("btnEditBookingCancel");
   const btnEditBookingSave = document.getElementById("btnEditBookingSave");
 
+  // --- GOOGLE AUTOCOMPLETE SUPPORT FOR EDIT BOOKING MODAL ---
+  let pickupAutocompleteInstance = null;
+  let destAutocompleteInstance = null;
+  let latestPickupPlace = null;
+  let latestDestPlace = null;
+
+  function mapPlaceToAddress(place, existing) {
+    const addr = Object.assign({}, existing || {});
+    if (!place) return addr;
+
+    const comps = place.address_components || [];
+    let postCode = "";
+    let street = "";
+    let houseNumber = "";
+    let locality = "";
+    let adminArea = "";
+
+    comps.forEach(c => {
+      if (c.types.includes("postal_code")) postCode = c.long_name;
+      if (c.types.includes("route")) street = c.long_name;
+      if (c.types.includes("street_number")) houseNumber = c.long_name;
+      if (c.types.includes("locality")) locality = c.long_name;
+      if (c.types.includes("postal_town") && !locality) locality = c.long_name;
+      if (c.types.includes("administrative_area_level_2")) adminArea = c.long_name;
+    });
+
+    addr.formatted = place.formatted_address || addr.formatted || "";
+    addr.text = place.name || addr.text || addr.formatted || "";
+    if (postCode) addr.postCode = postCode;
+    if (street) addr.street = street;
+    if (houseNumber) addr.houseNumber = houseNumber;
+    if (locality) addr.town = locality;
+    if (adminArea) addr.county = adminArea;
+
+    if (place.geometry && place.geometry.location) {
+      const loc = place.geometry.location;
+      const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
+      const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+      addr.lat = lat;
+      addr.lng = lng;
+    }
+
+    return addr;
+  }
+
+  function initGoogleAutocompleteForEditModal() {
+    if (!window.google || !google.maps || !google.maps.places) {
+      console.warn("Google Maps Places library not ready yet.");
+      return;
+    }
+
+    if (editBookingPickup && !pickupAutocompleteInstance) {
+      pickupAutocompleteInstance = new google.maps.places.Autocomplete(editBookingPickup, {
+        componentRestrictions: { country: "gb" },
+        fields: ["address_components", "formatted_address", "geometry", "name"]
+      });
+      pickupAutocompleteInstance.addListener("place_changed", () => {
+        const place = pickupAutocompleteInstance.getPlace();
+        latestPickupPlace = place;
+        if (place && place.formatted_address && editBookingPickup) {
+          editBookingPickup.value = place.formatted_address;
+        }
+      });
+    }
+
+    if (editBookingDest && !destAutocompleteInstance) {
+      destAutocompleteInstance = new google.maps.places.Autocomplete(editBookingDest, {
+        componentRestrictions: { country: "gb" },
+        fields: ["address_components", "formatted_address", "geometry", "name"]
+      });
+      destAutocompleteInstance.addListener("place_changed", () => {
+        const place = destAutocompleteInstance.getPlace();
+        latestDestPlace = place;
+        if (place && place.formatted_address && editBookingDest) {
+          editBookingDest.value = place.formatted_address;
+        }
+      });
+    }
+  }
+
   function openEditBookingModal(id) {
     const b = currentItems.find(x => x._id === id);
     if (!b) return;
@@ -1396,11 +1484,24 @@
     if (editBookingDest) editBookingDest.value = (b.destination && b.destination.formatted) || "";
     if (editBookingError) editBookingError.textContent = "";
 
+    // reset last selected places so we don't leak from a previous edit
+    latestPickupPlace = null;
+    latestDestPlace = null;
+
     if (editBookingModalWrap) editBookingModalWrap.classList.remove("hidden");
+
+    // try to initialise autocomplete when modal opens
+    try {
+      initGoogleAutocompleteForEditModal();
+    } catch (e) {
+      console.warn("initGoogleAutocompleteForEditModal failed", e);
+    }
   }
 
   function closeEditBookingModal() {
     fullEditBookingId = null;
+    latestPickupPlace = null;
+    latestDestPlace = null;
     if (editBookingModalWrap) editBookingModalWrap.classList.add("hidden");
   }
 
@@ -1425,6 +1526,9 @@
       const reference = (editBookingRef?.value || "").trim();
       const requireReturn = !!(editBookingReturn?.checked);
 
+      const pickupFormatted = (editBookingPickup?.value || "").trim();
+      const destFormatted = (editBookingDest?.value || "").trim();
+
       if (!date) {
         if (editBookingError) editBookingError.textContent = "Please enter a valid date.";
         return;
@@ -1432,6 +1536,30 @@
       if (!time) {
         if (editBookingError) editBookingError.textContent = "Please enter a time in HH:MM format.";
         return;
+      }
+
+      const original = currentItems.find(x => x._id === fullEditBookingId) || {};
+
+      // build pickup / destination payload
+      let pickupPayload = original.pickup || {};
+      let destPayload = original.destination || {};
+
+      if (latestPickupPlace) {
+        pickupPayload = mapPlaceToAddress(latestPickupPlace, pickupPayload);
+      } else if (pickupFormatted) {
+        pickupPayload = Object.assign({}, pickupPayload, {
+          formatted: pickupFormatted,
+          text: pickupPayload.text || pickupFormatted.split(",")[0].trim()
+        });
+      }
+
+      if (latestDestPlace) {
+        destPayload = mapPlaceToAddress(latestDestPlace, destPayload);
+      } else if (destFormatted) {
+        destPayload = Object.assign({}, destPayload, {
+          formatted: destFormatted,
+          text: destPayload.text || destFormatted.split(",")[0].trim()
+        });
       }
 
       if (editBookingError) editBookingError.textContent = "";
@@ -1449,7 +1577,9 @@
             staffName,
             staffPhone,
             reference,
-            requireReturn
+            requireReturn,
+            pickup: pickupPayload,
+            destination: destPayload
           })
         });
 
