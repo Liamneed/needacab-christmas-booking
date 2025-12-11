@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Budget Portal</title>
+<body style="--bg:#0b0d10;--panel:#10141a;--muted:#9fb3c8;--line:#1b2430;--ok:#19b37a;--bad:#e23f5d;--txt:#e9eef4;--btn:#17202a;--btnH:#1e2a37;font:15px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:var(--txt);background:var(--bg)">
+
+  <div style="max-width:1200px;margin:20px auto;padding:0 16px">
+    <header style="display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <h1 style="margin:0;font-size:22px">My Budget Bookings</h1>
+        <span id="who" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="search" placeholder="Filter… (ward, staff, ref, address)" aria-label="Filter bookings"
+               style="background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:260px;outline:none"/>
+        <button id="logout"
+          style="background:transparent;border:1px solid var(--line);padding:8px 12px;border-radius:10px;color:var(--txt);cursor:pointer">
+          Log out
+        </button>
+      </div>
+    </header>
+
+    <section style="background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)">
+        <div id="status" style="color:var(--muted)">Loading…</div>
+        <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)">
+          <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:#43556b;display:inline-block"></i> Pending</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:var(--ok);display:inline-block"></i> Approved</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:var(--bad);display:inline-block"></i> Declined</span>
+        </div>
+      </div>
+
+      <div style="overflow:auto">
+        <table style="width:100%;border-collapse:separate;border-spacing:0">
+          <thead style="background:#0e1218;position:sticky;top:0;z-index:1">
+            <tr>
+              <th class="th">Date</th>
+              <th class="th">Time</th>
+              <th class="th">Ward / Staff</th>
+              <th class="th">Pickup → Destination</th>
+              <th class="th">Ref</th>
+              <th class="th">Status</th>
+              <th class="th" style="width:260px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Edit Modal -->
+  <dialog id="editDlg" style="border:none;border-radius:16px;padding:0;max-width:860px;width:96%;background:var(--panel);color:var(--txt)">
+    <form id="editForm" method="dialog" style="display:flex;flex-direction:column">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+        <strong>Edit booking</strong>
+        <button type="button" id="closeDlg"
+          style="background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:6px 10px;cursor:pointer">✕</button>
+      </div>
+
+      <div id="editBody" style="padding:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+        <fieldset style="border:1px solid var(--line);border-radius:12px;padding:12px;grid-column:1/-1">
+          <legend style="color:var(--muted);padding:0 6px">Core details</legend>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <label class="lbl"><span>Ward name</span><input id="f_wardName" type="text"/></label>
+            <label class="lbl"><span>Ward phone</span><input id="f_wardPhone" type="text"/></label>
+            <label class="lbl"><span>Staff name</span><input id="f_staffName" type="text"/></label>
+            <label class="lbl"><span>Staff phone</span><input id="f_staffPhone" type="text"/></label>
+            <label class="lbl"><span>Shift</span>
+              <select id="f_shiftType"><option value="start">Start</option><option value="finish">Finish</option></select>
+            </label>
+            <label class="lbl"><span>Reason code (2 chars)</span><input id="f_reasonCode" type="text" maxlength="2"/></label>
+            <label class="lbl"><span>Date (YYYY-MM-DD)</span><input id="f_date" type="text" placeholder="2025-12-24"/></label>
+            <label class="lbl"><span>Time (HH:MM)</span><input id="f_time" type="text" placeholder="08:00"/></label>
+          </div>
+        </fieldset>
+
+        <fieldset style="border:1px solid var(--line);border-radius:12px;padding:12px">
+          <legend style="color:var(--muted);padding:0 6px">Pickup address</legend>
+          <label class="lbl"><span>Street / place</span><input id="f_pickupText" type="text" autocomplete="off"/></label>
+          <label class="lbl"><span>Postcode</span><input id="f_pickupPost" type="text"/></label>
+          <div id="pickupAutoWrap" class="auto-wrap"></div>
+          <p class="hint">If you change the pickup, we’ll look it up on the map automatically.</p>
+        </fieldset>
+
+        <fieldset style="border:1px solid var(--line);border-radius:12px;padding:12px">
+          <legend style="color:var(--muted);padding:0 6px">Destination address</legend>
+          <label class="lbl"><span>Street / place</span><input id="f_destText" type="text" autocomplete="off"/></label>
+          <label class="lbl"><span>Postcode</span><input id="f_destPost" type="text"/></label>
+          <div id="destAutoWrap" class="auto-wrap"></div>
+          <p class="hint">For shift <em>start</em>, destination must be Derriford. For <em>finish</em>, pickup must be Derriford.</p>
+        </fieldset>
+
+        <fieldset style="border:1px solid var(--line);border-radius:12px;padding:12px;grid-column:1/-1">
+          <legend style="color:var(--muted);padding:0 6px">Budget (read-only)</legend>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <label class="lbl"><span>Budget number</span><input id="f_budgetNumber" type="text" disabled/></label>
+            <label class="lbl"><span>Budget holder</span><input id="f_budgetHolderName" type="text" disabled/></label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div style="padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px">
+        <button type="button" id="cancelEdit"
+          style="background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 12px;cursor:pointer">Cancel</button>
+        <button id="saveEdit" class="btn-primary" style="background:var(--ok);border:none;border-radius:10px;padding:8px 14px;color:#04160f;cursor:pointer;font-weight:600">Save changes</button>
+      </div>
+      <input type="hidden" id="f_id"/>
+    </form>
+  </dialog>
+
+  <style>
+    .th{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-weight:600; color:#cfe3fb; font-size:13px; }
+    td{ border-bottom:1px solid var(--line); padding:10px 12px; vertical-align:top; }
+    .muted{ color:var(--muted); font-size:12px }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace }
+    .pill{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600 }
+    .pill.pending{ background:#12202f; color:#cfe3fb; border:1px solid #1e2e44 }
+    .pill.approved{ background:#0f2a20; color:#3fe0a9; border:1px solid #1a644b }
+    .pill.declined{ background:#2a1317; color:#ff8195; border:1px solid #6d2331 }
+    .btn{ background:var(--btn); border:1px solid var(--line); color:var(--txt); padding:8px 10px; border-radius:10px; cursor:pointer }
+    .btn:hover{ background:var(--btnH) }
+    .btn.ok{ background:rgba(25,179,122,.12); border-color:#175b44; color:#33d79e }
+    .btn.ok:hover{ background:rgba(25,179,122,.18) }
+    .btn.bad{ background:rgba(226,63,93,.1); border-color:#5e1a26; color:#ff7a8b }
+    .btn.bad:hover{ background:rgba(226,63,93,.16) }
+    .row-actions{ display:flex; gap:6px; flex-wrap:wrap }
+    .lbl{ display:flex; flex-direction:column; gap:6px }
+    .lbl > span{ font-size:12px;color:var(--muted) }
+    .lbl > input, .lbl > select{
+      background:#0d1117;border:1px solid var(--line);border-radius:10px;color:#fff;padding:10px;outline:none
+    }
+    .hint{ margin:.25rem 0 0; color:var(--muted); font-size:12px }
+    @media (max-width: 900px){ .hide-sm{ display:none } }
+
+    /* wrapper for Google suggestions under your inputs */
+    .auto-wrap{ margin-top:8px }
+    .auto-wrap gmpx-split-layout, .auto-wrap gmpx-place-overview{ display:none }
+  </style>
+
+  <!-- NEW: Google Extended Component Library (defines <gmpx-basic-place-autocomplete/>) -->
+  <script type="module" src="https://unpkg.com/@googlemaps/extended-component-library@latest"></script>
+
+  <script>
+    const $ = (s, r=document) => r.querySelector(s);
+
+    async function readJsonOrText(res){
+      const t = await res.text();
+      try { return t ? JSON.parse(t) : null; } catch { return t || null; }
+    }
+    async function req(url, opts={}){
+      const res = await fetch(url, { credentials:'include', ...opts });
+      const data = await readJsonOrText(res);
+      if(!res.ok){
+        const msg = (data && (data.error || data.message)) || res.statusText || 'Request failed';
+        const err = new Error(msg); err.status = res.status; err.data = data;
+        throw err;
+      }
+      return data;
+    }
+
+    const api = {
+      me:   () => req('/api/budget/me'),
+      list: (qs='') => req('/api/budget/bookings'+qs),
+      get:  (id) => req(`/api/budget/bookings/${id}`),
+
+      approve: (id)=> req(`/api/budget/bookings/${id}/approve?source=budget-portal`, { method:'PATCH' }),
+      decline: (id, body)=> req(`/api/budget/bookings/${id}/decline?source=budget-portal`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{})
+      }),
+
+      // full edit path
+      put: (id, body)=> req(`/api/bookings/${id}?source=budget-portal`, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      }),
+
+      customerUpdate: (id, body)=> req(`/api/bookings/${id}/customer-update?source=budget-portal`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      }),
+
+      logout: () => req('/api/budget/logout', { method:'POST' })
+    };
+
+    const state = { items: [], filter: '' };
+
+    function toDDMMYY(iso){ if(!iso) return ''; const [y,m,d]=iso.slice(0,10).split('-'); return `${d}-${m}-${y.slice(2)}`; }
+    function pill(s){
+      const v=String(s||'pending').toLowerCase();
+      const cls=v==='approved'?'approved':v==='declined'?'declined':'pending';
+      return `<span class="pill ${cls}">${v[0].toUpperCase()+v.slice(1)}</span>`;
+    }
+    function matches(b,q){
+      if(!q) return true; const hay=[
+        b.wardName,b.staffName,b.shortRef||b.reference,b.pickup?.formatted,b.destination?.formatted,b.onOffDutyTime,b.pickupDateISO
+      ].filter(Boolean).join(' ').toLowerCase(); return hay.includes(q.toLowerCase());
+    }
+
+    async function load(){
+      try{
+        const me = await api.me();
+        if(me?.session?.holderName){
+          $('#who').textContent = `Logged in as ${me.session.holderName} · Budget ${me.session.budgetNumber}`;
+        }else{
+          location.href = '/budget-login.html';
+          return;
+        }
+        const j = await api.list();
+        state.items = j.items||[];
+        $('#status').textContent = `Total: ${j.total||state.items.length}`;
+        render();
+      }catch(e){
+        $('#status').textContent = e.message || 'Failed to load';
+        if (e.status === 401) location.href = '/budget-login.html';
+      }
+    }
+
+    function render(){
+      const tbody = $('#rows'); tbody.innerHTML='';
+      const items = state.items.filter(b=>matches(b,state.filter));
+      for(const b of items){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${toDDMMYY(b.pickupDateISO||'')}</td>
+          <td>${b.onOffDutyTime||''}</td>
+          <td><div>${b.wardName||''}</div><div class="muted">${b.staffName||''}</div></td>
+          <td class="hide-sm"><div>${b.pickup?.formatted||''}</div><div class="muted">→ ${b.destination?.formatted||''}</div></td>
+          <td class="mono">${b.shortRef||b.reference||''}</td>
+          <td>${pill(b.status)}</td>
+          <td><div class="row-actions">
+            <button class="btn ok"  data-a="approve" data-id="${b._id}">Approve</button>
+            <button class="btn bad" data-a="decline" data-id="${b._id}">Decline</button>
+            <button class="btn"     data-a="edit"    data-id="${b._id}">Edit</button>
+          </div></td>
+        `;
+        tbody.appendChild(tr);
+      }
+      if(!items.length){
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No bookings match your filter.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Actions in table
+    $('#rows').addEventListener('click', async (e)=>{
+      const btn = e.target.closest('button[data-a]'); if(!btn) return;
+      const id = btn.dataset.id, a = btn.dataset.a;
+      const spin = async fn => { const t=btn.textContent; btn.textContent='…'; btn.disabled=true; try{ return await fn(); } finally{ btn.textContent=t; btn.disabled=false; } };
+
+      try{
+        if(a==='approve'){
+          await spin(()=>api.approve(id));
+          await load();
+        }else if(a==='decline'){
+          const reason = prompt('Reason for decline (optional):') || '';
+          await spin(()=>api.decline(id,{reason}));
+          await load();
+        }else if(a==='edit'){
+          await openEdit(id);
+        }
+      }catch(err){
+        alert((err && err.message) || 'Action failed');
+        console.error('Action error', err);
+      }
+    });
+
+    // Search
+    $('#search').addEventListener('input', e=>{ state.filter = e.target.value.trim(); render(); });
+
+    // Logout
+    $('#logout').onclick = async ()=>{ await api.logout(); location.href='/budget-login.html'; };
+
+    // ----- Edit modal -----
+    function fillEdit(b){
+      $('#f_id').value = b._id;
+      $('#f_wardName').value = b.wardName || '';
+      $('#f_wardPhone').value = b.wardPhone || '';
+      $('#f_staffName').value = b.staffName || '';
+      $('#f_staffPhone').value = b.staffPhone || '';
+      $('#f_shiftType').value = (b.shiftType==='finish'?'finish':'start');
+      $('#f_reasonCode').value = (b.reasonCode||'').toUpperCase();
+      $('#f_date').value = b.pickupDateISO || '';
+      $('#f_time').value = b.onOffDutyTime || '';
+
+      $('#f_pickupText').value = b.pickup?.text || b.pickup?.formatted || '';
+      $('#f_pickupPost').value = b.pickup?.postCode || '';
+      $('#f_destText').value   = b.destination?.text || b.destination?.formatted || '';
+      $('#f_destPost').value   = b.destination?.postCode || '';
+
+      $('#f_budgetNumber').value = b.budgetNumber || '';
+      $('#f_budgetHolderName').value = b.budgetHolderName || '';
+    }
+
+    async function openEdit(id){
+      const dlg = $('#editDlg');
+      if(!dlg.open) dlg.showModal();
+
+      const body = $('#editBody');
+      const prev = body.innerHTML;
+      body.innerHTML = `<div style="grid-column:1/-1;padding:20px;color:var(--muted)">Loading booking…</div>`;
+
+      try{
+        const data = await api.get(id);
+        const b = data?.booking;
+        if(!b) throw new Error('Booking not found');
+
+        body.innerHTML = prev;
+        fillEdit(b);
+        $('#f_wardName').focus();
+
+        // ensure Maps is loaded so the suggestion widgets appear
+        loadMapsIfKey();
+        if(window.google && google.maps && google.maps.importLibrary){
+          try { await initPlacesUI(); } catch {}
+        }
+      }catch(err){
+        body.innerHTML = `<div style="grid-column:1/-1;padding:20px;color:#ff8aa0">Failed to load booking: ${err.message||'Unknown error'}</div>`;
+        console.error('openEdit error', err);
+      }
+    }
+
+    $('#closeDlg').onclick = ()=> $('#editDlg').close();
+    $('#cancelEdit').onclick = ()=> $('#editDlg').close();
+
+    $('#saveEdit').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const id = $('#f_id').value;
+
+      let original;
+      try { original = (await api.get(id))?.booking || null; } catch { original = null; }
+      if(!original){ alert('Could not load original booking'); return; }
+
+      const putPayload = {
+        wardName: $('#f_wardName').value.trim(),
+        wardPhone: $('#f_wardPhone').value.trim(),
+        staffName: $('#f_staffName').value.trim(),
+        staffPhone: $('#f_staffPhone').value.trim(),
+        shiftType: $('#f_shiftType').value,
+        onOffDutyTime: $('#f_time').value.trim(),
+        pickupDateISO: $('#f_date').value.trim(),
+        reasonCode: $('#f_reasonCode').value.trim().toUpperCase(),
+        budgetNumber: original.budgetNumber,
+        budgetHolderName: original.budgetHolderName
+      };
+
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(putPayload.pickupDateISO)) return alert('Date must be YYYY-MM-DD');
+      if(!/^\d{2}:\d{2}$/.test(putPayload.onOffDutyTime)) return alert('Time must be HH:MM');
+      if(!/^[A-Z0-9]{2}$/.test(putPayload.reasonCode)) return alert('Reason code must be 2 alphanumeric characters (e.g. P1)');
+
+      const saveBtn = $('#saveEdit'); saveBtn.disabled=true; saveBtn.textContent='Saving…';
+
+      try{
+        await api.put(id, putPayload);
+
+        const updBody = {
+          pickupDateISO: putPayload.pickupDateISO,
+          onOffDutyTime: putPayload.onOffDutyTime,
+          staffPhone: putPayload.staffPhone
+        };
+
+        const pickText = $('#f_pickupText').value.trim();
+        const pickPost = $('#f_pickupPost').value.trim();
+        const destText = $('#f_destText').value.trim();
+        const destPost = $('#f_destPost').value.trim();
+
+        const changedPickup = pickText !== (original.pickup?.text||original.pickup?.formatted||'') || pickPost !== (original.pickup?.postCode||'');
+        const changedDest   = destText !== (original.destination?.text||original.destination?.formatted||'') || destPost !== (original.destination?.postCode||'');
+
+        if(changedPickup){ updBody.pickupText = pickText; updBody.pickupPostCode = pickPost; }
+        if(changedDest){   updBody.destinationText = destText; updBody.destinationPostCode = destPost; }
+
+        const shouldCallCU = changedPickup || changedDest ||
+                             putPayload.pickupDateISO !== original.pickupDateISO ||
+                             putPayload.onOffDutyTime !== original.onOffDutyTime ||
+                             putPayload.staffPhone !== (original.staffPhone||'');
+
+        if(shouldCallCU){
+          await api.customerUpdate(id, updBody);
+        }
+
+        $('#editDlg').close();
+        await load();
+      }catch(err){
+        alert(err?.message||'Save failed');
+        console.error('Save error', err);
+      }finally{
+        saveBtn.disabled=false; saveBtn.textContent='Save changes';
+      }
+    });
+
+    // ---------- Google Places (current API) ----------
+    let mapsScriptAdded = false;
+    async function initPlacesUI(){
+      if(!window.google || !google.maps || !google.maps.importLibrary) return;
+      await google.maps.importLibrary('places');
+
+      const createAutocomplete = (wrapSel, inputSel, postSel) => {
+        const wrap = document.querySelector(wrapSel);
+        if(!wrap || wrap.querySelector('gmpx-basic-place-autocomplete')) return;
+
+        const el = document.createElement('gmpx-basic-place-autocomplete');
+        el.setAttribute('placeholder','Search address');
+        el.setAttribute('aria-label','Search address');
+        el.style.display = 'block';
+        el.style.width = '100%';
+        el.country = ['gb'];
+
+        el.addEventListener('gmpx-placechange', async () => {
+          const pid = el?.place?.id;
+          if(!pid) return;
+
+          const {Place} = await google.maps.importLibrary('places');
+          const place = new Place({id: pid});
+          await place.fetchFields({ fields: ['formattedAddress','addressComponents'] });
+
+          const input = document.querySelector(inputSel);
+          const post  = document.querySelector(postSel);
+          if(place.formattedAddress) input.value = place.formattedAddress;
+
+          const pc = (place.addressComponents||[]).find(c => (c.types||[]).includes('postal_code'));
+          if(pc && post){ post.value = pc.longText || pc.shortText || post.value; }
+        });
+
+        wrap.appendChild(el);
+      };
+
+      createAutocomplete('#pickupAutoWrap', '#f_pickupText', '#f_pickupPost');
+      createAutocomplete('#destAutoWrap',   '#f_destText',   '#f_destPost');
+    }
+
+    function loadMapsIfKey(){
+      if(mapsScriptAdded) return;
+      const key =
+        window.GOOGLE_MAPS_KEY ||
+        document.querySelector('meta[name="gmaps-key"]')?.content ||
+        document.querySelector('#gmaps')?.dataset.key;
+      if(!key) return;
+
+      const s = document.createElement('script');
+      s.id = 'gmaps-js';
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&v=weekly&loading=async`;
+      s.async = true; s.defer = true;
+      s.onload = () => initPlacesUI();
+      document.head.appendChild(s);
+      mapsScriptAdded = true;
+    }
+
+    // Try to load on boot (harmless if key missing), and again when editing
+    loadMapsIfKey();
+
+    // Kick off
+    load();
+  </script>
+
+  <!-- Your browser API key (restrict to localhost/your domain) -->
+  <script id="gmaps" data-key="AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U"></script>
+</body>
+</html>

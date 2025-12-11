@@ -34,11 +34,19 @@ const AuditEntrySchema = new mongoose.Schema(
     // Who/what made the change
     actorType: {
       type: String,
-      enum: ["staff", "admin", "system"],
+      enum: ["staff", "admin", "system", "budget-user"], // ← added "budget-user"
       default: "staff"
     },
     source: {
       type: String, // e.g. "sms-link", "admin-dashboard", "import"
+      enum: [
+        "system",
+        "admin-dashboard",
+        "staff-booker",
+        "sms-link",
+        "edit-link",
+        "budget-portal"
+      ],
       default: "sms-link"
     },
 

@@ -5,8 +5,10 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import Booking from "./models/Booking.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -14,8 +16,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
+
+// --- Middleware (CORS with cookies) ---
+app.use(
+  cors({
+    origin: true,          // reflect request origin
+    credentials: true,     // allow cookies
+  })
+);
 app.use(express.json({ limit: "10mb" }));
+app.use(cookieParser());
 
 // --- Serve static frontend pages ---
 app.use(express.static(path.join(__dirname, "public")));
@@ -45,7 +55,11 @@ const {
   AUTOCAB_SUBSCRIPTION_KEY,
   GOOGLE_MAPS_KEY,
   PORT,
-  PUBLIC_CUSTOMER_BASE
+  PUBLIC_CUSTOMER_BASE,
+  NODE_ENV,
+  BUDGET_COOKIE_SECRET,
+  BUDGET_SESSION_TTL_DAYS,
+  BUDGET_PORTAL_PIN,
 } = process.env;
 
 if (!MONGODB_URI) throw new Error("Missing MONGODB_URI in .env");
@@ -69,8 +83,7 @@ const DERRIFORD_POSTCODE = "PL6 8DH";
 // Defaults to 2139 but can be overridden via DERRIFORD_CUSTOMER_ID in .env
 const DERRIFORD_CUSTOMER_ID = Number(process.env.DERRIFORD_CUSTOMER_ID || "2139");
 
-// Base URL used in customer self-service links sent via SMS
-// e.g. https://derriford.needacab.co.uk or similar
+// Base URL for staff self-service links
 const PUBLIC_CUSTOMER_BASE_URL = (PUBLIC_CUSTOMER_BASE || "").replace(/\/+$/, "");
 
 // ===== Helpers / Models =====
@@ -195,7 +208,6 @@ function isDerriford(lat, lng) {
 }
 
 // --- Distance + simple route optimiser helpers ---
-
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
@@ -214,7 +226,6 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
  * stops: [{ lat, lng, ... }]
  * direction: "inbound"  -> heading TO Derriford
  *            "outbound" -> heading FROM Derriford
- * Returns stops in a good driving order (nearest-neighbour heuristic).
  */
 function optimiseRoute(stops, direction = "inbound") {
   if (!stops || stops.length <= 1) return stops || [];
@@ -280,7 +291,7 @@ function makeReference(reasonCode, budgetNumber, budgetHolderName) {
   return `${reasonCode}/${budgetNumber}/${budgetHolderName}`.trim();
 }
 
-// 🔧 FAIL-SOFT zone lookup – DNS/HTTP errors will not break bookings
+// 🔧 FAIL-SOFT zone lookup
 async function lookupZone(lat, lng) {
   const url = `${AUTOCAB_BASE}/booking/v1/zone?latitude=${lat}&longitude=${lng}&companyId=${AUTOCAB_COMPANY_ID}`;
 
@@ -323,7 +334,7 @@ function toDDMMYY(iso) {
 
 // Convert Excel serial date (e.g. 45992) -> "YYYY-MM-DD"
 function excelSerialDateToISO(serial) {
-  const base = Date.UTC(1899, 11, 30); // Excel's 0 date (with 1900 leap bug taken into account)
+  const base = Date.UTC(1899, 11, 30);
   const days = Math.floor(serial);
   const ms = days * 24 * 60 * 60 * 1000;
   const d = new Date(base + ms);
@@ -335,52 +346,36 @@ function excelSerialDateToISO(serial) {
 
 function toISODateFromCell(v) {
   if (v == null || v === "") return "";
-
-  // If it's already a Date object
   if (v instanceof Date && !isNaN(v)) {
     const y = v.getFullYear();
     const m = String(v.getMonth() + 1).padStart(2, "0");
     const d = String(v.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
-
-  // If it's numeric (Excel serial)
   if (typeof v === "number") {
-    // Excel serials for modern dates are usually > 30000
     if (v > 30000 && v < 60000) {
       return excelSerialDateToISO(v);
     }
   }
-
   const raw = String(v ?? "").trim();
   if (!raw) return "";
-
-  // Already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-
-  // Excel serial passed as string
   const asNum = Number(raw);
   if (!Number.isNaN(asNum) && asNum > 30000 && asNum < 60000) {
     return excelSerialDateToISO(asNum);
   }
-
-  // Accept 24/12/2025 or 24-12-25 etc.
   const m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     let [, d, mo, y] = m;
     if (y.length === 2) y = `20${y}`;
     return `${y.padStart(4, "0")}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-
-  // Fallback: return as-is
   return raw;
 }
 
 // Convert Excel time fraction / simple text -> "HH:MM"
 function toTimeFromCell(v) {
   if (v == null || v === "") return "";
-
-  // Numeric fraction of a day (e.g. 0.3333 → 08:00)
   if (typeof v === "number") {
     let totalMinutes = Math.round(v * 24 * 60);
     const minutesPerDay = 24 * 60;
@@ -389,11 +384,7 @@ function toTimeFromCell(v) {
     const mm = String(totalMinutes % 60).padStart(2, "0");
     return `${hh}:${mm}`;
   }
-
   const s = String(v).trim();
-  if (!s) return "";
-
-  // "8", "08" → 08:00, "8:30" → 08:30, "08:05" → 08:05
   const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
   if (m) {
     let hh = Number(m[1]);
@@ -403,8 +394,6 @@ function toTimeFromCell(v) {
     mm = ((mm % 60) + 60) % 60;
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
-
-  // Already HH:MM or something acceptable – just return
   return s;
 }
 
@@ -449,7 +438,7 @@ async function geocodeAddress(text, postCode) {
   };
 }
 
-// Map one bulk CSV row → /api/bookings payload (no returns; no lat/lng in sheet)
+// Map one bulk CSV row → /api/bookings payload
 function mapBulkRowToPayload(row) {
   const getRaw = (key) =>
     row && Object.prototype.hasOwnProperty.call(row, key)
@@ -467,7 +456,6 @@ function mapBulkRowToPayload(row) {
   const shiftTypeRaw = get("ShiftType").toLowerCase();
   const shiftType = shiftTypeRaw === "finish" ? "finish" : "start";
 
-  // 🚑 Use raw cell values for date/time so we can handle Excel serials
   const pickupDateISO = toISODateFromCell(getRaw("PickupDate"));
   const onOffDutyTime = toTimeFromCell(getRaw("OnOffDutyTime"));
 
@@ -487,14 +475,12 @@ function mapBulkRowToPayload(row) {
     formatted: pickupText,
     text: pickupText,
     postCode: pickupPostCode
-    // lat/lng filled in later by geocodeAddress
   };
 
   const destination = {
     formatted: destText,
     text: destText,
     postCode: destPostCode
-    // lat/lng filled in later by geocodeAddress
   };
 
   return {
@@ -507,7 +493,7 @@ function mapBulkRowToPayload(row) {
     onOffDutyTime,
     pickup,
     destination,
-    requireReturn: false, // bulk import is always one-way
+    requireReturn: false,
     reasonCode,
     budgetNumber,
     budgetHolderName
@@ -609,8 +595,6 @@ function saveZonePickupsSafe(data) {
 }
 
 // Apply zone pickup-point labels to a list of addresses for a given zone
-// - If no config → returns addresses unchanged
-// - If matched → keeps original formatted address AND adds `pickupPointLabel`
 function applyZonePickupPointsToAddresses(addresses, zoneName) {
   const config = loadZonePickupsSafe();
   if (!config || typeof config !== "object") return addresses || [];
@@ -618,7 +602,6 @@ function applyZonePickupPointsToAddresses(addresses, zoneName) {
   const zone = String(zoneName || "").trim();
   if (!zone) return addresses || [];
 
-  // Case-insensitive lookup of the zone key
   const zoneKey = Object.keys(config).find(
     (k) => k.toLowerCase() === zone.toLowerCase()
   );
@@ -628,7 +611,7 @@ function applyZonePickupPointsToAddresses(addresses, zoneName) {
   if (!Array.isArray(entries)) return addresses || [];
 
   return (addresses || []).map((addr) => {
-    const out = { ...addr }; // clone so we don't mutate Mongo results
+    const out = { ...addr };
 
     const addrText = String(out.formatted || out.text || "").toLowerCase();
     const addrPostCode = String(out.postCode || "")
@@ -676,7 +659,6 @@ function applyZonePickupPointsToAddresses(addresses, zoneName) {
       }
 
       if (match && label) {
-        // 👉 Keep original `formatted` (full address), just add a label
         out.pickupPointLabel = label;
         out.pickupPointZone = zoneKey;
         break;
@@ -714,6 +696,320 @@ function normaliseAddressShape(raw, label) {
 
 // ---------------------- Health ----------------------
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+/* =========================
+   INLINE BUDGET PORTAL API
+   ========================= */
+const BUDGET_COOKIE_NAME = "budgetSess";
+const SESSION_TTL_DAYS = Math.max(1, parseInt(BUDGET_SESSION_TTL_DAYS || "7", 10));
+const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
+const SESSION_SECRET = BUDGET_COOKIE_SECRET || crypto.randomBytes(32).toString("hex");
+
+function sign(data) {
+  return crypto.createHmac("sha256", SESSION_SECRET).update(data).digest("hex");
+}
+
+function encodeSession(payload) {
+  const json = JSON.stringify(payload);
+  const b64 = Buffer.from(json, "utf8").toString("base64url");
+  const sig = sign(b64);
+  return `${b64}.${sig}`;
+}
+
+function decodeSession(token) {
+  if (!token) return null;
+  const [b64, sig] = String(token).split(".");
+  if (!b64 || !sig) return null;
+  if (sign(b64) !== sig) return null;
+  try {
+    const json = Buffer.from(b64, "base64url").toString("utf8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function setBudgetCookie(res, sess) {
+  res.cookie(BUDGET_COOKIE_NAME, encodeSession(sess), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: NODE_ENV === "production",
+    maxAge: SESSION_TTL_MS,
+    path: "/",
+  });
+}
+
+function clearBudgetCookie(res) {
+  res.clearCookie(BUDGET_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: NODE_ENV === "production",
+    path: "/",
+  });
+}
+
+function requireBudgetAuth(req, res, next) {
+  const token = req.cookies?.[BUDGET_COOKIE_NAME];
+  const sess = decodeSession(token);
+  if (!sess || !sess.exp || Date.now() > sess.exp) {
+    return res.status(401).json({ error: "Unauthorised" });
+  }
+  req.budgetSession = sess;
+  next();
+}
+
+// Helper: find booking belonging to the session budget
+async function findBudgetBooking(req, bookingId) {
+  const { budgetNumber } = req.budgetSession || {};
+  if (!budgetNumber) return null;
+  return Booking.findOne({
+    _id: bookingId,
+    budgetNumber,
+  });
+}
+
+// POST /api/budget/login
+app.post("/api/budget/login", async (req, res) => {
+  try {
+    const budgetNumber = String(req.body?.budgetNumber || "").trim();
+    const holderName = String(req.body?.holderName || req.body?.holder || "").trim();
+    const pin = req.body?.pin != null ? String(req.body.pin).trim() : "";
+
+    if (!/^\d{6}$/.test(budgetNumber)) {
+      return res.status(400).json({ error: "Budget number must be 6 digits." });
+    }
+    if (!holderName) {
+      return res.status(400).json({ error: "Budget holder name is required." });
+    }
+    if (BUDGET_PORTAL_PIN && pin !== BUDGET_PORTAL_PIN) {
+      return res.status(401).json({ error: "Invalid PIN." });
+    }
+
+    // Optional soft validation
+    const exists = await Booking.exists({
+      budgetNumber,
+      budgetHolderName: new RegExp(`^${holderName}$`, "i"),
+    });
+
+    const sess = {
+      budgetNumber,
+      holderName,
+      iat: Date.now(),
+      exp: Date.now() + SESSION_TTL_MS,
+    };
+    setBudgetCookie(res, sess);
+    res.json({ ok: true, budgetNumber, holderName, hasBookings: !!exists });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/budget/me
+app.get("/api/budget/me", (req, res) => {
+  const sess = decodeSession(req.cookies?.[BUDGET_COOKIE_NAME]);
+  if (!sess || !sess.exp || Date.now() > sess.exp) {
+    return res.status(200).json({ ok: false, session: null });
+  }
+  res.json({ ok: true, session: { budgetNumber: sess.budgetNumber, holderName: sess.holderName, exp: sess.exp } });
+});
+
+// POST /api/budget/logout
+app.post("/api/budget/logout", (req, res) => {
+  clearBudgetCookie(res);
+  res.json({ ok: true });
+});
+
+// GET /api/budget/bookings (restricted to session budget)
+app.get("/api/budget/bookings", requireBudgetAuth, async (req, res) => {
+  const { budgetNumber } = req.budgetSession;
+  const { dateFrom, dateTo, status, page = "1", limit = "50" } = req.query;
+
+  const q = { budgetNumber };
+  if (status && ["pending", "approved", "declined"].includes(String(status))) q.status = status;
+  if (dateFrom || dateTo) {
+    q.pickupDateISO = {};
+    if (dateFrom) q.pickupDateISO.$gte = String(dateFrom);
+    if (dateTo) q.pickupDateISO.$lte = String(dateTo);
+  }
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+  const skip = (pageNum - 1) * limitNum;
+
+  const [items, total] = await Promise.all([
+    Booking.find(q)
+      .sort({ pickupDateISO: 1, onOffDutyTime: 1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select({
+        pickupDateISO: 1,
+        onOffDutyTime: 1,
+        shiftType: 1,
+        wardName: 1,
+        staffName: 1,
+        staffPhone: 1,
+        pickup: 1,
+        destination: 1,
+        status: 1,
+        shortRef: 1,
+        reference: 1,
+        declineReason: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .lean(),
+    Booking.countDocuments(q),
+  ]);
+
+  res.json({
+    ok: true,
+    total,
+    page: pageNum,
+    limit: limitNum,
+    pages: Math.ceil(total / limitNum),
+    items,
+  });
+});
+
+// GET /api/budget/bookings/:id (own budget only)
+app.get("/api/budget/bookings/:id", requireBudgetAuth, async (req, res) => {
+  const { budgetNumber } = req.budgetSession;
+  const b = await Booking.findOne({
+    _id: req.params.id,
+    budgetNumber,
+  }).lean();
+  if (!b) return res.status(404).json({ error: "Not found" });
+  res.json({ ok: true, booking: b });
+});
+
+// PATCH /api/budget/bookings/:id/approve (budget-scoped)
+app.patch("/api/budget/bookings/:id/approve", requireBudgetAuth, async (req, res) => {
+  try {
+    const b = await findBudgetBooking(req, req.params.id);
+    if (!b) return res.status(404).json({ error: "Not found" });
+
+    const prev = b.status;
+    b.status = "approved";
+    await b.save();
+
+    await addAuditEntry(b._id, {
+      actorType: "budget-user",
+      source: "budget-portal",
+      action: "status-changed",
+      oldStatus: prev,
+      newStatus: "approved",
+      details: {
+        holderName: req.budgetSession.holderName,
+        budgetNumber: req.budgetSession.budgetNumber,
+      },
+    });
+
+    res.json({ ok: true, booking: b });
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Approve failed" });
+  }
+});
+
+// PATCH /api/budget/bookings/:id/decline (budget-scoped)
+app.patch("/api/budget/bookings/:id/decline", requireBudgetAuth, async (req, res) => {
+  try {
+    const b = await findBudgetBooking(req, req.params.id);
+    if (!b) return res.status(404).json({ error: "Not found" });
+
+    const reasonRaw = req.body?.reason;
+    const reason = reasonRaw == null ? "" : String(reasonRaw).trim();
+
+    const prev = b.status;
+    b.status = "declined";
+    b.declineReason = reason;
+    await b.save();
+
+    await addAuditEntry(b._id, {
+      actorType: "budget-user",
+      source: "budget-portal",
+      action: "status-changed",
+      oldStatus: prev,
+      newStatus: "declined",
+      details: {
+        holderName: req.budgetSession.holderName,
+        budgetNumber: req.budgetSession.budgetNumber,
+        reason,
+      },
+    });
+
+    res.json({ ok: true, booking: b });
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Decline failed" });
+  }
+});
+
+// PATCH /api/budget/bookings/:id/cancel
+app.patch("/api/budget/bookings/:id/cancel", requireBudgetAuth, async (req, res) => {
+  const { budgetNumber } = req.budgetSession;
+  const reasonRaw = req.body?.reason;
+  const reason = reasonRaw == null ? "" : String(reasonRaw).trim();
+
+  const b = await Booking.findOne({
+    _id: req.params.id,
+    budgetNumber,
+  });
+  if (!b) return res.status(404).json({ error: "Not found" });
+
+  const prev = b.status;
+  b.status = "declined";
+  b.declineReason = reason || "Cancelled via budget portal";
+  await b.save();
+
+  if (prev !== "declined") {
+    await addAuditEntry(b._id, {
+      actorType: "budget-user",
+      source: "budget-portal",
+      action: "status-changed",
+      oldStatus: prev,
+      newStatus: "declined",
+      details: { via: "PATCH /api/budget/bookings/:id/cancel", reason: b.declineReason },
+    });
+  }
+
+  res.json({ ok: true, booking: b });
+});
+
+// Optional debug: see if a booking belongs to your session budget
+app.get("/api/budget/debug/:id", requireBudgetAuth, async (req, res) => {
+  const { budgetNumber } = req.budgetSession;
+  const b = await Booking.findById(req.params.id).lean();
+  if (!b) return res.status(404).json({ error: "Booking not found" });
+  res.json({
+    ok: true,
+    yourBudgetNumber: budgetNumber,
+    bookingBudgetNumber: b.budgetNumber,
+    same: b.budgetNumber === budgetNumber,
+    budgetHolderName: b.budgetHolderName || null,
+    status: b.status || null,
+  });
+});
+
+// Debug list of budget routes
+app.get("/api/budget/__routes", (_req, res) => {
+  res.json({
+    ok: true,
+    routes: [
+      "POST   /api/budget/login",
+      "GET    /api/budget/me",
+      "POST   /api/budget/logout",
+      "GET    /api/budget/bookings",
+      "GET    /api/budget/bookings/:id",
+      "PATCH  /api/budget/bookings/:id/approve",
+      "PATCH  /api/budget/bookings/:id/decline",
+      "PATCH  /api/budget/bookings/:id/cancel",
+      "GET    /api/budget/debug/:id",
+    ],
+  });
+});
+
+/* =========================
+   END INLINE BUDGET API
+   ========================= */
 
 // ---------------------- SMS TEMPLATE SETTINGS API ----------------------
 app.get("/api/settings/sms-templates", (_req, res) => {
@@ -814,7 +1110,6 @@ app.post("/api/bookings", async (req, res) => {
       }
     }
 
-    // Normalise addresses from frontend (supports placeId-only)
     const normPickup = normaliseAddressShape(b.pickup, "pickup");
     const normDest = normaliseAddressShape(b.destination, "destination");
     if (!normPickup) {
@@ -864,7 +1159,6 @@ app.post("/api/bookings", async (req, res) => {
 
     const saved = await Booking.create({ ...b, isReturn: false });
 
-    // Audit: booking-created (main)
     await addAuditEntry(saved._id, {
       actorType: "staff",
       source: "staff-booker",
@@ -941,7 +1235,6 @@ app.post("/api/bookings", async (req, res) => {
 
       savedReturn = await Booking.create(rb);
 
-      // Audit: booking-created (return)
       await addAuditEntry(savedReturn._id, {
         actorType: "staff",
         source: "staff-booker",
@@ -972,8 +1265,6 @@ app.post("/api/bulk-bookings", async (req, res) => {
       const row = rows[i];
 
       try {
-        // 🔴 Skip template/example rows:
-        // any row where WardName starts with "EXAMPLE" (case-insensitive)
         const wardNameRaw =
           row.WardName !== undefined && row.WardName !== null
             ? String(row.WardName).trim().toLowerCase()
@@ -993,7 +1284,6 @@ app.post("/api/bulk-bookings", async (req, res) => {
 
         const payload = mapBulkRowToPayload(row);
 
-        // Geocode pickup & destination from text + postcode
         const pickupFull = [payload.pickup.text, payload.pickup.postCode]
           .filter(Boolean)
           .join(", ");
@@ -1021,7 +1311,6 @@ app.post("/api/bulk-bookings", async (req, res) => {
         payload.destination.postCode =
           destGeo.postCode || payload.destination.postCode;
 
-        // Bulk import is always one-way
         payload.requireReturn = false;
         delete payload.returnDateISO;
         delete payload.returnOnOffDutyTime;
@@ -1280,12 +1569,7 @@ app.get("/api/reports/by-shift", async (req, res) => {
   res.json(result);
 });
 
-/* ====== SMART PACK ZONE CLUSTERING (buses first, multi-zone buckets) ====== */
-
-/**
- * Define logical clusters of neighbouring zones which can share buses.
- * e.g. Greenbank + St Judes/Lipson + Mutley + Mount Gould + North Cross etc.
- */
+/* ====== SMART PACK ZONE CLUSTERING ====== */
 const ZONE_CLUSTERS = [
   {
     label: "Mutley / Greenbank / Lipson / St Judes / Mount Gould",
@@ -1301,7 +1585,6 @@ const ZONE_CLUSTERS = [
       "North Hill"
     ]
   }
-  // You can extend with more cluster definitions later if needed.
 ];
 
 function getZoneClusterName(zoneName) {
@@ -1316,12 +1599,10 @@ function getZoneClusterName(zoneName) {
       }
     }
   }
-
-  // Default: its own cluster
   return name;
 }
 
-// ---------------------- Shift grouping (now with clustered zones + pickup points) ----------------------
+// ---------------------- Shift grouping (clustered + pickup points) ----------------------
 app.get("/api/reports/shift-groups", async (req, res) => {
   try {
     const type = (req.query.type || "start").toLowerCase();
@@ -1368,7 +1649,6 @@ app.get("/api/reports/shift-groups", async (req, res) => {
               lat: type === "finish" ? "$destination.lat" : "$pickup.lat",
               lng: type === "finish" ? "$destination.lng" : "$pickup.lng",
 
-              // include staff details so frontend can build notes per stop
               staffName: "$staffName",
               staffPhone: "$staffPhone"
             }
@@ -1392,20 +1672,16 @@ app.get("/api/reports/shift-groups", async (req, res) => {
 
     const direction = type === "finish" ? "outbound" : "inbound";
 
-    // 🌍 Step 1: apply pickup points per original zone
+    // 1) pickup points per original zone
     const withPickupPointsByZone = groups.map((g) => {
       const withPickupPoints = applyZonePickupPointsToAddresses(
         g.addresses || [],
         g.zoneName
       );
-      return {
-        ...g,
-        addresses: withPickupPoints
-      };
+      return { ...g, addresses: withPickupPoints };
     });
 
-    // 🧠 Step 2: merge neighbouring zones into clusters for Smart Pack
-    // Keyed by: date + time + clusterName
+    // 2) merge neighbouring zones into clusters
     const bucketMap = new Map();
 
     for (const g of withPickupPointsByZone) {
@@ -1432,21 +1708,20 @@ app.get("/api/reports/shift-groups", async (req, res) => {
       bucket.addresses.push(...(g.addresses || []));
     }
 
-    // 🚐 Step 3: for each cluster bucket, optimise the full combined route
+    // 3) optimise combined route per cluster
     const formatted = Array.from(bucketMap.values()).map((b) => {
       const orderedAddresses = optimiseRoute(b.addresses, direction);
 
       return {
         pickupDateISO: toDDMMYY(b.pickupDateISO),
         onOffDutyTime: b.onOffDutyTime,
-        zoneName: b.clusterName, // used as "zone" label in Smart Pack UI
-        zones: Array.from(b.zones).sort(), // underlying Autocab zones if you want to show them
+        zoneName: b.clusterName,
+        zones: Array.from(b.zones).sort(),
         count: b.count,
         addresses: orderedAddresses
       };
     });
 
-    // Sort clusters nicely: date, time, then label
     formatted.sort((a, b) => {
       if (a.pickupDateISO !== b.pickupDateISO) {
         return a.pickupDateISO.localeCompare(b.pickupDateISO);
@@ -1472,7 +1747,6 @@ app.get("/api/bookings/:id/public", async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Only send the fields the staff page needs
     res.json({
       _id: booking._id,
       pickupDateISO: booking.pickupDateISO,
@@ -1509,7 +1783,6 @@ app.post("/api/bookings/:id/customer-confirm", async (req, res) => {
       lastCustomerActionAt: now,
       lastCustomerActionSource: "sms-link",
       lastCustomerActionSummary: "Confirmed via staff link",
-      // ✅ Set booking status to approved when customer confirms via link
       status: "approved"
     };
     const booking = await Booking.findByIdAndUpdate(
@@ -1536,7 +1809,7 @@ app.post("/api/bookings/:id/customer-confirm", async (req, res) => {
   }
 });
 
-// --- Staff link: edit booking (date / time / phone / addresses only for THIS booking) ---
+// --- Staff link: edit booking ---
 app.post("/api/bookings/:id/customer-update", async (req, res) => {
   try {
     const {
@@ -1549,7 +1822,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       pickupPostCode,
       destinationText,
       destinationPostCode
-      // deliberately ignore requireReturn / return settings
     } = req.body || {};
 
     const booking = await Booking.findById(req.params.id);
@@ -1561,32 +1833,27 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
     const changedFields = [];
     let changed = false;
 
-    // Date
     if (pickupDateISO && pickupDateISO !== booking.pickupDateISO) {
       booking.pickupDateISO = pickupDateISO;
       changedFields.push("date");
       changed = true;
     }
 
-    // Time
     if (onOffDutyTime && onOffDutyTime !== booking.onOffDutyTime) {
       booking.onOffDutyTime = onOffDutyTime;
       changedFields.push("time");
       changed = true;
     }
 
-    // Phone
     if (staffPhone && staffPhone !== booking.staffPhone) {
       booking.staffPhone = staffPhone;
       changedFields.push("phone");
       changed = true;
     }
 
-    // Address updates (for missing address flags + self-service form)
-    // 1) Pickup side (used by SHIFT START self-service)
+    // Address updates
     if (pickup || pickupText || pickupPostCode) {
       if (pickup) {
-        // structured payload from some clients
         const normPickup = normaliseAddressShape(pickup, "pickup");
         if (!normPickup) {
           return res.status(400).json({
@@ -1601,7 +1868,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
             : booking.pickup || {};
         booking.pickup = { ...currentPickup, ...normPickup };
 
-        // ensure zone is up to date
         if (
           typeof booking.pickup.lat === "number" &&
           typeof booking.pickup.lng === "number"
@@ -1612,7 +1878,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
           );
         }
       } else {
-        // Self-service: text + postcode only (Google address verification on form)
         const baseStreet =
           pickupText ||
           booking.pickup?.text ||
@@ -1656,7 +1921,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       changed = true;
     }
 
-    // 2) Destination side (used by SHIFT FINISH self-service)
     if (destination || destinationText || destinationPostCode) {
       if (destination) {
         const normDest = normaliseAddressShape(destination, "destination");
@@ -1730,7 +1994,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       return res.status(400).json({ error: "No update fields provided" });
     }
 
-    // Ensure addresses are valid after any address change
     if (
       !booking.pickup ||
       typeof booking.pickup.lat !== "number" ||
@@ -1752,9 +2015,8 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       });
     }
 
-    // Re-enforce Derriford rules on THIS booking only
+    // Re-enforce Derriford rules
     if (booking.shiftType === "start") {
-      // Shift start: drop-off must be Derriford
       if (!isDerriford(booking.destination.lat, booking.destination.lng)) {
         return res.status(400).json({
           error:
@@ -1762,7 +2024,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
         });
       }
     } else {
-      // Shift finish: pickup must be Derriford
       if (!isDerriford(booking.pickup.lat, booking.pickup.lng)) {
         return res.status(400).json({
           error:
@@ -1771,7 +2032,6 @@ app.post("/api/bookings/:id/customer-update", async (req, res) => {
       }
     }
 
-    // Mark as updated via staff self-service link
     booking.updatedByStaffAt = now;
     booking.updatedByStaffSource = "staff-link";
 
@@ -1826,7 +2086,7 @@ app.post("/api/bookings/:id/customer-cancel", async (req, res) => {
     const now = new Date();
 
     const set = {
-      status: "declined", // keep using declined for compatibility
+      status: "declined",
       declineReason: reason || "Cancelled by staff via update link",
       cancelledByStaffAt: now,
       cancelledByStaffReason: reason || null,
@@ -1875,7 +2135,6 @@ app.put("/api/bookings/:id", async (req, res) => {
 
     const payload = req.body || {};
 
-    // Only allow updating these core fields from the bookings page
     const editableFields = [
       "wardName",
       "wardPhone",
@@ -1887,10 +2146,9 @@ app.put("/api/bookings/:id", async (req, res) => {
       "reasonCode",
       "budgetNumber",
       "budgetHolderName",
-      "status" // status handled specially below
+      "status"
     ];
 
-    // ✅ Allow manual flags to be updated from Bookings page
     if (payload.manualFlagLabel !== undefined) {
       b.manualFlagLabel =
         payload.manualFlagLabel === null
@@ -1906,31 +2164,26 @@ app.put("/api/bookings/:id", async (req, res) => {
 
     const previousStatus = b.status;
 
-    // 🔍 Are we changing any "core" fields (time, date, shift, budget, address, status)?
     const isCoreFieldUpdate =
       editableFields.some((field) => payload[field] !== undefined) ||
       !!payload.pickup ||
       !!payload.destination;
 
-    // 🏁 If we ONLY changed flags, skip heavy validation + Derriford checks
     if (!isCoreFieldUpdate) {
       await b.save();
       return res.json({ ok: true, booking: b });
     }
 
-    // -------- Core-field updates --------
     for (const field of editableFields) {
       if (payload[field] === undefined) continue;
 
       if (field === "status") {
         const v = String(payload.status ?? "").trim().toLowerCase();
         if (!v) {
-          // 🔁 Empty string from UI = reset back to pending
           b.status = "pending";
         } else if (["pending", "approved", "declined"].includes(v)) {
           b.status = v;
         }
-        // anything else is ignored (keeps existing status)
       } else {
         b[field] =
           typeof payload[field] === "string"
@@ -1939,7 +2192,6 @@ app.put("/api/bookings/:id", async (req, res) => {
       }
     }
 
-    // ✅ Allow inline address edits to patch pickup/destination (merge, don't wipe lat/lng)
     if (payload.pickup || payload.destination) {
       if (payload.pickup) {
         const currentPickup =
@@ -1957,7 +2209,6 @@ app.put("/api/bookings/:id", async (req, res) => {
       }
     }
 
-    // Validate required fields on the updated booking
     const requiredText = [
       "wardName",
       "wardPhone",
@@ -1978,7 +2229,6 @@ app.put("/api/bookings/:id", async (req, res) => {
       }
     }
 
-    // Format checks
     if (!/^[A-Z0-9]{2}$/.test(String(b.reasonCode).toUpperCase())) {
       return res.status(400).json({
         error:
@@ -1992,7 +2242,6 @@ app.put("/api/bookings/:id", async (req, res) => {
         .json({ error: "Budget number must be 6 digits." });
     }
 
-    // Make sure addresses still exist
     if (
       !b.pickup ||
       typeof b.pickup.lat !== "number" ||
@@ -2012,7 +2261,6 @@ app.put("/api/bookings/:id", async (req, res) => {
       });
     }
 
-    // Derriford rules based on (potentially updated) shiftType
     if (b.shiftType === "start") {
       if (!isDerriford(b.destination.lat, b.destination.lng)) {
         return res.status(400).json({
@@ -2029,7 +2277,6 @@ app.put("/api/bookings/:id", async (req, res) => {
       }
     }
 
-    // Rebuild reference if any of its components changed
     b.reference = makeReference(
       b.reasonCode,
       b.budgetNumber,
@@ -2056,7 +2303,74 @@ app.put("/api/bookings/:id", async (req, res) => {
   }
 });
 
-// ✅ Approve: just mark as approved (no SMS, no text)
+// ✅ Remove flags (manual + dismiss auto flags)
+app.patch("/api/bookings/:id/remove-flag", async (req, res) => {
+  try {
+    const b = await Booking.findById(req.params.id);
+    if (!b) return res.status(404).json({ error: "Not found" });
+
+    const rawFlags =
+      Array.isArray(req.body?.flags) && req.body.flags.length
+        ? req.body.flags
+        : req.body?.flag
+        ? [req.body.flag]
+        : [];
+
+    let codes = rawFlags
+      .map((f) => String(f || "").trim())
+      .filter(Boolean);
+
+    if (!codes.length) {
+      codes = ["manual"];
+    }
+
+    const manualKeys = new Set(["manual", "manualFlag", "manual-flag"]);
+    const clearManual = codes.some((c) => manualKeys.has(c.toLowerCase()));
+    const autoCodes = codes.filter((c) => !manualKeys.has(c.toLowerCase()));
+
+    const hadManual =
+      !!(b.manualFlagLabel || b.manualFlagReason);
+
+    if (clearManual) {
+      b.manualFlagLabel = undefined;
+      b.manualFlagReason = undefined;
+    }
+
+    if (autoCodes.length) {
+      const existing = Array.isArray(b.dismissedFlags)
+        ? b.dismissedFlags
+        : [];
+      const merged = Array.from(
+        new Set([...existing, ...autoCodes])
+      ).filter(Boolean);
+      b.dismissedFlags = merged;
+    }
+
+    await b.save();
+
+    const cleared = {
+      manual: clearManual && hadManual,
+      autoCodes
+    };
+
+    await addAuditEntry(b._id, {
+      actorType: "admin",
+      source: "admin-dashboard",
+      action: "flags-cleared",
+      details: {
+        via: "PATCH /api/bookings/:id/remove-flag",
+        cleared
+      }
+    });
+
+    res.json({ ok: true, booking: b, cleared });
+  } catch (e) {
+    console.error("remove-flag error", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ✅ Approve: just mark as approved (admin)
 app.patch("/api/bookings/:id/approve", async (req, res) => {
   try {
     const b = await Booking.findById(req.params.id);
@@ -2083,7 +2397,7 @@ app.patch("/api/bookings/:id/approve", async (req, res) => {
   }
 });
 
-// ✅ Decline: just mark as declined, optional reason, but don't delete & don't send SMS
+// ✅ Decline: just mark as declined (admin)
 app.patch("/api/bookings/:id/decline", async (req, res) => {
   try {
     const reasonRaw = req.body?.reason;
@@ -2097,7 +2411,7 @@ app.patch("/api/bookings/:id/decline", async (req, res) => {
 
     const previousStatus = b.status;
     b.status = "declined";
-    b.declineReason = reason || ""; // allow empty reason
+    b.declineReason = reason || "";
     await b.save();
 
     if (previousStatus !== "declined") {
@@ -2117,7 +2431,7 @@ app.patch("/api/bookings/:id/decline", async (req, res) => {
   }
 });
 
-// ✅ Clear status: reset back to 'pending' and wipe declineReason
+// ✅ Clear status: reset back to 'pending'
 app.patch("/api/bookings/:id/clear-status", async (req, res) => {
   try {
     const b = await Booking.findById(req.params.id);
@@ -2179,13 +2493,6 @@ app.get("/api/bookings/:id/logs", async (req, res) => {
 });
 
 /* ---------- Generic SMS endpoint for dashboard (/send-sms) ---------- */
-/**
- * POST /send-sms
- * Body: { to, message, source, bookingId }
- *
- * This is used by the Derriford Bookings UI when you click "Send SMS".
- * It uses the Orion sendSMS helper and logs to BookingLog if a bookingId is supplied.
- */
 app.post("/send-sms", async (req, res) => {
   try {
     const { to, message, source, bookingId } = req.body || {};
@@ -2198,7 +2505,6 @@ app.post("/send-sms", async (req, res) => {
 
     const smsResult = await sendSMS(to, message);
 
-    // Always try to log, even if SMS fails (so you can see attempts)
     if (bookingId) {
       try {
         await BookingLog.create({
@@ -2213,7 +2519,6 @@ app.post("/send-sms", async (req, res) => {
         console.warn("Failed to log generic SMS:", logErr.message);
       }
 
-      // Also update booking's lastSms* fields and audit, even if SMS failed (so history shows attempts)
       try {
         const now = new Date();
         const update = {
@@ -2282,7 +2587,6 @@ app.post("/api/bookings/:id/sms", async (req, res) => {
     if (phoneSource === "ward") {
       rawPhone = b.wardPhone || "";
     } else {
-      // default to staff
       rawPhone = b.staffPhone || b.wardPhone || "";
     }
 
@@ -2300,7 +2604,6 @@ app.post("/api/bookings/:id/sms", async (req, res) => {
 
     const toNumberFinal = smsResult.to || normalizeUKMobile(rawPhone);
 
-    // Update SMS tracking on the booking
     const now = new Date();
     b.lastSmsAt = now;
     b.lastSmsSource = "bookings-page";
@@ -2309,7 +2612,6 @@ app.post("/api/bookings/:id/sms", async (req, res) => {
     b.smsCount = (b.smsCount || 0) + 1;
     await b.save();
 
-    // Audit log entry
     await addAuditEntry(b._id, {
       actorType: "admin",
       source: "admin-dashboard",
@@ -2347,30 +2649,15 @@ app.post("/api/bookings/:id/sms", async (req, res) => {
 
 /* ---------- SMS self-service link for flagged bookings ---------- */
 
-/**
- * Build the public self-service URL the staff member will see.
- * If PUBLIC_CUSTOMER_BASE is set, we'll use that. Otherwise, we fall back
- * to the current request host.
- */
 function buildCustomerSelfServiceUrl(req, bookingId) {
   const base =
     PUBLIC_CUSTOMER_BASE_URL ||
     `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
-  // Now points at the new staff update page
   return `${base}/staff-update.html?bookingId=${encodeURIComponent(
     bookingId
   )}`;
 }
 
-/**
- * POST /api/bookings/:id/send-edit-link
- *
- * Sends an SMS to the staff member with a link to edit / cancel their booking.
- * Also records a BookingLog row so you don't need a spreadsheet.
- *
- * Optional body:
- *   { reason: "Wrong time", note: "Manually flagged as possible duplicate" }
- */
 app.post("/api/bookings/:id/send-edit-link", async (req, res) => {
   try {
     const b = await Booking.findById(req.params.id);
@@ -2406,7 +2693,6 @@ app.post("/api/bookings/:id/send-edit-link", async (req, res) => {
 
     const smsResult = await sendSMS(b.staffPhone, message);
 
-    // Log regardless of success so you can see attempts
     await BookingLog.create({
       bookingId: b._id,
       type: "edit_link_sms",
@@ -2421,7 +2707,6 @@ app.post("/api/bookings/:id/send-edit-link", async (req, res) => {
       }
     });
 
-    // Update booking SMS tracking + audit
     try {
       const now = new Date();
       const update = {
@@ -2479,11 +2764,6 @@ app.post("/api/bookings/:id/send-edit-link", async (req, res) => {
 
 /* ---------- Smart Pack → Autocab booking ---------- */
 
-/**
- * Get a human-friendly pickup-location label from a Smart Pack stop.
- * Supports multiple possible front-end properties:
- *   pickupLocation / pickupPointLabel / locationLabel / locationName / label
- */
 function getSmartStopLabel(stop) {
   if (!stop) return "";
   const label =
@@ -2496,13 +2776,6 @@ function getSmartStopLabel(stop) {
   return String(label || "").trim();
 }
 
-/**
- * Build a note for the stop if Smart Pack hasn't already provided one.
- * Prioritises:
- *   1. stop.note (if set on the client)
- *   2. pickup location label
- *   3. staff name/phone if present
- */
 function buildSmartStopNote(stop) {
   if (!stop) return "";
   if (stop.note && String(stop.note).trim()) return String(stop.note).trim();
@@ -2518,7 +2791,6 @@ function buildSmartStopNote(stop) {
   return [label, staffBits].filter(Boolean).join(" — ");
 }
 
-// Map Smart Pack stop -> Autocab address object (for non-Derriford stops)
 function mapSmartStopToAutocabAddress(stop) {
   const baseText = stop.formatted || stop.text || "";
   const label = getSmartStopLabel(stop);
@@ -2527,9 +2799,7 @@ function mapSmartStopToAutocabAddress(stop) {
   if (label) {
     const baseLower = baseText.toLowerCase();
     const labelLower = label.toLowerCase();
-    // Avoid duplicating label if it's already contained
     if (!baseLower.includes(labelLower)) {
-      // "Location A – 1 High Street, Plymouth"
       combinedText = baseText ? `${label} – ${baseText}` : label;
     } else {
       combinedText = baseText || label;
@@ -2556,7 +2826,6 @@ function mapSmartStopToAutocabAddress(stop) {
   };
 }
 
-// Fixed Derriford address for start/finish shift logic
 function makeDerrifordAutocabAddress() {
   return {
     bookingPriority: 0,
@@ -2572,30 +2841,16 @@ function makeDerrifordAutocabAddress() {
   };
 }
 
-// Map vehicle capacity -> Autocab capabilities
 function mapCapacityToCapabilities(cap) {
   const n = Number(cap) || 4;
-  // 4 seater: default capability (27)
-  // 5 seater: capability id 22
-  // 6 seater: capability id 4
-  // 7 seater: capability id 20
-  // 8 seater: capability id 5
-  // 19 seater: use base capability (27)
   switch (n) {
-    case 4:
-      return [27];
-    case 5:
-      return [22];
-    case 6:
-      return [4];
-    case 7:
-      return [20];
-    case 8:
-      return [5];
-    case 19:
-      return [27];
-    default:
-      return [27];
+    case 4: return [27];
+    case 5: return [22];
+    case 6: return [4];
+    case 7: return [20];
+    case 8: return [5];
+    case 19: return [27];
+    default: return [27];
   }
 }
 
@@ -2623,21 +2878,16 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     let destStop = null;
 
     if (shiftType === "start") {
-      // START SHIFT: homes -> Derriford
-      // pickup = first address, vias = others, destination = Derriford
       pickupStop = stops[0];
       viaStops = stops.slice(1);
       pickupAddress = mapSmartStopToAutocabAddress(pickupStop);
       destinationAddress = derrifordAddr;
     } else if (shiftType === "finish") {
-      // FINISH SHIFT: Derriford -> homes
-      // pickup = Derriford, vias = all but last, destination = last address
       destStop = stops[stops.length - 1];
       viaStops = stops.slice(0, -1);
       pickupAddress = derrifordAddr;
       destinationAddress = mapSmartStopToAutocabAddress(destStop);
     } else {
-      // Fallback: treat first/last as pickup/destination, others as vias
       pickupStop = stops[0];
       destStop = stops[stops.length - 1];
       viaStops = stops.slice(1, -1);
@@ -2650,7 +2900,7 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
     const payload = {
       capabilities,
       companyId: Number(AUTOCAB_COMPANY_ID),
-      customerId: DERRIFORD_CUSTOMER_ID, // force onto Derriford customer
+      customerId: DERRIFORD_CUSTOMER_ID,
       customerEmail: "",
       driverConstraints: {
         forbiddenDrivers: [],
@@ -2671,21 +2921,18 @@ app.post("/api/autocab/book-smartpack", async (req, res) => {
       ourReference: meta?.bucketLabel || "",
       pickup: {
         address: pickupAddress,
-        // include pickup-location/staff note if available
         note: buildSmartStopNote(pickupStop),
         passengerDetailsIndex: null,
         type: "Pickup"
       },
       vias: viaStops.map((v) => ({
         address: mapSmartStopToAutocabAddress(v),
-        // include per-stop note (pickup location + Customer + Tel)
         note: buildSmartStopNote(v),
         passengerDetailsIndex: null,
         type: "Via"
       })),
       destination: {
         address: destinationAddress,
-        // only meaningful for finish/fallback where we have a destStop
         note: buildSmartStopNote(destStop),
         passengerDetailsIndex: null,
         type: "Destination"

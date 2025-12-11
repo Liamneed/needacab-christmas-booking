@@ -14,7 +14,6 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
     a{text-decoration:none;color:inherit}
 
-    /* NAVBAR */
     .navbar{
       position:sticky;top:0;z-index:20;
       display:flex;justify-content:space-between;align-items:center;
@@ -25,7 +24,6 @@
     .nav-left a:hover{background:#1a222d}
     .nav-left a.active{background:var(--brand);color:#111}
 
-    /* LAYOUT */
     .wrap{max-width:1300px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
     .card{
       background:var(--card);border:1px solid var(--line);
@@ -44,7 +42,6 @@
     }
     .muted{color:var(--muted);font-size:12px}
 
-    /* CONTROLS + BUTTONS */
     .controls,.filter-row,.row-actions{
       display:flex;flex-wrap:wrap;gap:12px;row-gap:10px;align-items:center;
     }
@@ -97,7 +94,6 @@
       cursor: pointer;
     }
 
-    /* QUICK DATES */
     .quick-dates {
       display: flex;
       flex-wrap: wrap;
@@ -124,7 +120,6 @@
       border-color: #9ca3af;
     }
 
-    /* FILTER STATS */
     .filter-row{
       margin-top:10px;
     }
@@ -147,6 +142,7 @@
       cursor:pointer;
       user-select:none;
       transition:background 0.12s ease,border-color 0.12s ease,transform 0.08s ease;
+      white-space:nowrap;
     }
     .stat-pill span.value{
       font-weight:600;
@@ -167,7 +163,6 @@
       transform:translateY(-1px);
     }
 
-    /* TABLES */
     table{width:100%;border-collapse:collapse;font-size:13px;}
     th,td{border-bottom:1px solid var(--line);padding:8px 8px;vertical-align:top}
     th{
@@ -185,19 +180,42 @@
       white-space:nowrap;
     }
 
-    .status-pill{
-      display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;
+    .status-pill,
+    .sms-pill,
+    .flag-pill,
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:22px;
+      padding:3px 9px;
+      border-radius:999px;
+      font-size:11px;
+      white-space:nowrap;
+      letter-spacing:0.02em;
     }
+
     .status-pending{background:#1f2937;color:#e5e7eb;}
     .status-approved{background:rgba(22,163,74,0.18);color:#bbf7d0;border:1px solid rgba(34,197,94,0.6);}
     .status-declined{background:rgba(220,38,38,0.16);color:#fecaca;border:1px solid rgba(248,113,113,0.7);}
     .status-cancelled{background:rgba(148,163,184,0.18);color:#e5e7eb;border:1px solid rgba(148,163,184,0.7);}
 
+    .sms-pill{
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+      background:rgba(59,130,246,0.18);
+      color:#bfdbfe;
+      border:1px solid rgba(59,130,246,0.7);
+    }
+
+    .status-cell{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:nowrap;
+    }
+
     .flag-pill{
-      display:inline-block;
-      padding:2px 6px;
-      border-radius:999px;
-      font-size:10px;
       text-transform:uppercase;
       letter-spacing:0.06em;
       margin-right:4px;
@@ -218,7 +236,6 @@
       border:1px solid rgba(129,140,248,0.7);
       text-transform:none;
       letter-spacing:0;
-      white-space:nowrap;
       max-width:260px;
       overflow:hidden;
       text-overflow:ellipsis;
@@ -248,7 +265,6 @@
     .pager span{min-width:120px;text-align:center;}
     .pager button{font-size:12px;padding:5px 9px;}
 
-    /* MODALS */
     .modal-backdrop{
       position:fixed;inset:0;background:rgba(0,0,0,0.6);
       display:flex;align-items:center;justify-content:center;
@@ -292,11 +308,9 @@
     .checkbox-row input{width:auto;min-height:auto;}
 
     .badge{
-      display:inline-block;padding:3px 7px;border-radius:999px;
-      background:var(--chip);border:1px solid var(--line);font-size:11px;
+      background:var(--chip);border:1px solid var(--line);
     }
 
-    /* Ref / flags / SMS block */
     .ref-block{
       margin-bottom:4px;
     }
@@ -313,6 +327,7 @@
       flex-wrap:wrap;
       gap:4px;
     }
+
     .sms-indicator{
       margin-top:4px;
       display:flex;
@@ -324,6 +339,21 @@
     .sms-dot{
       font-size:11px;
     }
+
+    .log-icon-btn{
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      padding:3px;
+      border-radius:999px;
+      font-size:14px;
+      line-height:1;
+      color:var(--muted);
+    }
+    .log-icon-btn:hover{
+      background:#111827;
+      color:#e9eef4;
+    }
   </style>
 </head>
 <body>
@@ -332,6 +362,7 @@
       <a href="/">Home</a>
       <a href="/admin">Admin</a>
       <a href="/staff_booker.html">Staff Booker</a>
+      <a href="/bulk_staff_booker.html">Bulk Staff Booker</a>
       <a href="/chat">Chat Booker</a>
       <a href="/bookings" class="active">Bookings</a>
     </div>
@@ -390,6 +421,7 @@
         <button class="btn" id="btnExportFlagged">Export flagged (XLSX)</button>
         <button class="btn" id="btnExportAll">Export all (XLSX)</button>
         <button class="btn" id="btnTextFlagged">Text selected flagged</button>
+        <button class="btn" id="btnTextAny">Text selected (any)</button>
       </div>
 
       <div class="quick-dates">
@@ -413,6 +445,14 @@
         <label class="checkbox-row">
           <input type="checkbox" id="filterManual">
           <span>Show only manual flags</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="filterTextSent">
+          <span>Show only text sent</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="filterUpdated">
+          <span>Show only customer updated</span>
         </label>
       </div>
 
@@ -555,12 +595,10 @@
         </div>
         <div class="modal-row">
           <label for="editBookingPickup">Pickup address</label>
-          <!-- UNLOCKED + will use Google autocomplete -->
           <input type="text" id="editBookingPickup" placeholder="Start typing pickup…">
         </div>
         <div class="modal-row">
           <label for="editBookingDest">Destination address</label>
-          <!-- UNLOCKED + will use Google autocomplete -->
           <input type="text" id="editBookingDest" placeholder="Start typing destination…">
         </div>
         <div class="modal-row">
@@ -634,7 +672,20 @@
     </div>
   </div>
 
-  <!-- GOOGLE MAPS PLACES (replace YOUR_GOOGLE_MAPS_API_KEY with actual key or env-injected value) -->
+  <!-- BOOKING LOG MODAL -->
+  <div id="logModalWrap" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="logModalTitle">Booking log</div>
+        <button class="btn small" id="btnLogClose">✕</button>
+      </div>
+      <div class="modal-body" id="logModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn" id="btnLogOk">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD8RMkkrkKykdhOw--qY0HdAU3pZ48-U&libraries=places"
     async defer
@@ -720,12 +771,6 @@
     return capitalise(src);
   }
 
-  /**
-   * Build "Last staff action" display from the *real* schema fields:
-   * - confirmedByStaffAt / confirmedByStaffSource
-   * - updatedByStaffAt / updatedByStaffSource
-   * - cancelledByStaffAt / cancelledByStaffReason / cancelledByStaffSource
-   */
   function buildLastStaffActionDisplay(b) {
     if (!b) return null;
 
@@ -760,12 +805,7 @@
 
     if (!actions.length) return null;
 
-    // Pick the most recent action
-    actions.sort((a, c) => {
-      const aTime = new Date(a.at).getTime();
-      const cTime = new Date(c.at).getTime();
-      return cTime - aTime;
-    });
+    actions.sort((a, c) => new Date(c.at).getTime() - new Date(a.at).getTime());
     const latest = actions[0];
 
     const parts = [];
@@ -780,12 +820,6 @@
     };
   }
 
-  /**
-   * Build cancelled info using the new fields, with fallbacks.
-   * - cancelledByStaffAt
-   * - cancelledByStaffReason
-   * - cancelledByStaffSource
-   */
   function buildCancelledDisplay(b) {
     if (!b || !b.cancelled) return null;
 
@@ -801,6 +835,7 @@
     return text || "Cancelled by staff";
   }
 
+  // --- the missing helper that caused your crash ---
   function setupQuickDateButtons() {
     const buttons = document.querySelectorAll("[data-quick-date]");
     const fromInput = document.getElementById("dateFrom");
@@ -810,29 +845,17 @@
 
     buttons.forEach(btn => {
       btn.addEventListener("click", () => {
-        const existing =
-          (fromInput.value || toInput.value || new Date().toISOString().slice(0, 10));
-        const year = parseInt(existing.slice(0, 4), 10);
+        const existing = (fromInput.value || toInput.value || new Date().toISOString().slice(0,10));
+        const year = parseInt(existing.slice(0,4), 10);
 
-        let value;
+        let value = "";
         switch (btn.dataset.quickDate) {
-          case "xmas-eve":
-            value = isoDateFromParts(year, 12, 24);
-            break;
-          case "xmas-day":
-            value = isoDateFromParts(year, 12, 25);
-            break;
-          case "boxing-day":
-            value = isoDateFromParts(year, 12, 26);
-            break;
-          case "nye":
-            value = isoDateFromParts(year, 12, 31);
-            break;
-          case "nyd":
-            value = isoDateFromParts(year + 1, 1, 1);
-            break;
-          default:
-            return;
+          case "xmas-eve": value = isoDateFromParts(year, 12, 24); break;
+          case "xmas-day": value = isoDateFromParts(year, 12, 25); break;
+          case "boxing-day": value = isoDateFromParts(year, 12, 26); break;
+          case "nye": value = isoDateFromParts(year, 12, 31); break;
+          case "nyd": value = isoDateFromParts(year + 1, 1, 1); break;
+          default: return;
         }
 
         fromInput.value = value;
@@ -860,6 +883,23 @@
     const status = document.getElementById("status").value || "";
 
     return { dateFrom, dateTo, shiftType, zone, ward, staff, reference, status };
+  }
+
+  // NEW: define clearFilters used by the Clear button
+  function clearFilters() {
+    const ids = [
+      "dateFrom","dateTo","shiftType","zone","ward","staff","reference","status",
+      "filterMissing","filterDuplicates","filterManual","filterTextSent","filterUpdated"
+    ];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")) {
+        el.checked = false;
+      } else if (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+        el.value = "";
+      }
+    });
   }
 
   function buildQueryString(filters, page, limitOverride) {
@@ -915,10 +955,47 @@
 
   function hasHouseNumberOrName(addr){
     if (!addr) return false;
+
     if (addr.houseNumber && String(addr.houseNumber).trim() !== "") return true;
-    const formatted = addr.formatted || "";
-    const firstPart = (formatted.split(",")[0] || "").trim();
-    if (/\d/.test(firstPart)) return true;
+
+    const partsToCheck = [];
+    if (addr.formatted) partsToCheck.push((addr.formatted.split(",")[0] || "").trim());
+    if (addr.text && addr.text !== addr.formatted) {
+      partsToCheck.push((addr.text.split(",")[0] || "").trim());
+    }
+
+    const PLACE_KEYWORDS = [
+      "house","cottage","villa","lodge","court","view","heights","mansions","apartments","flats",
+      "hotel","inn","arms","tavern","pub","farm","barn","hall","surgery","practice","centre","center",
+      "school","college","university","station","stop","depot","clinic"
+    ];
+
+    for (const raw of partsToCheck) {
+      const firstPart = raw;
+      if (!firstPart) continue;
+
+      if (/\d/.test(firstPart)) return true;
+
+      const lower = firstPart.toLowerCase();
+
+      if (
+        lower.startsWith("flat ") ||
+        lower.startsWith("apartment ") ||
+        lower.startsWith("apt ") ||
+        lower.startsWith("room ") ||
+        lower.startsWith("ward ")
+      ) {
+        return true;
+      }
+
+      if (PLACE_KEYWORDS.some(k => lower.includes(k))) return true;
+
+      const wordCount = firstPart.split(/\s+/).length;
+      if (wordCount >= 2 && firstPart.length >= 6) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -938,25 +1015,44 @@
     const pickupIsDerriford = isDerrifordAddress(pickup);
     const destIsDerriford   = isDerrifordAddress(dest);
 
-    const pickupMissing = pickupHasStreet && !pickupHasHouse && !pickupIsDerriford;
-    const destMissing   = destHasStreet && !destHasHouse && !destIsDerriford;
+    let pickupMissing = pickupHasStreet && !pickupHasHouse && !pickupIsDerriford;
+    let destMissing   = destHasStreet   && !destHasHouse   && !destIsDerriford;
+
+    const hasStaffAddressUpdate = !!b.updatedByStaffAt;
+    if (hasStaffAddressUpdate) {
+      pickupMissing = false;
+      destMissing   = false;
+    }
+
     const missingAddress = pickupMissing || destMissing;
 
     const date = b.pickupDateISO || "";
     const time = b.onOffDutyTime || "";
     const staffName = (b.staffName || "").trim().toLowerCase();
     const pickupKey = pickupFormatted ? pickupFormatted.trim().toLowerCase() : "";
-    const destKey   = destFormatted ? destFormatted.trim().toLowerCase() : "";
+       const destKey   = destFormatted ? destFormatted.trim().toLowerCase() : "";
     const dupKey = [date, time, staffName, pickupKey, destKey].join("|");
     const isDuplicate = dupKey && dupCounts.get(dupKey) > 1;
 
     return { missingAddress, isDuplicate };
   }
 
-  function applyRowFilters() {
+  function isAnyRowFilterChecked(){
     const onlyMissing = document.getElementById("filterMissing").checked;
     const onlyDup = document.getElementById("filterDuplicates").checked;
     const onlyManual = document.getElementById("filterManual").checked;
+    const onlyTextSent = document.getElementById("filterTextSent").checked;
+    const onlyUpdated = document.getElementById("filterUpdated").checked;
+    return onlyMissing || onlyDup || onlyManual || onlyTextSent || onlyUpdated;
+  }
+
+  function applyRowFilters() {
+    const onlyMissing = document.getElementById("filterMissing").checked;
+       const onlyDup = document.getElementById("filterDuplicates").checked;
+       const onlyManual = document.getElementById("filterManual").checked;
+       const onlyTextSent = document.getElementById("filterTextSent").checked;
+       const onlyUpdated = document.getElementById("filterUpdated").checked;
+
     const tbody = document.getElementById("bookingsTableBody");
 
     Array.from(tbody.querySelectorAll("tr")).forEach(tr => {
@@ -968,8 +1064,12 @@
       const isMissing = tr.classList.contains("missing-address");
       const isDup = tr.classList.contains("duplicate-row");
       const isManual = tr.classList.contains("manual-flag-row");
+      const isTextSent = tr.classList.contains("text-sent-row");
+      const isUpdated = tr.classList.contains("updated-row");
 
-      if (!onlyMissing && !onlyDup && !onlyManual) {
+      const anyFilter = onlyMissing || onlyDup || onlyManual || onlyTextSent || onlyUpdated;
+
+      if (!anyFilter) {
         tr.style.display = "";
         return;
       }
@@ -977,7 +1077,9 @@
       const show =
         (onlyMissing && isMissing) ||
         (onlyDup && isDup) ||
-        (onlyManual && isManual);
+        (onlyManual && isManual) ||
+        (onlyTextSent && isTextSent) ||
+        (onlyUpdated && isUpdated);
 
       tr.style.display = show ? "" : "none";
     });
@@ -1063,22 +1165,16 @@
 
       const { missingAddress, isDuplicate } = getFlagsForBooking(b, dupCounts);
 
-      if (missingAddress) {
-        tr.classList.add("missing-address");
-      }
-      if (isDuplicate) {
-        tr.classList.add("duplicate-row");
-      }
-      if (b.manualFlagLabel || b.manualFlagReason) {
-        tr.classList.add("manual-flag-row");
-      }
+      if (missingAddress) tr.classList.add("missing-address");
+      if (isDuplicate) tr.classList.add("duplicate-row");
+      if (b.manualFlagLabel || b.manualFlagReason) tr.classList.add("manual-flag-row");
+      if (b.lastSmsAt) tr.classList.add("text-sent-row");
+      if (b.updatedByStaffAt || b.confirmedByStaffAt || b.cancelledByStaffAt) tr.classList.add("updated-row");
 
       const flags = [];
       if (b.requireReturn) flags.push('<span class="badge">Return Requested</span>');
       if (isDuplicate) flags.push('<span class="flag-pill flag-duplicate">Duplicate</span>');
-      if (missingAddress) {
-        flags.push('<span class="flag-pill flag-missing-addr">Missing address</span>');
-      }
+      if (missingAddress) flags.push('<span class="flag-pill flag-missing-addr">Missing address</span>');
       if (b.manualFlagLabel || b.manualFlagReason) {
         const label = (b.manualFlagLabel || "").trim();
         const manualText = label || "Manual";
@@ -1088,32 +1184,14 @@
         flags.push('<span class="badge">Updated by staff</span>');
       }
 
-      const lastActionDisplay = buildLastStaffActionDisplay(b);
-      const cancelledDisplay = buildCancelledDisplay(b);
-
       const shiftLabel = b.shiftType === "start"
         ? "Start — to Derriford"
         : b.shiftType === "finish"
           ? "Finish — from Derriford"
           : (b.shiftType || "");
 
-      const budgetNumber =
-        b.budgetNumber || b.budgetRef || b.budget || "";
-
+      const budgetNumber = b.budgetNumber || b.budgetRef || b.budget || "";
       const refLine = b.shortRef || b.reference || "";
-
-      const smsDisplay = b.lastSmsAt
-        ? `<div class="sms-indicator">
-             <span class="sms-dot">✉️</span>
-             <span>
-               <strong>Text sent:</strong> ${formatDateTime(b.lastSmsAt)}${
-                 b.lastSmsPurpose
-                   ? " — " + capitalise(String(b.lastSmsPurpose).replace(/-/g," "))
-                   : ""
-               }
-             </span>
-           </div>`
-        : "";
 
       tr.innerHTML = `
         <td>
@@ -1140,28 +1218,14 @@
             ${budgetNumber ? `<div class="ref-budget">Budget: ${budgetNumber}</div>` : ""}
           </div>
           ${flags.length ? `<div class="ref-flags">${flags.join(" ")}</div>` : ""}
-          ${smsDisplay}
-          ${
-            lastActionDisplay
-              ? `<div class="muted" style="margin-top:4px;">
-                   <strong>${lastActionDisplay.label}:</strong><br/>
-                   ${lastActionDisplay.meta}${
-                     lastActionDisplay.summary
-                       ? "<br/>" + lastActionDisplay.summary
-                       : ""
-                   }
-                 </div>`
-              : ""
-          }
-          ${
-            cancelledDisplay
-              ? `<div class="muted" style="margin-top:2px;">
-                   <strong>Cancelled:</strong> ${cancelledDisplay}
-                 </div>`
-              : ""
-          }
         </td>
-        <td>${toStatusPill(b)}</td>
+        <td>
+          <div class="status-cell">
+            ${toStatusPill(b)}
+            ${b.lastSmsAt ? '<span class="sms-pill" title="Text has been sent to this staff member">Text sent</span>' : ''}
+            <button class="log-icon-btn" type="button" title="View booking log" data-action="view-log" data-id="${b._id}">📝</button>
+          </div>
+        </td>
         <td>
           <div class="row-actions">
             <button class="btn small btn-approve" data-action="approve" data-id="${b._id}">Approve</button>
@@ -1169,6 +1233,7 @@
             <button class="btn small" data-action="clear-status" data-id="${b._id}">Clear status</button>
             <button class="btn small" data-action="sms" data-id="${b._id}">Text</button>
             <button class="btn small" data-action="flag" data-id="${b._id}">Flag</button>
+            <button class="btn small" data-action="remove-flag" data-id="${b._id}">Remove flag</button>
             <button class="btn small" data-action="delete" data-id="${b._id}">Delete</button>
           </div>
         </td>
@@ -1186,7 +1251,9 @@
       lastQuery = { ...filters };
       currentPage = page;
 
-      const qs = buildQueryString(filters, page);
+      const limitOverride = isAnyRowFilterChecked() ? 1000 : undefined;
+
+      const qs = buildQueryString(filters, page, limitOverride);
       const url = `${apiBase}/api/bookings?${qs}`;
 
       const tbody = document.getElementById("bookingsTableBody");
@@ -1198,7 +1265,7 @@
       currentPage = data.page || 1;
 
       renderBookingsTable(currentItems);
-      updateSummary(data);
+      updateSummary({...data, limit: limitOverride || data.limit});
 
       recalcStatsForFilters(filters);
     } catch (err) {
@@ -1232,20 +1299,6 @@
     document.getElementById("nextPage").disabled = page >= (data.pages || 1);
   }
 
-  function clearFilters() {
-    document.getElementById("dateFrom").value = "";
-    document.getElementById("dateTo").value = "";
-    document.getElementById("shiftType").value = "";
-    document.getElementById("zone").value = "";
-    document.getElementById("ward").value = "";
-    document.getElementById("staff").value = "";
-    document.getElementById("reference").value = "";
-    document.getElementById("status").value = "";
-    document.getElementById("filterMissing").checked = false;
-    document.getElementById("filterDuplicates").checked = false;
-    document.getElementById("filterManual").checked = false;
-  }
-
   async function approveBooking(id) {
     if (!id) return;
     try {
@@ -1266,9 +1319,7 @@
       await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}/decline`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reason: "Booking declined by admin."
-        })
+        body: JSON.stringify({ reason: "Booking declined by admin." })
       });
       await fetchBookings(currentPage);
     } catch (err) {
@@ -1287,6 +1338,20 @@
       await fetchBookings(currentPage);
     } catch (err) {
       alert("Clear status failed: " + err.message);
+    }
+  }
+
+  async function removeFlagBooking(id) {
+    if (!id) return;
+    try {
+      await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manualFlagLabel: "", manualFlagReason: "" })
+      });
+      await fetchBookings(currentPage);
+    } catch (err) {
+      alert("Remove flag failed: " + err.message);
     }
   }
 
@@ -1354,10 +1419,7 @@
         await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(editBookingId)}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pickup: updatedPickup,
-            destination: updatedDest
-          })
+          body: JSON.stringify({ pickup: updatedPickup, destination: updatedDest })
         });
 
         closeEditAddressModal();
@@ -1386,7 +1448,6 @@
   const btnEditBookingCancel = document.getElementById("btnEditBookingCancel");
   const btnEditBookingSave = document.getElementById("btnEditBookingSave");
 
-  // --- GOOGLE AUTOCOMPLETE SUPPORT FOR EDIT BOOKING MODAL ---
   let pickupAutocompleteInstance = null;
   let destAutocompleteInstance = null;
   let latestPickupPlace = null;
@@ -1484,13 +1545,11 @@
     if (editBookingDest) editBookingDest.value = (b.destination && b.destination.formatted) || "";
     if (editBookingError) editBookingError.textContent = "";
 
-    // reset last selected places so we don't leak from a previous edit
     latestPickupPlace = null;
     latestDestPlace = null;
 
     if (editBookingModalWrap) editBookingModalWrap.classList.remove("hidden");
 
-    // try to initialise autocomplete when modal opens
     try {
       initGoogleAutocompleteForEditModal();
     } catch (e) {
@@ -1529,18 +1588,11 @@
       const pickupFormatted = (editBookingPickup?.value || "").trim();
       const destFormatted = (editBookingDest?.value || "").trim();
 
-      if (!date) {
-        if (editBookingError) editBookingError.textContent = "Please enter a valid date.";
-        return;
-      }
-      if (!time) {
-        if (editBookingError) editBookingError.textContent = "Please enter a time in HH:MM format.";
-        return;
-      }
+      if (!date) { if (editBookingError) editBookingError.textContent = "Please enter a valid date."; return; }
+      if (!time) { if (editBookingError) editBookingError.textContent = "Please enter a time in HH:MM format."; return; }
 
       const original = currentItems.find(x => x._id === fullEditBookingId) || {};
 
-      // build pickup / destination payload
       let pickupPayload = original.pickup || {};
       let destPayload = original.destination || {};
 
@@ -1640,10 +1692,7 @@
         await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(flagBookingId)}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            manualFlagLabel: label,
-            manualFlagReason: reason
-          })
+          body: JSON.stringify({ manualFlagLabel: label, manualFlagReason: reason })
         });
 
         closeFlagModal();
@@ -1668,15 +1717,9 @@
   function detectPrimaryFlagType(b, flags) {
     const label = (b.manualFlagLabel || "").trim().toLowerCase();
 
-    if (label === "possible duplicate" || label === "duplicate") {
-      return "duplicate";
-    }
-    if (label === "wrong address") {
-      return "address";
-    }
-    if (label === "wrong date/time" || label === "wrong date" || label === "wrong time") {
-      return "datetime";
-    }
+    if (label === "possible duplicate" || label === "duplicate") return "duplicate";
+    if (label === "wrong address") return "address";
+    if (label === "wrong date/time" || label === "wrong date" || "wrong time") return "datetime";
 
     if (flags && flags.isDuplicate) return "duplicate";
     if (flags && flags.missingAddress) return "address";
@@ -1696,31 +1739,26 @@
     }
 
     if (flagType === "datetime") {
-      return "The date or time on your booking does not match our Christmas staff taxi operating times. We can only accept bookings for: 24th December (evening only), 25th December (all day), 26th December (all day), 31st December (evening only) and 1st January (all day).";
+      return "The date or time on your booking does not match our Christmas staff taxi operating times. We can only accept bookings for: 24th December (evening only), 25th December (all day), 26th December (all day), 31st December (evening only), and 1st January (all day).";
     }
 
     const reasons = [];
     const manualReason = (b.manualFlagReason || "").trim();
     const manualLabel = (b.manualFlagLabel || "").trim();
 
-    if (manualReason) {
-      reasons.push(manualReason);
-    } else if (manualLabel) {
-      reasons.push(manualLabel);
-    }
+    if (manualReason) reasons.push(manualReason);
+    else if (manualLabel) reasons.push(manualLabel);
 
     if (!reasons.length) {
-      if (flags.missingAddress) {
-        reasons.push("Pickup or destination address looks incomplete (missing house number).");
-      }
-      if (flags.isDuplicate) {
-        reasons.push("There may be a duplicate booking at the same date and time.");
-      }
+      const dupCounts = currentDupCounts && currentDupCounts.size
+        ? currentDupCounts
+        : computeDuplicateKeys(currentItems || []);
+      const flagsAuto = getFlagsForBooking(b, dupCounts);
+      if (flagsAuto.missingAddress) reasons.push("Pickup or destination address looks incomplete (missing house number).");
+      if (flagsAuto.isDuplicate) reasons.push("There may be a duplicate booking at the same date and time.");
     }
 
-    if (!reasons.length) {
-      return "There is a query about the details on this booking.";
-    }
+    if (!reasons.length) return "There is a query about the details on this booking.";
 
     const text = reasons.join(" ");
     return text.length > 200 ? text.slice(0, 197) + "..." : text;
@@ -1790,6 +1828,14 @@
     if (smsModalWrap) smsModalWrap.classList.add("hidden");
   }
 
+  async function sendSms(to, message, source, bookingId, purpose){
+    return fetchJSON(`${apiBase}/send-sms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, message, source, bookingId, purpose })
+    });
+  }
+
   if (btnSmsClose) btnSmsClose.addEventListener("click", closeSmsModal);
   if (btnSmsCancel) btnSmsCancel.addEventListener("click", closeSmsModal);
   if (smsModalWrap) {
@@ -1803,40 +1849,330 @@
       const to = (smsPhoneInput?.value || "").trim();
       const message = (smsMessageInput?.value || "").trim();
 
-      if (!to) {
-        if (smsError) smsError.textContent = "Enter a mobile number.";
-        return;
-      }
-      if (!message) {
-        if (smsError) smsError.textContent = "Type a message to send.";
-        return;
-      }
+      if (!to) { if (smsError) smsError.textContent = "Enter a mobile number."; return; }
+      if (!message) { if (smsError) smsError.textContent = "Type a message to send."; return; }
 
       if (smsError) smsError.textContent = "";
       if (smsSuccess) smsSuccess.textContent = "";
       btnSmsSend.disabled = true;
 
+      let purpose = "manual";
+      if (smsBookingId) {
+        const b = currentItems.find(x => x._id === smsBookingId);
+        if (b) {
+          const dupCounts = currentDupCounts && currentDupCounts.size
+            ? currentDupCounts
+            : computeDuplicateKeys(currentItems || []);
+          const flags = getFlagsForBooking(b, dupCounts);
+          const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
+          const isFlagged = flags.missingAddress || flags.isDuplicate || hasManual;
+          purpose = isFlagged ? "flagged-alert" : "booking-confirmation";
+        }
+      }
+
       try {
-        await fetchJSON(`${apiBase}/send-sms`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to,
-            message,
-            source: "derr-bookings",
-            bookingId: smsBookingId
-          })
-        });
+        await sendSms(to, message, "derr-bookings", smsBookingId, purpose);
         if (smsSuccess) smsSuccess.textContent = "Text sent.";
-        setTimeout(() => {
-          closeSmsModal();
-        }, 800);
+        setTimeout(() => { closeSmsModal(); }, 800);
       } catch (err) {
         if (smsError) smsError.textContent = err.message || "Failed to send text.";
       } finally {
         btnSmsSend.disabled = false;
       }
     });
+  }
+
+  const logModalWrap = document.getElementById("logModalWrap");
+  const logModalTitle = document.getElementById("logModalTitle");
+  const logModalBody = document.getElementById("logModalBody");
+  const btnLogClose = document.getElementById("btnLogClose");
+  const btnLogOk = document.getElementById("btnLogOk");
+
+  // ===== NEW: audit log helpers with fallback to embedded booking.auditLog =====
+  function getIn(o, path){
+    return path.split(".").reduce((v,k)=> (v && v[k] !== undefined) ? v[k] : undefined, o);
+  }
+  function sameish(a,b){ return JSON.stringify(a ?? null) === JSON.stringify(b ?? null); }
+  const HUMAN_FIELD_LABELS = {
+    "status": "Status",
+    "pickupDateISO": "Date",
+    "onOffDutyTime": "Time",
+    "shiftType": "Shift",
+    "wardName": "Ward",
+    "staffName": "Staff",
+    "staffPhone": "Phone",
+    "reference": "Reference",
+    "requireReturn": "Return requested",
+    "budgetNumber": "Budget number",
+    "pickup.formatted": "Pickup",
+    "destination.formatted": "Destination"
+  };
+  function formatValue(key, val){
+    if (val === undefined || val === null) return "";
+    if (typeof val === "boolean") return val ? "Yes" : "No";
+    if (key === "pickupDateISO") return toDDMMYY(String(val));
+    if (key === "status") return capitalise(String(val));
+    if (key === "shiftType"){
+      return val === "start" ? "Start — to Derriford"
+           : val === "finish" ? "Finish — from Derriford"
+           : String(val || "");
+    }
+    return String(val);
+  }
+  function computeChangesFromSnapshots(before, after){
+    const FIELDS = Object.keys(HUMAN_FIELD_LABELS);
+    const diff = {};
+    for (const key of FIELDS){
+      const from = getIn(before || {}, key);
+      const to   = getIn(after  || {}, key);
+      if (!sameish(from, to)) diff[key] = { from, to };
+    }
+    return Object.keys(diff).length ? diff : undefined;
+  }
+  function renderChangeList(diff){
+    if(!diff) return "";
+    const known = [];
+    const unknown = {};
+    for (const [k,v] of Object.entries(diff)){
+      if (HUMAN_FIELD_LABELS[k]){
+        known.push({ key:k, label:HUMAN_FIELD_LABELS[k], from:v.from, to:v.to });
+      } else {
+        unknown[k] = v;
+      }
+    }
+    const pretty = known.map(({label,key,from,to})=>{
+      const f = formatValue(key, from);
+      const t = formatValue(key, to);
+      return `<li><strong>${label}:</strong> ${f || "<em>empty</em>"} &rarr; ${t || "<em>empty</em>"}</li>`;
+    }).join("");
+
+    let fallback = "";
+    if (Object.keys(unknown).length){
+      const rows = Object.entries(unknown).map(([k,v])=>{
+        const from = typeof v.from === "object" ? `<code>${JSON.stringify(v.from)}</code>` : (String(v.from ?? "") || "<em>empty</em>");
+        const to   = typeof v.to   === "object" ? `<code>${JSON.stringify(v.to)}</code>`   : (String(v.to   ?? "") || "<em>empty</em>");
+        return `<tr>
+          <td style="padding:4px 8px;border-bottom:1px solid var(--line);"><code>${k}</code></td>
+          <td style="padding:4px 8px;border-bottom:1px solid var(--line);">${from}</td>
+          <td style="padding:4px 8px;border-bottom:1px solid var(--line);">${to}</td>
+        </tr>`;
+      }).join("");
+      fallback = `<div style="margin-top:6px;">
+        <div class="muted" style="margin-bottom:4px;">Other raw changes</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr>
+            <th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);">Field</th>
+            <th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);">From</th>
+            <th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);">To</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }
+
+    if (!pretty && !fallback) return "";
+    return `
+      <div style="margin-top:6px;">
+        ${pretty ? `<ul style="margin:0 0 4px 18px;padding:0;">${pretty}</ul>` : ""}
+        ${fallback}
+      </div>
+    `;
+  }
+  function renderWhoLine(l){
+    const parts = [];
+    if (l.actor) parts.push(l.actor);
+    if (l.actorEmail) parts.push(l.actorEmail);
+    if (l.role) parts.push(l.role);
+    if (l.actorId) parts.push(`#${l.actorId}`);
+    const who = parts.join(" • ");
+    const ip = l.ip ? ` <span class="badge" title="IP">${l.ip}</span>` : "";
+    return `${who || "unknown"}${ip}`;
+  }
+
+  async function fetchBookingLogs(id, bookingForFallback){
+    // Try new endpoint first
+    try{
+      const r = await fetch(`${apiBase}/api/bookings/${encodeURIComponent(id)}/logs`);
+      if (r.ok) {
+        const data = await r.json().catch(()=>({}));
+        const raw = Array.isArray(data?.items) ? data.items : [];
+        if (raw.length){
+          const items = raw.map(e => {
+            const at = e.at || e.createdAt || e.date || null;
+            const action = e.action || e.type || "event";
+            const source = e.source || e.origin || "";
+            const role = e.role || e.actorRole || e.actorType || "";
+            const actor = e.actorName || e.actor || e.userName || "";
+            const actorEmail = e.actorEmail || e.userEmail || e.email || "";
+            const actorId = e.actorId || e.userId || "";
+            const ip = e.ip || e.ipAddress || (e.meta && e.meta.ip) || "";
+            const note = e.note || e.message || (e.details && (e.details.reason || e.details.summary || e.details.message)) || "";
+
+            let diff = e.diff && typeof e.diff === "object" ? e.diff : undefined;
+            const before = e.before || (e.details && e.details.before) || undefined;
+            const after  = e.after  || (e.details && e.details.after)  || undefined;
+            if (!diff && (before || after)) diff = computeChangesFromSnapshots(before, after);
+            if (!diff && e.details && (("oldStatus" in e.details) || ("newStatus" in e.details))) {
+              diff = { status: { from: e.details.oldStatus ?? "", to: e.details.newStatus ?? "" } };
+            }
+            return { at, action, source, role, actor, actorEmail, actorId, ip, note, diff };
+          });
+          items.sort((a,b) => new Date(b.at||0) - new Date(a.at||0));
+          return items;
+        }
+      }
+    }catch(e){
+      console.warn("Logs endpoint failed, will fall back to embedded auditLog", e);
+    }
+
+    // Fallback: normalise legacy embedded auditLog on booking
+    const legacy = Array.isArray(bookingForFallback?.auditLog) ? bookingForFallback.auditLog : [];
+    if (!legacy.length) return [];
+
+    const norm = legacy.map(entry => {
+      const at = entry.at || entry.date || entry.createdAt || null;
+      const action = entry.action || "event";
+      const source = entry.source || "";
+      const role = entry.actorType || entry.actor || "system";
+      const actor = entry.actorName || role;
+      const actorEmail = entry.actorEmail || "";
+      const actorId = entry.actorId || "";
+      const ip = entry.ip || entry.ipAddress || "";
+
+      const d = entry.details || {};
+      const note =
+        d.summary || d.reason || d.message ||
+        (d.changedFields ? `Changed: ${Array.isArray(d.changedFields) ? d.changedFields.join(", ") : String(d.changedFields)}` : "") ||
+        "";
+
+      let diff = undefined;
+      if (d.diff && typeof d.diff === "object") diff = d.diff;
+      const before = entry.before || d.before;
+      const after  = entry.after  || d.after;
+      if (!diff && (before || after)) diff = computeChangesFromSnapshots(before, after);
+      if (!diff && (("oldStatus" in d) || ("newStatus" in d))) {
+        diff = { status: { from: d.oldStatus ?? "", to: d.newStatus ?? "" } };
+      }
+
+      return { at, action, source, role, actor, actorEmail, actorId, ip, note, diff };
+    });
+
+    norm.sort((a,b) => new Date(b.at||0) - new Date(a.at||0));
+    return norm;
+  }
+
+  async function openLogModal(id) {
+    const b = currentItems.find(x => x._id === id);
+    if (!b || !logModalWrap || !logModalBody || !logModalTitle) return;
+
+    const statusHtml = toStatusPill(b);
+    const lastActionDisplay = buildLastStaffActionDisplay(b);
+    const cancelledDisplay = buildCancelledDisplay(b);
+
+    const blocks = [];
+
+    blocks.push(`
+      <div>
+        <strong>Status:</strong><br>
+        ${statusHtml}
+      </div>
+    `);
+
+    if (b.lastSmsAt) {
+      const purpose = b.lastSmsPurpose
+        ? capitalise(String(b.lastSmsPurpose).replace(/-/g," "))
+        : "";
+      blocks.push(`
+        <div>
+          <strong>Last text sent:</strong><br>
+          ${formatDateTime(b.lastSmsAt)}${purpose ? " — " + purpose : ""}
+        </div>
+      `);
+    } else {
+      blocks.push(`
+        <div>
+          <strong>Last text sent:</strong><br>
+          No text messages logged yet.
+        </div>
+      `);
+    }
+
+    if (lastActionDisplay) {
+      blocks.push(`
+        <div>
+          <strong>${lastActionDisplay.label}:</strong><br>
+          ${lastActionDisplay.meta}${lastActionDisplay.summary ? "<br>" + lastActionDisplay.summary : ""}
+        </div>
+      `);
+    }
+
+    if (cancelledDisplay) {
+      blocks.push(`
+        <div>
+          <strong>Cancelled:</strong><br>
+          ${cancelledDisplay}
+        </div>
+      `);
+    }
+
+    const logs = await fetchBookingLogs(id, b);
+    const timeline = logs.length
+      ? logs.map(l => {
+          const when = formatDateTime(l.at || new Date().toISOString());
+          const src = l.source ? `<span class="badge" style="margin-left:6px;">${l.source}</span>` : "";
+          const note = l.note ? `<div style="margin-top:4px;">${l.note}</div>` : "";
+          const changes = renderChangeList(l.diff);
+          return `<div class="card" style="padding:10px;margin:8px 0;">
+            <div><strong>${capitalise(l.action)}</strong> — ${when} ${src}</div>
+            <div class="muted" style="font-size:12px;">${renderWhoLine(l)}</div>
+            ${note}
+            ${changes}
+          </div>`;
+        }).join("")
+      : `<div class="muted">No audit entries yet.</div>`;
+
+    logModalBody.innerHTML = `
+      ${blocks.join('<hr style="border:none;border-top:1px solid var(--line);margin:8px 0;">')}
+      <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;">
+      <div style="font-weight:600;margin-bottom:6px;">Audit log</div>
+      ${timeline}
+    `;
+
+    const refLine = b.shortRef || b.reference || "";
+    const date = toDDMMYY(b.pickupDateISO || "");
+    const time = b.onOffDutyTime || "";
+
+    logModalTitle.textContent = refLine
+      ? `Booking log — ${refLine}`
+      : `Booking log — ${date} ${time}`;
+
+    logModalWrap.classList.remove("hidden");
+  }
+
+  function closeLogModal() {
+    if (logModalWrap) logModalWrap.classList.add("hidden");
+  }
+
+  if (btnLogClose) btnLogClose.addEventListener("click", closeLogModal);
+  if (btnLogOk) btnLogOk.addEventListener("click", closeLogModal);
+  if (logModalWrap) {
+    logModalWrap.addEventListener("click", (e) => {
+      if (e.target === logModalWrap) closeLogModal();
+    });
+  }
+
+  function buildMessageFor(b){
+    const dupCounts = currentDupCounts && currentDupCounts.size
+      ? currentDupCounts
+      : computeDuplicateKeys(currentItems || []);
+    const flags = getFlagsForBooking(b, dupCounts);
+    const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
+    const isFlagged = flags.missingAddress || flags.isDuplicate || hasManual;
+    const message = isFlagged
+      ? buildFlaggedSmsMessage(b, flags)
+      : buildConfirmSmsMessage(b);
+    const purpose = isFlagged ? "flagged-alert" : "booking-confirmation";
+    return { message, purpose };
   }
 
   async function textSelectedFlagged() {
@@ -1858,51 +2194,63 @@
       if (!b) return;
       const flags = getFlagsForBooking(b, dupCounts);
       const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
-      selected.push({ b, flags, hasManual });
+      const isFlagged = flags.missingAddress || flags.isDuplicate || hasManual;
+      if (isFlagged) selected.push({ b });
     });
 
     if (!selected.length) {
-      alert("No matching bookings found for your selection.");
+      alert("No flagged bookings in your selection.");
       return;
     }
 
-    if (!confirm(`Send texts for ${selected.length} booking(s)?`)) {
-      return;
-    }
+    if (!confirm(`Send texts for ${selected.length} booking(s)?`)) return;
 
     let okCount = 0;
     let failCount = 0;
 
-    for (const { b, flags, hasManual } of selected) {
+    for (const { b } of selected) {
       const to = (b.staffPhone || "").trim();
-      if (!to) {
-        console.warn("No phone for booking", b._id);
-        failCount++;
-        continue;
-      }
+      if (!to) { failCount++; continue; }
 
-      const isFlagged = flags.missingAddress || flags.isDuplicate || hasManual;
-      const message = isFlagged
-        ? buildFlaggedSmsMessage(b, flags)
-        : buildConfirmSmsMessage(b);
-
-      const purpose = isFlagged ? "flagged-alert" : "booking-confirmation";
+      const { message, purpose } = buildMessageFor(b);
 
       try {
-        await fetchJSON(`${apiBase}/send-sms`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to,
-            message,
-            source: "derr-bookings-bulk",
-            bookingId: b._id,
-            purpose
-          })
-        });
+        await sendSms(to, message, "derr-bookings-bulk", b._id, purpose);
         okCount++;
       } catch (err) {
-        console.error("SMS failed for", b._id, err);
+        failCount++;
+      }
+    }
+
+    alert(`Texts sent: ${okCount}. Failed: ${failCount}.`);
+  }
+
+  async function textSelectedAny() {
+    const checkboxes = Array.from(document.querySelectorAll(".row-select:checked"));
+    if (!checkboxes.length) {
+      alert("Select at least one booking first.");
+      return;
+    }
+
+    if (!confirm(`Send texts for ${checkboxes.length} booking(s)?`)) return;
+
+    let okCount = 0;
+    let failCount = 0;
+
+    for (const cb of checkboxes) {
+      const id = cb.dataset.id;
+      const b = currentItems.find(x => x._id === id);
+      if (!b) continue;
+
+      const to = (b.staffPhone || "").trim();
+      if (!to) { failCount++; continue; }
+
+      const { message, purpose } = buildMessageFor(b);
+
+      try {
+        await sendSms(to, message, "derr-bookings-bulk", b._id, purpose);
+        okCount++;
+      } catch (err) {
         failCount++;
       }
     }
@@ -1920,10 +2268,7 @@
       const filters = readFilters();
       const { items } = await fetchAllForFilters(filters, 500);
 
-      if (!items.length) {
-        alert("No bookings for this filter to export.");
-        return;
-      }
+      if (!items.length) { alert("No bookings for this filter to export."); return; }
 
       const dupCounts = computeDuplicateKeys(items);
       const flagged = [];
@@ -1936,28 +2281,14 @@
         }
       });
 
-      if (!flagged.length) {
-        alert("No bookings with flags (duplicates, missing address or manual flags) for this filter.");
-        return;
-      }
+      if (!flagged.length) { alert("No bookings with flags (duplicates, missing address or manual flags) for this filter."); return; }
 
       const header = [
-        "Date",
-        "Time",
-        "Shift",
-        "Ward",
-        "Staff",
-        "Phone",
-        "Pickup",
-        "Destination",
-        "Reference",
-        "Budget number",
-        "Flags",
-        "Action"
+        "Date","Time","Shift","Ward","Staff","Phone","Pickup","Destination",
+        "Reference","Budget number","Flags","Action"
       ];
 
-      const aoa = [];
-      aoa.push(header);
+      const aoa = [header];
 
       flagged.forEach(({ booking: b, flags, hasManual }) => {
         const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
@@ -1978,20 +2309,14 @@
           flagLabels.push("Manual: " + manualText);
         }
 
-        const budgetNumber =
-          b.budgetNumber || b.budgetRef || b.budget || "";
+        const budgetNumber = b.budgetNumber || b.budgetRef || b.budget || "";
 
         let action = "";
-        if (hasManual) {
-          const lbl = (b.manualFlagLabel || "").trim();
-          action = lbl || "Review manual flag";
-        } else if (flags.missingAddress) {
-          action = "Fix address";
-        } else if (flags.isDuplicate) {
-          action = "Check duplicate";
-        }
+        if (hasManual) action = (b.manualFlagLabel || "").trim() || "Review manual flag";
+        else if (flags.missingAddress) action = "Fix address";
+        else if (flags.isDuplicate) action = "Check duplicate";
 
-        const row = [
+        aoa.push([
           toDDMMYY(b.pickupDateISO || ""),
           b.onOffDutyTime || "",
           shiftLabel,
@@ -2004,9 +2329,7 @@
           budgetNumber,
           flagLabels.join(" | "),
           action
-        ];
-
-        aoa.push(row);
+        ]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -2014,10 +2337,7 @@
       XLSX.utils.book_append_sheet(wb, ws, "Flagged");
 
       const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob(
-        [wbout],
-        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-      );
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -2042,30 +2362,16 @@
       const filters = readFilters();
       const { items } = await fetchAllForFilters(filters, 500);
 
-      if (!items.length) {
-        alert("No bookings for this filter to export.");
-        return;
-      }
+      if (!items.length) { alert("No bookings for this filter to export."); return; }
 
       const dupCounts = computeDuplicateKeys(items);
 
       const header = [
-        "Date",
-        "Time",
-        "Shift",
-        "Ward",
-        "Staff",
-        "Phone",
-        "Pickup",
-        "Destination",
-        "Reference",
-        "Budget number",
-        "Flags",
-        "Action"
+        "Date","Time","Shift","Ward","Staff","Phone","Pickup","Destination",
+        "Reference","Budget number","Flags","Action"
       ];
 
-      const aoa = [];
-      aoa.push(header);
+      const aoa = [header];
 
       items.forEach(b => {
         const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
@@ -2089,20 +2395,14 @@
           flagLabels.push("Manual: " + manualText);
         }
 
-        const budgetNumber =
-          b.budgetNumber || b.budgetRef || b.budget || "";
+        const budgetNumber = b.budgetNumber || b.budgetRef || b.budget || "";
 
         let action = "";
-        if (hasManual) {
-          const lbl = (b.manualFlagLabel || "").trim();
-          action = lbl || "Review manual flag";
-        } else if (flags.missingAddress) {
-          action = "Fix address";
-        } else if (flags.isDuplicate) {
-          action = "Check duplicate";
-        }
+        if (hasManual) action = (b.manualFlagLabel || "").trim() || "Review manual flag";
+        else if (flags.missingAddress) action = "Fix address";
+        else if (flags.isDuplicate) action = "Check duplicate";
 
-        const row = [
+        aoa.push([
           toDDMMYY(b.pickupDateISO || ""),
           b.onOffDutyTime || "",
           shiftLabel,
@@ -2115,9 +2415,7 @@
           budgetNumber,
           flagLabels.join(" | "),
           action
-        ];
-
-        aoa.push(row);
+        ]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -2125,10 +2423,7 @@
       XLSX.utils.book_append_sheet(wb, ws, "Bookings");
 
       const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob(
-        [wbout],
-        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-      );
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -2147,9 +2442,7 @@
     if (!id) return;
     if (!confirm("Delete this booking?")) return;
     try {
-      await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}`, {
-        method: "DELETE"
-      });
+      await fetchJSON(`${apiBase}/api/bookings/${encodeURIComponent(id)}`, { method: "DELETE" });
       await fetchBookings(currentPage);
     } catch (err) {
       alert("Delete failed: " + err.message);
@@ -2167,19 +2460,14 @@
       const id = btn.dataset.id;
       if (!id) return;
 
-      if (action === "approve") {
-        approveBooking(id);
-      } else if (action === "decline") {
-        declineBooking(id);
-      } else if (action === "clear-status") {
-        clearStatusBooking(id);
-      } else if (action === "delete") {
-        deleteBooking(id);
-      } else if (action === "flag") {
-        openFlagModal(id);
-      } else if (action === "sms") {
-        openSmsModal(id);
-      }
+      if (action === "approve") approveBooking(id);
+      else if (action === "decline") declineBooking(id);
+      else if (action === "clear-status") clearStatusBooking(id);
+      else if (action === "delete") deleteBooking(id);
+      else if (action === "flag") openFlagModal(id);
+      else if (action === "remove-flag") removeFlagBooking(id);
+      else if (action === "sms") openSmsModal(id);
+      else if (action === "view-log") openLogModal(id);
     });
 
     tbody.addEventListener("dblclick", (e) => {
@@ -2204,11 +2492,15 @@
       const missingChk = document.getElementById("filterMissing");
       const dupChk = document.getElementById("filterDuplicates");
       const manualChk = document.getElementById("filterManual");
+      const textChk = document.getElementById("filterTextSent");
+      const updatedChk = document.getElementById("filterUpdated");
 
       if (type === "all") {
         if (missingChk) missingChk.checked = false;
         if (dupChk) dupChk.checked = false;
         if (manualChk) manualChk.checked = false;
+        if (textChk) textChk.checked = false;
+        if (updatedChk) updatedChk.checked = false;
       } else if (type === "duplicates") {
         if (missingChk) missingChk.checked = false;
         if (dupChk) dupChk.checked = true;
@@ -2222,7 +2514,7 @@
         if (dupChk) dupChk.checked = false;
         if (manualChk) manualChk.checked = true;
       }
-      applyRowFilters();
+      fetchBookings(1);
     });
   }
 
@@ -2234,46 +2526,31 @@
     const filterMissing = document.getElementById("filterMissing");
     const filterDuplicates = document.getElementById("filterDuplicates");
     const filterManual = document.getElementById("filterManual");
+    const filterTextSent = document.getElementById("filterTextSent");
+    const filterUpdated = document.getElementById("filterUpdated");
     const exportBtn = document.getElementById("btnExportFlagged");
     const exportAllBtn = document.getElementById("btnExportAll");
     const btnTextFlagged = document.getElementById("btnTextFlagged");
+    const theBtnTextAny = document.getElementById("btnTextAny");
     const selectAllFlagged = document.getElementById("selectAllFlagged");
 
-    if (btnSearch) {
-      btnSearch.addEventListener("click", () => fetchBookings(1));
-    }
-    if (btnClear) {
-      btnClear.addEventListener("click", () => {
-        clearFilters();
-        fetchBookings(1);
-      });
-    }
+    if (btnSearch) btnSearch.addEventListener("click", () => fetchBookings(1));
+    if (btnClear) btnClear.addEventListener("click", () => { clearFilters(); fetchBookings(1); });
 
-    if (prevPageBtn) {
-      prevPageBtn.addEventListener("click", () => {
-        if (currentPage > 1) fetchBookings(currentPage - 1);
-      });
-    }
-    if (nextPageBtn) {
-      nextPageBtn.addEventListener("click", () => {
-        if (currentPage < totalPages) fetchBookings(currentPage + 1);
-      });
-    }
+    if (prevPageBtn) prevPageBtn.addEventListener("click", () => { if (currentPage > 1) fetchBookings(currentPage - 1); });
+    if (nextPageBtn) nextPageBtn.addEventListener("click", () => { if (currentPage < totalPages) fetchBookings(currentPage + 1); });
 
-    if (filterMissing) filterMissing.addEventListener("change", applyRowFilters);
-    if (filterDuplicates) filterDuplicates.addEventListener("change", applyRowFilters);
-    if (filterManual) filterManual.addEventListener("change", applyRowFilters);
+    if (filterMissing) filterMissing.addEventListener("change", () => fetchBookings(1));
+    if (filterDuplicates) filterDuplicates.addEventListener("change", () => fetchBookings(1));
+    if (filterManual) filterManual.addEventListener("change", () => fetchBookings(1));
+    if (filterTextSent) filterTextSent.addEventListener("change", () => fetchBookings(1));
+    if (filterUpdated) filterUpdated.addEventListener("change", () => fetchBookings(1));
 
-    if (exportBtn) {
-      exportBtn.addEventListener("click", exportFlaggedXLSX);
-    }
-    if (exportAllBtn) {
-      exportAllBtn.addEventListener("click", exportAllXLSX);
-    }
+    if (exportBtn) exportBtn.addEventListener("click", exportFlaggedXLSX);
+    if (exportAllBtn) exportAllBtn.addEventListener("click", exportAllXLSX);
 
-    if (btnTextFlagged) {
-      btnTextFlagged.addEventListener("click", textSelectedFlagged);
-    }
+    if (btnTextFlagged) btnTextFlagged.addEventListener("click", textSelectedFlagged);
+    if (theBtnTextAny) theBtnTextAny.addEventListener("click", textSelectedAny);
 
     if (selectAllFlagged) {
       selectAllFlagged.addEventListener("change", () => {
@@ -2293,7 +2570,7 @@
 
     wireTableActions();
     wireStatPills();
-    setupQuickDateButtons();
+    setupQuickDateButtons(); // this was missing
     fetchBookings(1);
   });
   </script>
