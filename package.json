@@ -4,13 +4,17 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "seed:budget": "node scripts/seedBudgetHolder.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.19.2",
-    "mongoose": "^8.5.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.20.2",
     "node-fetch": "^3.3.2"
   }
 }
