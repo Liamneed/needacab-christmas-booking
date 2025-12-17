@@ -205,7 +205,7 @@
           location.href = '/budget-login.html';
           return;
         }
-        const j = await api.list();
+        const j = await api.list('?page=1&limit=5000');
         state.items = j.items||[];
         $('#status').textContent = `Total: ${j.total||state.items.length}`;
         render();
