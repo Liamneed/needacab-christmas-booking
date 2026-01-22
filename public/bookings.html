@@ -2353,90 +2353,100 @@
   }
 
   async function exportAllXLSX() {
-    try {
-      if (typeof XLSX === "undefined") {
-        alert("Excel export library not loaded. Please check your internet connection.");
-        return;
+  try {
+    const EXPORT_REFERENCE = "S3/121146/RUTH KERR";
+
+    if (typeof XLSX === "undefined") {
+      alert("Excel export library not loaded. Please check your internet connection.");
+      return;
+    }
+
+    const filters = readFilters();
+    const { items } = await fetchAllForFilters(filters, 500);
+
+    if (!items.length) {
+      alert("No bookings for this filter to export.");
+      return;
+    }
+
+    const dupCounts = computeDuplicateKeys(items);
+
+    const header = [
+      "Date","Time","Shift","Ward","Staff","Phone","Pickup","Destination",
+      "Reference","Budget number","Flags","Action"
+    ];
+
+    const aoa = [header];
+
+    items.forEach(b => {
+      const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
+      const destFormatted   = (b.destination && b.destination.formatted) || "";
+      const shiftLabel = b.shiftType === "start"
+        ? "Start — to Derriford"
+        : b.shiftType === "finish"
+          ? "Finish — from Derriford"
+          : (b.shiftType || "");
+
+      const flags = getFlagsForBooking(b, dupCounts);
+      const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
+      const flagLabels = [];
+
+      if (flags.isDuplicate) flagLabels.push("Possible duplicate");
+      if (flags.missingAddress) flagLabels.push("Missing address");
+      if (hasManual) {
+        const lbl = (b.manualFlagLabel || "").trim();
+        const rsn = (b.manualFlagReason || "").trim();
+        const manualText = rsn || lbl || "Manual flag";
+        flagLabels.push("Manual: " + manualText);
       }
 
-      const filters = readFilters();
-      const { items } = await fetchAllForFilters(filters, 500);
+      const budgetNumber = b.budgetNumber || b.budgetRef || b.budget || "";
 
-      if (!items.length) { alert("No bookings for this filter to export."); return; }
+      let action = "";
+      if (hasManual) action = (b.manualFlagLabel || "").trim() || "Review manual flag";
+      else if (flags.missingAddress) action = "Fix address";
+      else if (flags.isDuplicate) action = "Check duplicate";
 
-      const dupCounts = computeDuplicateKeys(items);
+      aoa.push([
+        toDDMMYY(b.pickupDateISO || ""),
+        b.onOffDutyTime || "",
+        shiftLabel,
+        b.wardName || "",
+        b.staffName || "",
+        b.staffPhone || "",
+        pickupFormatted,
+        destFormatted,
+        EXPORT_REFERENCE,
+        budgetNumber,
+        flagLabels.join(" | "),
+        action
+      ]);
+    });
 
-      const header = [
-        "Date","Time","Shift","Ward","Staff","Phone","Pickup","Destination",
-        "Reference","Budget number","Flags","Action"
-      ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bookings");
 
-      const aoa = [header];
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob(
+      [wbout],
+      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+    );
 
-      items.forEach(b => {
-        const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
-        const destFormatted   = (b.destination && b.destination.formatted) || "";
-        const shiftLabel = b.shiftType === "start"
-          ? "Start — to Derriford"
-          : b.shiftType === "finish"
-            ? "Finish — from Derriford"
-            : (b.shiftType || "");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bookings-${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-        const flags = getFlagsForBooking(b, dupCounts);
-        const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
-        const flagLabels = [];
-
-        if (flags.isDuplicate) flagLabels.push("Possible duplicate");
-        if (flags.missingAddress) flagLabels.push("Missing address");
-        if (hasManual) {
-          const lbl = (b.manualFlagLabel || "").trim();
-          const rsn = (b.manualFlagReason || "").trim();
-          const manualText = rsn || lbl || "Manual flag";
-          flagLabels.push("Manual: " + manualText);
-        }
-
-        const budgetNumber = b.budgetNumber || b.budgetRef || b.budget || "";
-
-        let action = "";
-        if (hasManual) action = (b.manualFlagLabel || "").trim() || "Review manual flag";
-        else if (flags.missingAddress) action = "Fix address";
-        else if (flags.isDuplicate) action = "Check duplicate";
-
-        aoa.push([
-          toDDMMYY(b.pickupDateISO || ""),
-          b.onOffDutyTime || "",
-          shiftLabel,
-          b.wardName || "",
-          b.staffName || "",
-          b.staffPhone || "",
-          pickupFormatted,
-          destFormatted,
-          b.shortRef || b.reference || "",
-          budgetNumber,
-          flagLabels.join(" | "),
-          action
-        ]);
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-
-      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bookings-${new Date().toISOString().slice(0,10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed", err);
-      alert("Export failed: " + err.message);
-    }
+  } catch (err) {
+    console.error("Export failed", err);
+    alert("Export failed: " + err.message);
   }
+}
 
   async function deleteBooking(id) {
     if (!id) return;
