@@ -2032,6 +2032,31 @@
     }
   }
 
+async function exportAllXLSX() {
+  try {
+    if (typeof XLSX === "undefined") {
+      alert("Excel export library not loaded. Please check your internet connection.");
+      return;
+    }
+
+    const filters = readFilters();
+
+    // Pull *all pages* from the API for the current filters
+    const { items } = await fetchAllForFilters(filters, 500);
+
+    if (!items || !items.length) {
+      alert("No bookings for this filter to export.");
+      return;
+    }
+
+    // Reuse your existing exporter
+    await exportAllBookingsXLSX(items);
+  } catch (err) {
+    console.error("Export all failed", err);
+    alert("Export all failed: " + (err?.message || err));
+  }
+}
+    
 // ---- XLSX Export: All Bookings (earliest first) ----
 async function exportAllBookingsXLSX(allBookings) {
   try {
@@ -2040,65 +2065,87 @@ async function exportAllBookingsXLSX(allBookings) {
       return;
     }
 
-    // 1) Choose a date field to sort by (earliest first)
-    // Adjust these keys to match your booking schema if needed.
-    const getSortIso = (b) =>
-      b.pickupDateTime ||
-      b.pickupTime ||
-      b.pickupAt ||
-      b.when ||
-      b.dateTime ||
-      b.createdAt ||
-      b.created_at ||
-      "";
-
+    // Sort using your actual schema: pickupDateISO + onOffDutyTime
     const bookingsSorted = [...(allBookings || [])].sort((a, b) => {
-      const da = new Date(getSortIso(a));
-      const db = new Date(getSortIso(b));
-      const ta = isNaN(da.getTime()) ? Number.POSITIVE_INFINITY : da.getTime();
-      const tb = isNaN(db.getTime()) ? Number.POSITIVE_INFINITY : db.getTime();
-      return ta - tb;
+      const aIso = `${(a.pickupDateISO || "").slice(0,10)}T${(a.onOffDutyTime || "00:00")}:00`;
+      const bIso = `${(b.pickupDateISO || "").slice(0,10)}T${(b.onOffDutyTime || "00:00")}:00`;
+      const ta = new Date(aIso).getTime();
+      const tb = new Date(bIso).getTime();
+      return (isNaN(ta) ? Number.POSITIVE_INFINITY : ta) - (isNaN(tb) ? Number.POSITIVE_INFINITY : tb);
     });
 
-    // 2) Build rows (AOA) - add your existing columns here as needed
+    // Build rows
     const aoa = [
       [
-        "Booking ID",
-        "Pickup Date/Time",
+        "Mongo ID",
+        "Date",
+        "Time",
+        "Shift",
+        "Ward",
+        "Staff",
+        "Phone",
         "Pickup",
         "Destination",
-        "Reason Code",
+        "Reference",
         "Budget Number",
-        "Budget Holder Name",
+        "Status",
+        "Cancelled",
+        "Manual Flag Label",
+        "Manual Flag Reason"
       ],
     ];
 
     for (const b of bookingsSorted) {
+      const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
+      const destFormatted = (b.destination && b.destination.formatted) || "";
+
+      const shiftLabel = b.shiftType === "start"
+        ? "Start — to Derriford"
+        : b.shiftType === "finish"
+          ? "Finish — from Derriford"
+          : (b.shiftType || "");
+
       aoa.push([
-        b.bookingId ?? b.id ?? "",
-        getSortIso(b) || "",
-        b.pickupAddress ?? b.pickup ?? "",
-        b.destinationAddress ?? b.destination ?? "",
-        b.reasonCode ?? "",          // <-- REQUIRED
-        b.budgetNumber ?? "",        // <-- REQUIRED
-        b.budgetHolderName ?? "",    // <-- REQUIRED
+        b._id || "",
+        toDDMMYY(b.pickupDateISO || ""),
+        b.onOffDutyTime || "",
+        shiftLabel,
+        b.wardName || "",
+        b.staffName || "",
+        b.staffPhone || "",
+        pickupFormatted,
+        destFormatted,
+        b.shortRef || b.reference || "",
+        b.budgetNumber || b.budgetRef || b.budget || "",
+        b.status || "",
+        b.cancelled ? "Yes" : "No",
+        b.manualFlagLabel || "",
+        b.manualFlagReason || ""
       ]);
     }
 
-    // 3) Create workbook and download
+    // Create workbook and download
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+    XLSX.utils.book_append_sheet(wb, ws, "All Bookings");
 
-    // Optional: make columns a bit wider (helps readability)
+    // Optional: column widths
     ws["!cols"] = [
-      { wch: 12 }, // Booking ID
-      { wch: 20 }, // Pickup Date/Time
-      { wch: 40 }, // Pickup
-      { wch: 40 }, // Destination
-      { wch: 12 }, // Reason Code
+      { wch: 26 }, // Mongo ID
+      { wch: 10 }, // Date
+      { wch: 6 },  // Time
+      { wch: 18 }, // Shift
+      { wch: 18 }, // Ward
+      { wch: 22 }, // Staff
+      { wch: 16 }, // Phone
+      { wch: 42 }, // Pickup
+      { wch: 42 }, // Destination
+      { wch: 16 }, // Reference
       { wch: 14 }, // Budget Number
-      { wch: 22 }, // Budget Holder Name
+      { wch: 12 }, // Status
+      { wch: 10 }, // Cancelled
+      { wch: 18 }, // Manual Flag Label
+      { wch: 40 }, // Manual Flag Reason
     ];
 
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
