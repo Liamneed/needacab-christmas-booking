@@ -2032,116 +2032,93 @@
     }
   }
 
-  async function exportAllXLSX() {
-    try {
-      if (typeof XLSX === "undefined") {
-        alert("Excel export library not loaded. Please check your internet connection.");
-        return;
-      }
+ // ---- XLSX Export: All Bookings (earliest first) ----
+async function exportAllBookingsXLSX(allBookings) {
+  try {
+    if (typeof XLSX === "undefined") {
+      alert("Excel export library not loaded. Please include SheetJS (XLSX).");
+      return;
+    }
 
-      const filters = readFilters();
-      const { items } = await fetchAllForFilters(filters, 500);
+    // 1) Choose a date field to sort by (earliest first)
+    // Adjust these keys to match your booking schema if needed.
+    const getSortIso = (b) =>
+      b.pickupDateTime ||
+      b.pickupTime ||
+      b.pickupAt ||
+      b.when ||
+      b.dateTime ||
+      b.createdAt ||
+      b.created_at ||
+      "";
 
-      if (!items.length) {
-        alert("No bookings for this filter to export.");
-        return;
-      }
+    const bookingsSorted = [...(allBookings || [])].sort((a, b) => {
+      const da = new Date(getSortIso(a));
+      const db = new Date(getSortIso(b));
+      const ta = isNaN(da.getTime()) ? Number.POSITIVE_INFINITY : da.getTime();
+      const tb = isNaN(db.getTime()) ? Number.POSITIVE_INFINITY : db.getTime();
+      return ta - tb;
+    });
 
-      const dupCounts = computeDuplicateKeys(items);
-
-      const header = [
-        "Date",
-        "Time",
-        "Shift",
-        "Ward",
-        "Staff",
-        "Phone",
+    // 2) Build rows (AOA) - add your existing columns here as needed
+    const aoa = [
+      [
+        "Booking ID",
+        "Pickup Date/Time",
         "Pickup",
         "Destination",
-        "Reference",
-        "Budget number",
-        "Flags",
-        "Action"
-      ];
+        "Reason Code",
+        "Budget Number",
+        "Budget Holder Name",
+      ],
+    ];
 
-      const aoa = [];
-      aoa.push(header);
-
-      items.forEach(b => {
-        const pickupFormatted = (b.pickup && b.pickup.formatted) || "";
-        const destFormatted   = (b.destination && b.destination.formatted) || "";
-        const shiftLabel = b.shiftType === "start"
-          ? "Start — to Derriford"
-          : b.shiftType === "finish"
-            ? "Finish — from Derriford"
-            : (b.shiftType || "");
-
-        const flags = getFlagsForBooking(b, dupCounts);
-        const hasManual = !!(b.manualFlagLabel || b.manualFlagReason);
-        const flagLabels = [];
-
-        if (flags.isDuplicate) flagLabels.push("Possible duplicate");
-        if (flags.missingAddress) flagLabels.push("Missing address");
-        if (hasManual) {
-          const lbl = (b.manualFlagLabel || "").trim();
-          const rsn = (b.manualFlagReason || "").trim();
-          const manualText = rsn || lbl || "Manual flag";
-          flagLabels.push("Manual: " + manualText);
-        }
-
-        const budgetNumber =
-          b.budgetNumber || b.budgetRef || b.budget || "";
-
-        let action = "";
-        if (hasManual) {
-          const lbl = (b.manualFlagLabel || "").trim();
-          action = lbl || "Review manual flag";
-        } else if (flags.missingAddress) {
-          action = "Fix address";
-        } else if (flags.isDuplicate) {
-          action = "Check duplicate";
-        }
-
-        const row = [
-          toDDMMYY(b.pickupDateISO || ""),
-          b.onOffDutyTime || "",
-          shiftLabel,
-          b.wardName || "",
-          b.staffName || "",
-          b.staffPhone || "",
-          pickupFormatted,
-          destFormatted,
-          b.shortRef || b.reference || "",
-          budgetNumber,
-          flagLabels.join(" | "),
-          action
-        ];
-
-        aoa.push(row);
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-
-      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob(
-        [wbout],
-        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bookings-${new Date().toISOString().slice(0,10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed", err);
-      alert("Export failed: " + err.message);
+    for (const b of bookingsSorted) {
+      aoa.push([
+        b.bookingId ?? b.id ?? "",
+        getSortIso(b) || "",
+        b.pickupAddress ?? b.pickup ?? "",
+        b.destinationAddress ?? b.destination ?? "",
+        b.reasonCode ?? "",          // <-- REQUIRED
+        b.budgetNumber ?? "",        // <-- REQUIRED
+        b.budgetHolderName ?? "",    // <-- REQUIRED
+      ]);
     }
+
+    // 3) Create workbook and download
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+
+    // Optional: make columns a bit wider (helps readability)
+    ws["!cols"] = [
+      { wch: 12 }, // Booking ID
+      { wch: 20 }, // Pickup Date/Time
+      { wch: 40 }, // Pickup
+      { wch: 40 }, // Destination
+      { wch: 12 }, // Reason Code
+      { wch: 14 }, // Budget Number
+      { wch: 22 }, // Budget Holder Name
+    ];
+
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `all-bookings-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Export failed", err);
+    alert("Export failed: " + (err?.message || err));
   }
+}
 
   async function deleteBooking(id) {
     if (!id) return;
